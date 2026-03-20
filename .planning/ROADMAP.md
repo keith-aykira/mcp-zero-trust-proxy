@@ -14,16 +14,16 @@
 3. Landing page form submits emails to Supabase (verified with test insert)
 4. Ready to deploy to Vercel when green-lit
 
-### Phase 1: Deep Research
+### Phase 1: Deep Research (COMPLETE)
 **Goal:** Build an evidence-based picture of market demand, competitive landscape, and technical feasibility before committing to building. This phase determines whether to proceed, pivot, or kill.
 **Requirements:** RSCH-01, RSCH-02, RSCH-03, RSCH-04, RSCH-05, RSCH-06
 **Plans:** 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Pain signals + MCP ecosystem pulse (RSCH-01, RSCH-03)
-- [ ] 01-02-PLAN.md — Competitor movement + technical landscape (RSCH-02, RSCH-05)
-- [ ] 01-03-PLAN.md — Buyer behavior analysis (RSCH-04)
-- [ ] 01-04-PLAN.md — Go/no-go synthesis brief (RSCH-06)
+- [x] 01-01-PLAN.md — Pain signals + MCP ecosystem pulse (RSCH-01, RSCH-03)
+- [x] 01-02-PLAN.md — Competitor movement + technical landscape (RSCH-02, RSCH-05)
+- [x] 01-03-PLAN.md — Buyer behavior analysis (RSCH-04)
+- [x] 01-04-PLAN.md — Go/no-go synthesis brief (RSCH-06)
 
 **Success Criteria:**
 1. 15+ real pain signals identified with direct quotes from developers (Reddit, Twitter/X, HN, Discord)
@@ -52,6 +52,16 @@ Plans:
 ### Phase 2: MVP Build
 **Goal:** Ship a functional, deployable proxy that protects real MCP servers.
 **Requirements:** PRXY-01, PRXY-02, PRXY-03, PRXY-04, PRXY-05, PRXY-06, RBAC-01, RBAC-02, RBAC-03, DOCS-01, DOCS-02, DOCS-03
+**Plans:** 6 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Go scaffolding, YAML config, core interfaces (PRXY-06)
+- [ ] 02-02-PLAN.md — MCP reverse proxy core with JSON-RPC parsing and SSE (PRXY-02)
+- [ ] 02-03-PLAN.md — OAuth 2.1 PKCE auth + session isolation (PRXY-01, PRXY-03)
+- [ ] 02-04-PLAN.md — RBAC engine, audit logger, rate limiter (RBAC-01, RBAC-02, RBAC-03, PRXY-04)
+- [ ] 02-05-PLAN.md — Pipeline wiring, main.go, Docker + binary packaging (PRXY-05)
+- [ ] 02-06-PLAN.md — Integration tests (5 server types) + quick-start docs (DOCS-01, DOCS-02, DOCS-03)
+
 **Success Criteria:**
 1. `docker run` command protects any MCP server with OAuth 2.1 PKCE
 2. RBAC enforces 3 built-in roles at the tool level
@@ -74,10 +84,10 @@ Plans:
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) |
-| 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 |
+| 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
 | 2 | MVP Build | Ship deployable proxy | PRXY-01 through PRXY-06, RBAC-01 through RBAC-03, DOCS-01 through DOCS-03 | 6 |
 | 3 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-20 after replacing Validation Sprint with Deep Research phase*
+*Last updated: 2026-03-19 after Phase 2 planning (6 plans across 5 waves)*
