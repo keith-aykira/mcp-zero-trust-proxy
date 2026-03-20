@@ -6,15 +6,21 @@ A drop-in reverse proxy that adds OAuth 2.1 PKCE authentication, tool-level RBAC
 
 **Domain:** mcpzerotrust.dev
 **Owner:** Andrew Noble (andrewnoble1992@gmail.com)
-**Stage:** Pre-launch (landing page built, domain purchased, research complete)
+**Stage:** Phase 0 complete (infra done, landing page NOT public yet)
+
+## Current State
+
+- **GitHub**: AnobleSCM/mcp-zero-trust-proxy (private)
+- **Supabase**: project ref `dwumoznjyckebuirghne` — waitlist table with RLS (anon insert, auth read)
+- **Landing page**: Wired to Supabase, NOT deployed to Vercel yet (deliberate — not going public yet)
+- **Domain**: mcpzerotrust.dev purchased on Vercel, not connected yet
+- **GSD**: Initialized in `.planning/` — 4 phases, 24 requirements
 
 ## Immediate Priorities
 
-1. **Initialize git repo and push to GitHub** (private repo: `mcp-zero-trust-proxy`)
-2. **Set up Supabase** — Create project, `waitlist` table (schema in HANDOFF.md), get anon key
-3. **Wire landing page form** — Replace localStorage in `landing-page/index.html` with Supabase REST API call
-4. **Deploy landing page to Vercel** — Connect repo, add env vars, attach mcpzerotrust.dev domain
-5. **Begin MVP proxy build** — Go-based reverse proxy (see PROJECT-BRIEF.md for architecture)
+1. **Deploy landing page to Vercel** — When ready to go public (connect mcpzerotrust.dev domain)
+2. **Phase 1: Validation Sprint** — Prove demand before building (outreach, discovery calls, waitlist signups)
+3. **Phase 2: MVP proxy build** — Go-based reverse proxy (see PROJECT-BRIEF.md for architecture)
 
 ## Key Files
 
@@ -24,7 +30,8 @@ A drop-in reverse proxy that adds OAuth 2.1 PKCE authentication, tool-level RBAC
 - `docs/research/COMPETITIVE-ANALYSIS.md` — 12 competitors analyzed with feature gap matrix
 - `docs/research/ATTACK-SURFACE.md` — Threat landscape: CVEs, breaches, exposed server counts
 - `docs/go-to-market/OUTREACH-MESSAGES.md` — Pre-written Discord, DM, Reddit, HN, and email templates
-- `landing-page/index.html` — Complete landing page (needs Supabase backend)
+- `landing-page/index.html` — Complete landing page (wired to Supabase, ready to deploy)
+- `.planning/` — GSD project tracking (PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md)
 
 ## Tech Stack
 
