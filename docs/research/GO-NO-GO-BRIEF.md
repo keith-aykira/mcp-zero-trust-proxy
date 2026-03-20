@@ -1,4 +1,4 @@
-# RSCH-06: Go/No-Go Decision Brief — MCP Zero-Trust Proxy
+# Go/No-Go Decision Brief — MCP Zero-Trust Proxy
 
 **Date:** 2026-03-19
 **Phase:** 1 — Deep Research Synthesis
@@ -11,7 +11,7 @@
 
 **Recommendation: CONDITIONAL GO**
 
-All 5 kill criteria pass, but 2 carry CAUTION flags: (1) SDK downloads are normalizing from peak, not accelerating, and (2) the competitive window is 3-6 months and narrowing. The strongest evidence is the pain — 15 genuine developer complaints, 87% at "blocking" or "dangerous" severity, with active breaches and 220K+ exposed instances. Nobody occupies the "simple + enterprise + transparent" lane yet.
+All 5 kill criteria pass, but 2 carry CAUTION flags: (1) SDK downloads are normalizing from peak, not accelerating, and (2) the competitive window is 3-6 months and narrowing. The strongest evidence is the pain — 14 genuine developer complaints, 86% at "blocking" or "dangerous" severity, with active breaches and 220K+ exposed instances. Nobody occupies the "simple + enterprise + transparent" lane yet.
 
 Proceed to MVP build, but ship fast. The window closes with every passing month.
 
@@ -21,7 +21,7 @@ Proceed to MVP build, but ship fast. The window closes with every passing month.
 
 | # | Kill Criterion | Status | Confidence | Key Evidence |
 |---|---|---|---|---|
-| 1 | Pain is theoretical (< 5 genuine complaints) | **PASS** | HIGH | 15 complaints found, 87% blocking/dangerous, active breaches |
+| 1 | Pain is theoretical (< 5 genuine complaints) | **PASS** | HIGH | 14 complaints found, 86% blocking/dangerous, active breaches |
 | 2 | Competitor shipped turnkey solution | **CAUTION** | HIGH | No turnkey competitor in our lane, but IBM shipped RBAC + 4 new entrants in 90 days |
 | 3 | MCP spec adding built-in auth | **PASS** | HIGH | OAuth 2.1 in spec but optional. No platform shipping enforcement. |
 | 4 | MCP adoption stalling | **CAUTION** | MEDIUM | Downloads down 13% from Nov peak. Still massive (52M/mo). Enterprise accelerating. |
@@ -37,8 +37,8 @@ Proceed to MVP build, but ship fast. The window closes with every passing month.
 
 **Status: PASS | Confidence: HIGH**
 
-- Pain signals found: 15 (threshold: 5+)
-- Severity breakdown: 9 dangerous (60%), 4 blocking (27%), 2 annoying (13%)
+- Pain signals found: 14 (threshold: 5+)
+- Severity breakdown: 8 dangerous (57%), 4 blocking (29%), 2 annoying (14%)
 - Key quotes:
   1. "220,000+ OpenClaw instances are exposed to the public internet. Many without authentication." — @hqmank, Twitter, Mar 2026
   2. "Compliance team says 'hell no'" — @OranAITech, Twitter, Mar 2026
@@ -142,11 +142,11 @@ If 2+ kill criteria flip to FAIL:
 
 | Report | Data Quality | Coverage | Confidence |
 |--------|-------------|----------|------------|
-| RSCH-01: Pain Signals | HIGH (direct quotes with URLs) | 15 signals across 3 platforms | **HIGH** |
-| RSCH-02: Competitor Movement | HIGH (GitHub stats, release notes, pricing pages) | 12/12 original + 4 new entrants | **HIGH** |
-| RSCH-03: Ecosystem Pulse | MEDIUM (PyPI stats reliable, npm needs manual aggregation) | SDK downloads + server counts + enterprise signals | **MEDIUM** |
-| RSCH-04: Buyer Behavior | MEDIUM (pricing from vendor pages, WTP extrapolated from adjacent markets) | 9 tool benchmarks, 4 segments, 6 triggers | **MEDIUM** |
-| RSCH-05: Technical Landscape | HIGH (CVEs from NVD, platform announcements from official docs) | 6 CVEs, 4 platform vendors, OWASP/NIST/SOC2 | **HIGH** |
+| Pain Signals | HIGH (direct quotes with URLs) | 14 signals across 3 platforms | **HIGH** |
+| Competitive Analysis | HIGH (GitHub stats, release notes, pricing pages) | 12/12 original + 4 new entrants | **HIGH** |
+| MCP Ecosystem Pulse | MEDIUM (PyPI stats reliable, npm needs manual aggregation) | SDK downloads + server counts + enterprise signals | **MEDIUM** |
+| Buyer Behavior | MEDIUM (pricing from vendor pages, WTP extrapolated from adjacent markets) | 9 tool benchmarks, 4 segments, 6 triggers | **MEDIUM** |
+| Technical Landscape | HIGH (CVEs from NVD, platform announcements from official docs) | 6 CVEs, 4 platform vendors, OWASP/NIST/SOC2 | **HIGH** |
 
 **Overall research confidence: MEDIUM-HIGH.** Pain and competition evidence is strong. Buyer WTP and ecosystem trajectory have some extrapolation from adjacent markets.
 
@@ -154,13 +154,12 @@ If 2+ kill criteria flip to FAIL:
 
 ## Appendix: Source Reports
 
-- [RSCH-01: Pain Signals](RSCH-01-PAIN-SIGNALS.md)
-- [RSCH-02: Competitor Movement](RSCH-02-COMPETITOR-MOVEMENT.md)
-- [RSCH-03: Ecosystem Pulse](RSCH-03-ECOSYSTEM-PULSE.md)
-- [RSCH-04: Buyer Behavior](RSCH-04-BUYER-BEHAVIOR.md)
-- [RSCH-05: Technical Landscape](RSCH-05-TECHNICAL-LANDSCAPE.md)
-- [Baseline: Competitive Analysis](COMPETITIVE-ANALYSIS.md)
-- [Baseline: Attack Surface](ATTACK-SURFACE.md)
+- [Pain Signals](PAIN-SIGNALS.md)
+- [Competitive Analysis](COMPETITIVE-ANALYSIS.md)
+- [MCP Ecosystem Pulse](MCP-ECOSYSTEM-PULSE.md)
+- [Buyer Behavior](BUYER-BEHAVIOR.md)
+- [Technical Landscape](TECHNICAL-LANDSCAPE.md)
+- [Attack Surface](ATTACK-SURFACE.md) (baseline)
 
 ---
 

@@ -173,7 +173,7 @@ The closest competitor (MCP Auth Proxy by sigbit) is free and drop-in but lacks 
 
 ## Update: 2026-03-19
 
-**Methodology:** Exa deep_researcher_pro + targeted Exa advanced search. Full details in RSCH-02-COMPETITOR-MOVEMENT.md.
+**Methodology:** Exa deep_researcher_pro + targeted Exa advanced search.
 
 ### Competitor Status Updates
 
@@ -200,6 +200,23 @@ The closest competitor (MCP Auth Proxy by sigbit) is free and drop-in but lacks 
 | Salt Security | Agentic Security Platform for AI stack | Low (broader scope, enterprise) |
 | prmichaelsen/mcp-auth | OSS TypeScript auth wrapper, zero-modification | Low-Medium (validates our thesis but library not proxy) |
 | AthenZ/mcp-oauth-proxy | Java enterprise MCP OAuth proxy, 0 stars | Low (very early) |
+
+### Updated Feature Matrix
+
+| Feature | sigbit | Kong | CF | IBM CF | Lunar | MintMCP | Pomerium | Stacklok | Cerbos | **Us** |
+|---------|--------|------|----|--------|-------|---------|----------|----------|--------|--------|
+| Drop-in (1 cmd) | Y | N | N | N | N | N | N | N | N | **Y** |
+| OAuth 2.1 PKCE | Y | Y | Y | Y | ~ | Y | Y | Y | N | **Y** |
+| Tool-level RBAC | N | Y | N | **Y** | Y | ~ | Y | Y | Y | **Y** |
+| Session isolation | N | N | N | ~ | N | N | Y | N | N | **Y** |
+| Audit logging | N | Y | Y | Y | Y | Y | Y | Y | N | **Y** |
+| Self-hosted | Y | ~ | N | Y | Y | ~ | Y | Y | Y | **Y** |
+| Transparent pricing | Y(free) | N | N | Y(free) | **Y** | N | Y | Y(free) | Y | **Y** |
+| Simple deploy | Y | N | ~ | N | ~ | N | ~ | ~ | ~ | **Y** |
+
+### Other Notable Activity
+- 10+ agentic security startups identified by CRN: 7AI, Dropzone AI, Furl, Noma Security, Operant AI, Prophet Security, Reach Security, Simbian, WitnessAI
+- cyproxio/mcp-for-security: OSS pentesting tools wrapped as MCP servers (complementary, not competitive)
 
 ### Kill Criteria Assessment
 **"A competitor has shipped a turnkey solution that closes our gap"**

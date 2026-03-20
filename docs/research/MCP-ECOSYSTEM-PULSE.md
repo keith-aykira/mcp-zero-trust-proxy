@@ -1,4 +1,4 @@
-# RSCH-03: MCP Ecosystem Pulse (Mar 2026)
+# MCP Ecosystem Pulse (Mar 2026)
 
 **Research date:** 2026-03-19 | **Source:** Exa deep_researcher_pro
 

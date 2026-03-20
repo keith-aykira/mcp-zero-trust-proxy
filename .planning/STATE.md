@@ -20,12 +20,12 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 ## Phase 1 Progress (COMPLETE)
 
-- [x] RSCH-01: Pain signal analysis — 15 genuine complaints found, pain is real and escalating
-- [x] RSCH-02: Competitor movement report — 12 competitors updated + 2 new entrants, no turnkey solution in our lane
-- [x] RSCH-03: MCP ecosystem pulse — 52M+/mo PyPI downloads, ~4K servers, enterprise adoption accelerating
-- [x] RSCH-04: Buyer behavior analysis — $49+/mo viable, pricing benchmarks mapped across 4 segments
-- [x] RSCH-05: Technical landscape update — 6 new CVEs, new attack vectors, no mandatory spec auth
-- [x] RSCH-06: Go/no-go brief — ALL 5 KILL CRITERIA PASS → DECISION: GO
+- [x] Pain signal analysis — 14 genuine complaints found, pain is real and escalating → `docs/research/PAIN-SIGNALS.md`
+- [x] Competitor movement report — 12 competitors updated + 4 new entrants, no turnkey solution in our lane → `docs/research/COMPETITIVE-ANALYSIS.md`
+- [x] MCP ecosystem pulse — 52M+/mo PyPI downloads, ~4K servers, enterprise adoption accelerating → `docs/research/MCP-ECOSYSTEM-PULSE.md`
+- [x] Buyer behavior analysis — $49+/mo viable, pricing benchmarks mapped across 4 segments → `docs/research/BUYER-BEHAVIOR.md`
+- [x] Technical landscape update — 6 new CVEs, new attack vectors, no mandatory spec auth → `docs/research/TECHNICAL-LANDSCAPE.md`
+- [x] Go/no-go brief — ALL 5 KILL CRITERIA PASS → DECISION: GO → `docs/research/GO-NO-GO-BRIEF.md`
 
 ## Accumulated Context
 
@@ -40,5 +40,5 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - Research approach: Deep research over outreach — Exa deep research pro, advanced search, company research
 - Phase 1 research cost: ~$6.86 across 5 Exa deep_researcher_pro queries
 - Go/no-go decision: GO — all 5 kill criteria passed
-- Research files: docs/research/RSCH-01 through RSCH-06
+- Research files: docs/research/ (PAIN-SIGNALS, COMPETITIVE-ANALYSIS, MCP-ECOSYSTEM-PULSE, BUYER-BEHAVIOR, TECHNICAL-LANDSCAPE, GO-NO-GO-BRIEF)
 - Key risk: Window is 3-6 months before market consolidates (IBM adding features, PointGuard AI entered Mar 18)

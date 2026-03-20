@@ -1,4 +1,4 @@
-# RSCH-01: Developer Pain Signals (Jan–Mar 2026)
+# Developer Pain Signals (Jan–Mar 2026)
 
 **Research date:** 2026-03-19 | **Source:** Exa deep_researcher_pro
 
@@ -6,7 +6,7 @@
 
 ## Summary
 
-15 genuine developer complaints found across Reddit, Hacker News, and Twitter/X. Pain is REAL, not theoretical.
+14 genuine developer complaints found across Reddit, Hacker News, and Twitter/X. Pain is REAL, not theoretical.
 
 ---
 
@@ -76,15 +76,11 @@
 > "Wasted 45 minutes going round in circles because I couldn't properly validate my auth-profiles.json file"
 - **Severity:** Mild-moderate — developer productivity drain
 
-**13. @CyberEdition — 312,000 user breach + RCE (2026-02-22)**
-> "A significant security breach has impacted OpenClaw, exposing 312,000 users and revealing a critical remote code execution vulnerability."
-- **Severity:** Major incident — malware distribution
-
-**14. @geeknik — "patch or eliminate the software" (2026-03-06)**
+**13. @geeknik — "patch or eliminate the software" (2026-03-06)**
 > "OpenClaw's rapid growth reveals a significant security risk... The author urges immediate action – patching or eliminating the software"
 - **Severity:** Enterprise blocker
 
-**15. @NextBullReady — "dumped ALL their API keys" (2026-01-31)**
+**14. @NextBullReady — "dumped ALL their API keys" (2026-01-31)**
 > "Someone said 'hello' and it just dumped ALL their API keys (Anthropic, Gemini, everything)"
 - **Severity:** High — secret exfiltration
 
@@ -104,11 +100,11 @@
 
 | Severity | Count | % | Examples |
 |----------|-------|---|----------|
-| **Dangerous** (security incident / active exploit) | 9 | 60% | #6 RCE via webhook, #10 drive-by hijack, #11 220K exposed, #13 312K breach |
-| **Blocking** (prevents production adoption) | 4 | 27% | #1 no enforced RBAC, #3 no audit, #8 compliance team rejection, #14 "patch or eliminate" |
-| **Annoying** (friction / productivity drain) | 2 | 13% | #2 daily auth failures, #12 config validation pain |
+| **Dangerous** (security incident / active exploit) | 8 | 57% | #6 RCE via webhook, #10 drive-by hijack, #11 220K exposed, #14 secret exfiltration |
+| **Blocking** (prevents production adoption) | 4 | 29% | #1 no enforced RBAC, #3 no audit, #8 compliance team rejection, #13 "patch or eliminate" |
+| **Annoying** (friction / productivity drain) | 2 | 14% | #2 daily auth failures, #12 config validation pain |
 
-**Key takeaway:** 87% of signals are "blocking" or "dangerous" — this is not mild annoyance, it's crisis-level.
+**Key takeaway:** 86% of signals are "blocking" or "dangerous" — this is not mild annoyance, it's crisis-level.
 
 ---
 
@@ -136,7 +132,7 @@ Developers are building DIY solutions — every one of these is a product opport
 
 **"Pain is theoretical, not real (fewer than 5 genuine developer complaints found)"**
 
-**VERDICT: CLEAR PASS.** Found 15 genuine complaints with direct quotes. 87% are "blocking" or "dangerous" severity. Multiple active security incidents, not just theoretical concerns. Developers are being hacked, not just worried about being hacked.
+**VERDICT: CLEAR PASS.** Found 14 genuine complaints with direct quotes. 86% are "blocking" or "dangerous" severity. Multiple active security incidents, not just theoretical concerns. Developers are being hacked, not just worried about being hacked.
 
 **Confidence: HIGH** — Multiple independent sources (Reddit, HN, Twitter/X), direct developer quotes with URLs, corroborated by vendor security advisories.
 

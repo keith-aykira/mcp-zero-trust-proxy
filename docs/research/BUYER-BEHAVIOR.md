@@ -1,4 +1,4 @@
-# RSCH-04: Buyer Behavior Analysis
+# Buyer Behavior Analysis
 
 **Research date:** 2026-03-19 | **Source:** Exa deep_researcher_pro
 
