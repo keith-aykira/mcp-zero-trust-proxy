@@ -70,6 +70,18 @@ The competitive landscape has intensified significantly since the initial analys
 - **Pricing:** OSS PDP free; Cerbos Hub from $25/mo (dev) to ~$933/mo (production)
 - **Assessment:** Policy engine, not a proxy. Still requires SDK integration + separate auth. Complementary, not competitive.
 
+### oauth-mcp-proxy (tuannvm) — STILL ACTIVE, STILL A LIBRARY
+- **Latest push:** 2026-03-05
+- **GitHub:** 21 stars, 7 forks
+- **Still a Go library, NOT a proxy** — requires `WithOAuth()` SDK integration and code changes
+- **Still missing:** Everything beyond basic OAuth (no RBAC, no audit, no session isolation)
+- **Assessment:** Not a competitive threat — different category (library vs. drop-in proxy)
+
+### mcp-oauth-gateway (atrawog) — NO UPDATES FOUND
+- No new releases or activity found in searches since initial analysis
+- Single-provider (GitHub only), no RBAC/audit
+- **Assessment:** Effectively dormant. Not a threat.
+
 ### WSO2 open-mcp-auth-proxy — CONFIRMED DEAD
 - Archived under wso2-attic (2026-02-02)
 - Last release v1.3.0 (Sep 2025)
@@ -88,6 +100,17 @@ The competitive landscape has intensified significantly since the initial analys
 - Targets the full AI stack (LLMs, MCP servers, APIs)
 - Broader scope than our focused proxy
 - **Assessment:** Enterprise play, not competing for our simple proxy market.
+
+### prmichaelsen/mcp-auth — NEW (Open Source)
+- TypeScript wrapper adding auth + multi-tenancy to MCP servers
+- Zero code changes (wraps existing servers)
+- Supports JWT, env vars, custom auth; rate limiting, logging, timeouts
+- **Assessment:** Closest OSS alternative to our approach (zero-modification). But it's a library/wrapper, not a managed proxy. No audit dashboard, no hosted option, no RBAC policies UI. Validates our thesis that zero-modification auth is desired.
+
+### AthenZ/mcp-oauth-proxy — NEW (Jan 2026)
+- Java-based enterprise OAuth proxy for MCP and A2A
+- 0 stars, 3 contributors, Apache 2.0
+- **Assessment:** Very early, no traction. Enterprise-focused (Yahoo/Verizon Media lineage). Watch.
 
 ### Other Notable Activity
 - 10+ agentic security startups identified by CRN: 7AI, Dropzone AI, Furl, Noma Security, Operant AI, Prophet Security, Reach Security, Simbian, WitnessAI
@@ -114,7 +137,9 @@ The competitive landscape has intensified significantly since the initial analys
 
 **"A competitor has shipped a turnkey solution that closes our gap"**
 
-**VERDICT: NO.** IBM ContextForge added RBAC but still requires Redis + K8s. Pomerium added MCP but isn't MCP-first. No competitor offers drop-in simplicity + full enterprise features + transparent pricing in one product. Our lane is intact but narrowing.
+**VERDICT: PASS (with CAUTION).** IBM ContextForge added RBAC but still requires Redis + K8s. Pomerium added MCP but isn't MCP-first. prmichaelsen/mcp-auth offers zero-modification auth but is a library, not managed. No competitor offers drop-in simplicity + full enterprise features + transparent pricing in one product. Our lane is intact but narrowing — 3-6 month window.
+
+**Confidence: HIGH** — All 12 original competitors checked, 4 new entrants identified, GitHub data verified.
 
 ---
 

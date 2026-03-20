@@ -1,150 +1,167 @@
-# RSCH-06: Go/No-Go Brief — MCP Zero-Trust Proxy
+# RSCH-06: Go/No-Go Decision Brief — MCP Zero-Trust Proxy
 
-**Date:** 2026-03-19 | **Decision required by:** Andrew Noble
-
----
-
-## Executive Summary
-
-All five kill criteria evaluated. None triggered. **Recommendation: GO.**
-
-The MCP security market has real pain (15+ developer complaints with direct quotes), a growing threat landscape (6 new CVEs in Feb-Mar 2026 alone), no turnkey competitor occupying our lane (simple + enterprise + transparent pricing), strong ecosystem adoption (52M+ monthly PyPI downloads, ~4K+ registered servers, Fortune-scale enterprise adoption), and viable buyer segments willing to pay $49+/mo.
-
-However, the window is narrowing. IBM ContextForge shipped RBAC, Pomerium added MCP support, and PointGuard AI just launched (Mar 18). We need to ship MVP fast.
+**Date:** 2026-03-19
+**Phase:** 1 — Deep Research Synthesis
+**Decision maker:** Andrew Noble
+**Prepared by:** Claude (AI research assistant)
 
 ---
 
-## Kill Criteria Scoring
+## Bottom Line Up Front
 
-### 1. Pain is theoretical, not real (fewer than 5 genuine complaints)
+**Recommendation: CONDITIONAL GO**
 
-| Score | Evidence |
-|-------|----------|
-| **CLEAR PASS** | 15 genuine developer complaints with direct quotes found across Reddit, HN, and Twitter/X |
+All 5 kill criteria pass, but 2 carry CAUTION flags: (1) SDK downloads are normalizing from peak, not accelerating, and (2) the competitive window is 3-6 months and narrowing. The strongest evidence is the pain — 15 genuine developer complaints, 87% at "blocking" or "dangerous" severity, with active breaches and 220K+ exposed instances. Nobody occupies the "simple + enterprise + transparent" lane yet.
 
-**Key evidence:**
-- 220K+ exposed MCP instances (Twitter, Mar 2026)
-- 312K user breach with RCE (Twitter, Feb 2026)
-- "30 CVEs in 60 days, 437K compromised downloads" (HN, Mar 2026)
-- "Compliance team says hell no" to MCP deployments (Twitter, Mar 2026)
-- Daily auth token failures in production connectors (Reddit, Mar 2026)
-
-**Pain is not just real — it's escalating.** Developers are being actively hacked, not just worried.
+Proceed to MVP build, but ship fast. The window closes with every passing month.
 
 ---
 
-### 2. A competitor has shipped a turnkey solution that closes our gap
+## Kill Criteria Scorecard
 
-| Score | Evidence |
-|-------|----------|
-| **PASS (but narrowing)** | No competitor offers drop-in + enterprise features + transparent pricing |
+| # | Kill Criterion | Status | Confidence | Key Evidence |
+|---|---|---|---|---|
+| 1 | Pain is theoretical (< 5 genuine complaints) | **PASS** | HIGH | 15 complaints found, 87% blocking/dangerous, active breaches |
+| 2 | Competitor shipped turnkey solution | **CAUTION** | HIGH | No turnkey competitor in our lane, but IBM shipped RBAC + 4 new entrants in 90 days |
+| 3 | MCP spec adding built-in auth | **PASS** | HIGH | OAuth 2.1 in spec but optional. No platform shipping enforcement. |
+| 4 | MCP adoption stalling | **CAUTION** | MEDIUM | Downloads down 13% from Nov peak. Still massive (52M/mo). Enterprise accelerating. |
+| 5 | No buyer segment willing to pay $49+/mo | **PASS** | MEDIUM | Comparable tools at $25-50/dev/mo. Lunar charges $250/gateway. But no MCP-specific WTP survey exists. |
 
-**Competitive landscape:**
-- **sigbit (closest):** Drop-in but NO RBAC, audit, session isolation. Free/OSS.
-- **IBM ContextForge:** Now has RBAC but requires Redis + K8s. NOT simple.
-- **Pomerium:** Added MCP support but general-purpose zero-trust, not MCP-first.
-- **Lunar MCPX:** $250/gateway/mo — expensive and SaaS-focused.
-- **Kong/Cloudflare:** Enterprise complex, vendor lock-in.
-- **PointGuard AI:** Just announced (Mar 18) — no product yet.
-
-**Our lane (simple + enterprise + transparent) remains unoccupied.** But competitors are converging — IBM from the enterprise side, sigbit from the simple side.
+**Overall: 3 PASS, 2 CAUTION, 0 FAIL → CONDITIONAL GO**
 
 ---
 
-### 3. MCP spec or Anthropic/OpenAI is adding built-in auth that eliminates the need
+## Detailed Evidence by Criterion
 
-| Score | Evidence |
-|-------|----------|
-| **PASS** | OAuth 2.1 added to spec but optional. No platform shipping enforcement. |
+### Criterion 1: Pain is Theoretical
 
-**Key findings:**
-- MCP spec now includes OAuth 2.1 — but it's a STANDARD, not a MANDATE. Implementations can still skip it.
-- **Anthropic:** No built-in auth gateway announced. Focus on agent evals and Claude Code integration.
-- **OpenAI:** No MCP auth announcements in Jan-Mar 2026.
-- **Microsoft:** Building auth into Azure managed MCP (Foundry), but only for Azure customers.
-- **Google:** MCP Toolbox SDK with auth for GCP, but only for GCP customers.
+**Status: PASS | Confidence: HIGH**
 
-**The gap between "auth is available" and "auth is enforced" is our product.** Platform vendors are solving auth for THEIR managed offerings, leaving the self-hosted/multi-cloud/open-source long tail unprotected.
+- Pain signals found: 15 (threshold: 5+)
+- Severity breakdown: 9 dangerous (60%), 4 blocking (27%), 2 annoying (13%)
+- Key quotes:
+  1. "220,000+ OpenClaw instances are exposed to the public internet. Many without authentication." — @hqmank, Twitter, Mar 2026
+  2. "Compliance team says 'hell no'" — @OranAITech, Twitter, Mar 2026
+  3. "MCP removed integration friction fast but it also merged tool access data access and decision authority before most teams defined ownership or risk boundaries." — r/AI_Agents, Jan 2026
+- Workarounds observed: nginx+Authelia, Cloudflare Access, bearer tokens in config, mcp-remote OAuth bridge, Azure APIM, prmichaelsen/mcp-auth wrapper, manual disconnect/reconnect
+- **Assessment:** Pain is real, escalating, and driving DIY workarounds. Every workaround is either too simple (no RBAC/audit) or too complex (requires K8s/Azure). Our "simple middle ground" has clear demand.
+
+### Criterion 2: Competitor Shipped Turnkey Solution
+
+**Status: CAUTION | Confidence: HIGH**
+
+- Closest competitor: IBM ContextForge — now has RBAC (shipped in v1.0.0-RC2, Mar 9) but requires Redis + K8s
+- Gap analysis: No competitor checks ALL boxes (drop-in + RBAC + audit + session isolation + self-hosted + transparent pricing)
+- All 12 original competitors verified + 4 new entrants (PointGuard AI, Salt Security, prmichaelsen/mcp-auth, AthenZ/mcp-oauth-proxy)
+- Time window estimate: 3-6 months before market consolidates
+- **Why CAUTION, not PASS:** The rate of competitor entry is accelerating. IBM shipped RBAC in one release cycle. Pomerium added full MCP support. PointGuard AI launched with direct competitor positioning (Mar 18). We're one product cycle away from someone else shipping this.
+
+### Criterion 3: MCP Spec Adding Built-in Auth
+
+**Status: PASS | Confidence: HIGH**
+
+- Current spec auth status: OAuth 2.1 added as a standard (not mandate). Implementations can skip it.
+- Planned changes: SMCP (Secure MCP) proposals exist as community documents, not merged into official spec
+- Platform announcements: Microsoft and Google building auth into THEIR managed offerings only. Anthropic/OpenAI have NOT announced built-in auth gateways.
+- Timeline risk: No evidence of mandatory spec auth in next 6-12 months. Even if added, enforcement + RBAC + audit + session isolation remain beyond spec scope.
+- **Assessment:** The spec standardizes auth flows but doesn't enforce them. Enforcement is our product. Platform vendors are solving for their own customers, leaving the multi-cloud/self-hosted/OSS long tail open.
+
+### Criterion 4: MCP Adoption Stalling
+
+**Status: CAUTION | Confidence: MEDIUM**
+
+- SDK downloads: PyPI `mcp` package — Nov 2025 peak (~60M/mo) → Feb 2026 (~52M/mo) = **-13%**
+- Server count: ~4K on Smithery, ~10K+ ecosystem-wide
+- Platform support: 6 major platforms (Claude, ChatGPT, Copilot, Cursor, Windsurf, n8n)
+- Enterprise signals: Atlassian Rovo GA, PayPal MCP, Entro AGA, SurePath AI
+- **Why CAUTION, not PASS:** Downloads are normalizing, not crashing, but we don't have evidence of re-acceleration. The 97M/mo figure from earlier reports may have included aggregate SDK + server packages. Enterprise adoption signals are strong qualitatively but lack hard install counts.
+- **Why not FAIL:** 52M monthly downloads is enormous absolute volume. No competing protocol exists. Enterprise adoption is accelerating even as hype-phase downloads moderate.
+
+### Criterion 5: No Buyer Segment Willing to Pay $49+/mo
+
+**Status: PASS | Confidence: MEDIUM**
+
+- Comparable tool pricing: $25-50/dev/mo (Snyk, Socket, Semgrep); $7/user/mo (zero-trust proxies)
+- Our pricing vs market: $49/mo is below Lunar ($250/gateway) and in line with developer security tool norms
+- Most viable segment: Small teams (2-20 devs) with compliance pressure
+- Purchase triggers: compliance audit, security incident, customer requirement, insurance
+- Revenue path: 10-18 paying customers needed for $500 MRR target
+- **Why MEDIUM confidence, not HIGH:** No direct survey of "would you pay for MCP security specifically?" exists. We're extrapolating from adjacent categories (API security, zero-trust proxies, dev security tools). The $25/mo indie benchmark and $250/gateway Lunar ceiling bracket our price well, but nobody has proven MCP-specific paid demand yet.
 
 ---
 
-### 4. MCP adoption is stalling (flat or declining SDK downloads)
+## Strengths (Reasons to Proceed)
 
-| Score | Evidence |
-|-------|----------|
-| **PASS** | Downloads normalizing from hype peak but at massive absolute volume |
-
-**Download trends:**
-- PyPI `mcp` package: Nov 2025 peak (~60M/mo) → Feb 2026 (~52M/mo). Down 13% but still enormous.
-- This is expected hype-to-normalization, not a crash.
-- Enterprise adoption is ACCELERATING even as raw downloads moderate: Atlassian Rovo GA, PayPal MCP, Entro AGA, SurePath AI.
-- 6 AI platforms now support MCP natively. No competing protocol has emerged.
-- ~4K+ servers on Smithery, ~10K+ ecosystem-wide estimate.
-
-**MCP is the de facto standard. Adoption is settling into enterprise patterns, which is what we need for a paid security product.**
+1. **Pain is acute and worsening** — active breaches, 220K+ exposed servers, 30+ CVEs, compliance teams blocking adoption
+2. **Clear product gap** — nobody has simple + enterprise + transparent pricing in one product
+3. **Standard without enforcement** — OAuth 2.1 in spec but optional = our product fills the enforcement gap
+4. **Platform fragmentation** — Microsoft/Google solving for their own clouds leaves multi-cloud/OSS market open
+5. **Workaround proliferation** — nginx+Authelia, Azure APIM, mcp-auth wrapper all validate demand for exactly what we're building
 
 ---
 
-### 5. No viable buyer segment willing to pay $49+/mo
-
-| Score | Evidence |
-|-------|----------|
-| **PASS** | Multiple segments, clear pricing benchmarks support $49+ |
-
-**Pricing evidence:**
-- Solo devs pay $25/mo for security tools (Snyk, Socket — established pattern)
-- Small teams pay $25-50/user/mo (industry standard)
-- Lunar MCPX charges $250/gateway/mo for team tier — 5x our target
-- The gap between free (sigbit) and enterprise (Kong, Cloudflare) is wide
-- Compliance triggers (SOC 2, security incidents) force purchase regardless of price sensitivity
-- Zero-trust proxy benchmark: $7/user/mo (Pomerium, Cloudflare Access)
-
-**Recommended tiers:** Free → $29/mo (Pro) → $49+$15/seat (Team) → $199/mo (Business) → Custom (Enterprise)
-
----
-
-## Risk Register
+## Risks (Reasons for Caution)
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| IBM ContextForge simplifies deployment | Medium | High | Ship before they do. Our Docker one-liner is months ahead of their K8s stack. |
-| Anthropic ships built-in auth enforcement | Low (next 6mo) | Fatal | Monitor spec repo weekly. Pivot to audit/RBAC if core auth becomes enforced. |
-| PointGuard AI launches before us | Medium | Medium | They just announced — we can ship MVP before they have product-market fit. |
-| MCP adoption declines further | Low | High | Download volumes are normalizing, not crashing. Enterprise signals remain strong. |
-| Free tier cannibalizes paid | Medium | Medium | Gate SSO, audit logs, and team features behind paid. Standard open-core model. |
+| IBM ContextForge simplifies to single Docker command | Medium | High | Ship before they do. Our MVP target is 4-6 weeks. |
+| Anthropic ships mandatory auth enforcement in spec | Low (next 6mo) | Fatal | Monitor spec repo weekly. Pivot to audit/RBAC if core auth becomes enforced. |
+| PointGuard AI launches a product before us | Medium | Medium | They announced Mar 18 with no product. We can ship first. |
+| MCP adoption continues declining | Low | High | Enterprise adoption accelerating compensates for hype-phase download normalization. |
+| Free OSS (sigbit, mcp-auth) is "good enough" | Medium | Medium | Gate RBAC, audit, session isolation, SSO behind paid tiers. |
+| Solo founder capacity — can we actually ship in 4-6 weeks? | Medium | High | Scope MVP tightly. Go binary + YAML config. No dashboard UI in v1. |
 
 ---
 
-## Timing Assessment
+## If GO: Recommended Next Steps
 
-**The window is open but closing.** Evidence:
-- 10+ agentic security startups identified by CRN in 2026
-- IBM, Pomerium, Stacklok all adding MCP features rapidly
-- PointGuard AI announced Mar 18 — direct competitor positioning
-- Enterprise demand is NOW (Atlassian, PayPal, Entro, SurePath)
-
-**Estimated viable window:** 3-6 months to establish position before the market consolidates.
-
----
-
-## Decision
-
-### GO ✓
-
-**Rationale:**
-1. Pain is real and escalating (15+ genuine complaints, active breaches)
-2. No turnkey competitor in our lane (simple + enterprise + transparent)
-3. Platforms aren't eliminating the need (auth is optional, enforcement is our product)
-4. Adoption is massive (52M+ monthly downloads, enterprise acceleration)
-5. Viable pricing at $49+/mo (market benchmarks support it)
-
-### Recommended Next Steps
-
-1. **Deploy landing page to Vercel** — connect mcpzerotrust.dev, start collecting waitlist
-2. **Phase 2: MVP Build** — Go proxy with OAuth 2.1 PKCE, RBAC (3 roles), audit logging, session isolation
+1. **Deploy landing page to Vercel** — connect mcpzerotrust.dev, start collecting waitlist signups now
+2. **Phase 2: MVP Build** — Go proxy: OAuth 2.1 PKCE, 3 built-in RBAC roles, JSON audit log, session isolation
 3. **Target:** Ship MVP within 4-6 weeks
 4. **First customers:** Solo devs + small teams running open-source MCP servers (self-hosted market)
+5. **Pricing:** Launch with Free + Pro ($29/mo) + Team ($49/mo) tiers only. Add Business/Enterprise after first revenue.
+
+## If PIVOT: Recommended Direction
+
+If evidence changes (e.g., mandatory auth in spec, IBM ships simple deploy):
+- **Pivot A:** Narrow to audit/compliance layer only (RBAC + audit logging + compliance reports). Auth becomes table stakes, enforcement/compliance remains paid.
+- **Pivot B:** Shift to managed gateway-as-a-service (like Lunar/Cloudflare) instead of self-hosted proxy. Higher margin, different buyer.
+- **Pivot C:** Open-source the proxy, monetize via hosted dashboard + analytics (Grafana model).
+
+## If KILL: Recommended Actions
+
+If 2+ kill criteria flip to FAIL:
+1. Take landing page offline
+2. Write post-mortem documenting what was learned
+3. Redirect energy to AutoTrader ETF or AutoFoundry (both have active revenue paths)
+4. Keep research docs — competitive analysis has standalone value
 
 ---
 
-*Research cost: ~$6.86 across 5 Exa deep_researcher_pro queries (85+ pages per query, 420+ total sources)*
+## Research Confidence Assessment
+
+| Report | Data Quality | Coverage | Confidence |
+|--------|-------------|----------|------------|
+| RSCH-01: Pain Signals | HIGH (direct quotes with URLs) | 15 signals across 3 platforms | **HIGH** |
+| RSCH-02: Competitor Movement | HIGH (GitHub stats, release notes, pricing pages) | 12/12 original + 4 new entrants | **HIGH** |
+| RSCH-03: Ecosystem Pulse | MEDIUM (PyPI stats reliable, npm needs manual aggregation) | SDK downloads + server counts + enterprise signals | **MEDIUM** |
+| RSCH-04: Buyer Behavior | MEDIUM (pricing from vendor pages, WTP extrapolated from adjacent markets) | 9 tool benchmarks, 4 segments, 6 triggers | **MEDIUM** |
+| RSCH-05: Technical Landscape | HIGH (CVEs from NVD, platform announcements from official docs) | 6 CVEs, 4 platform vendors, OWASP/NIST/SOC2 | **HIGH** |
+
+**Overall research confidence: MEDIUM-HIGH.** Pain and competition evidence is strong. Buyer WTP and ecosystem trajectory have some extrapolation from adjacent markets.
+
+---
+
+## Appendix: Source Reports
+
+- [RSCH-01: Pain Signals](RSCH-01-PAIN-SIGNALS.md)
+- [RSCH-02: Competitor Movement](RSCH-02-COMPETITOR-MOVEMENT.md)
+- [RSCH-03: Ecosystem Pulse](RSCH-03-ECOSYSTEM-PULSE.md)
+- [RSCH-04: Buyer Behavior](RSCH-04-BUYER-BEHAVIOR.md)
+- [RSCH-05: Technical Landscape](RSCH-05-TECHNICAL-LANDSCAPE.md)
+- [Baseline: Competitive Analysis](COMPETITIVE-ANALYSIS.md)
+- [Baseline: Attack Surface](ATTACK-SURFACE.md)
+
+---
+
+*Research cost: ~$7.50 across 5 Exa deep_researcher_pro queries + 4 targeted Exa searches (85+ pages per deep query, 420+ total sources)*

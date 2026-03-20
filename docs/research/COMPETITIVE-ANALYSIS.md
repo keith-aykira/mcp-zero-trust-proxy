@@ -168,3 +168,40 @@ The closest competitor (MCP Auth Proxy by sigbit) is free and drop-in but lacks 
 - Lunar MCPX: lunar.dev
 - MintMCP: mintmcp.com/blog/enterprise-ai-infrastructure-mcp
 - Stacklok ToolHive: stacklok.com
+
+---
+
+## Update: 2026-03-19
+
+**Methodology:** Exa deep_researcher_pro + targeted Exa advanced search. Full details in RSCH-02-COMPETITOR-MOVEMENT.md.
+
+### Competitor Status Updates
+
+| Competitor | Status | Key Changes Since Jan 2026 | Threat Level |
+|---|---|---|---|
+| MCP Auth Proxy (sigbit) | Active | v2.5.4 bug fixes only. ~78 stars. | Low (no enterprise features) |
+| mcp-oauth-gateway (atrawog) | Dormant | No updates found | None |
+| oauth-mcp-proxy (tuannvm) | Active | 21 stars, last push Mar 5. Still a library, not proxy. | Low |
+| open-mcp-auth-proxy (WSO2) | Dead | Archived Feb 2, 2026 | None |
+| Kong AI/MCP Gateway | Active | MCP Registry, Tool ACLs, AI cost governance | Low (too complex/expensive) |
+| Cloudflare MCP Portals | Active | OAuth, observability, auto-sync | Low (vendor lock-in) |
+| IBM ContextForge | Active | **v1.0.0-RC2, RBAC SHIPPED (Issue #283)**, ~3.4K stars | **Medium** (closing gap) |
+| Lunar.dev MCPX | Active | **Pricing revealed: $250/gateway/mo**, Dynamic Tool Discovery | Medium (but expensive) |
+| MintMCP | Active | Enterprise Governance Platform, SOC 2 Type II | Low (enterprise only) |
+| Pomerium | Active | **MCP support added** with PKCE, ~4.6K stars | Medium (general-purpose) |
+| Stacklok/ToolHive | Active | v0.12.4, expanded beyond K8s | Low-Medium |
+| Cerbos | Active | v0.51.0, MCP integration demos | Low (policy engine, not proxy) |
+
+### New Entrants (Since Jan 2026)
+
+| Competitor | What | Threat Level |
+|---|---|---|
+| PointGuard AI | MCP Security Gateway (announced Mar 18, 2026) | Medium (direct competitor positioning, but no product yet) |
+| Salt Security | Agentic Security Platform for AI stack | Low (broader scope, enterprise) |
+| prmichaelsen/mcp-auth | OSS TypeScript auth wrapper, zero-modification | Low-Medium (validates our thesis but library not proxy) |
+| AthenZ/mcp-oauth-proxy | Java enterprise MCP OAuth proxy, 0 stars | Low (very early) |
+
+### Kill Criteria Assessment
+**"A competitor has shipped a turnkey solution that closes our gap"**
+- **Finding: PASS (with CAUTION)** — No single competitor checks all boxes (drop-in + RBAC + audit + session isolation + self-hosted + transparent pricing). IBM ContextForge is closest but requires Redis + K8s. Window is narrowing: 3-6 months.
+- **Confidence: HIGH**

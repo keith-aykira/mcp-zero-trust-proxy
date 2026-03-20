@@ -100,11 +100,45 @@
 
 ---
 
+## Severity Distribution
+
+| Severity | Count | % | Examples |
+|----------|-------|---|----------|
+| **Dangerous** (security incident / active exploit) | 9 | 60% | #6 RCE via webhook, #10 drive-by hijack, #11 220K exposed, #13 312K breach |
+| **Blocking** (prevents production adoption) | 4 | 27% | #1 no enforced RBAC, #3 no audit, #8 compliance team rejection, #14 "patch or eliminate" |
+| **Annoying** (friction / productivity drain) | 2 | 13% | #2 daily auth failures, #12 config validation pain |
+
+**Key takeaway:** 87% of signals are "blocking" or "dangerous" — this is not mild annoyance, it's crisis-level.
+
+---
+
+## Workarounds Observed
+
+Developers are building DIY solutions — every one of these is a product opportunity:
+
+| Workaround | Description | Limitation |
+|------------|-------------|------------|
+| **Read-only accounts** | Give AI agents DB accounts with SELECT-only permissions | Breaks when users have dual accounts; no enforcement layer (#1) |
+| **Nginx + Authelia/OIDC** | Put nginx in front of MCP server with Authelia or Keycloak for SSO | Binary auth only (authenticated or not), no per-tool RBAC, no audit trail |
+| **Cloudflare Access** | Use Cloudflare Access as zero-code proxy auth | Cloudflare lock-in, no self-hosted, no tool-level control |
+| **Bearer tokens in mcp.json** | Static API keys hardcoded in config | Keys in plaintext, no per-user identity, no token expiry, no rotation |
+| **mcp-remote + OAuth** | Use mcp-remote npm package for OAuth bridging | Complex setup, requires OIDC provider, still no RBAC/audit |
+| **Azure API Management** | Use APIM as OAuth gateway in front of MCP servers | Azure lock-in, complex setup, enterprise pricing |
+| **prmichaelsen/mcp-auth** | TypeScript wrapper adding auth + multi-tenancy to MCP servers | Requires code integration (not drop-in), TypeScript only |
+| **Manual disconnect/reconnect** | Reconnect MCP connectors when auth tokens expire | Band-aid, wastes time daily (#2) |
+| **Secret rotation after breach** | Rotate API keys after plaintext leak discovered | Reactive, not preventive |
+
+**Pattern:** Every workaround is either (a) too simple (no RBAC, no audit) or (b) too complex (requires K8s/Azure/Cloudflare). Nobody has a simple middle ground — that's our product.
+
+---
+
 ## Kill Criteria Assessment
 
 **"Pain is theoretical, not real (fewer than 5 genuine developer complaints found)"**
 
-**VERDICT: PAIN IS VERY REAL.** Found 15 genuine complaints with direct quotes. Multiple active security incidents, not just theoretical concerns. Developers are being hacked, not just worried about being hacked.
+**VERDICT: CLEAR PASS.** Found 15 genuine complaints with direct quotes. 87% are "blocking" or "dangerous" severity. Multiple active security incidents, not just theoretical concerns. Developers are being hacked, not just worried about being hacked.
+
+**Confidence: HIGH** — Multiple independent sources (Reddit, HN, Twitter/X), direct developer quotes with URLs, corroborated by vendor security advisories.
 
 ---
 

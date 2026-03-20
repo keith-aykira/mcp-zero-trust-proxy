@@ -127,6 +127,20 @@ Based on market evidence:
 
 ---
 
+## 7. Revenue Path to $500 MRR (Phase 3 Target)
+
+| Scenario | Tier Mix | Customers Needed | Monthly Revenue |
+|----------|----------|-----------------|-----------------|
+| **Conservative** | 15 Pro ($29) + 3 Team ($49) | 18 customers | $582 MRR |
+| **Mid** | 8 Pro ($29) + 5 Team ($49) + 1 Business ($199) | 14 customers | $676 MRR |
+| **Aggressive** | 5 Pro ($29) + 3 Team ($49) + 2 Business ($199) | 10 customers | $690 MRR |
+
+**Key math:** We need ~10-18 paying customers to hit $500 MRR. Given ~4,000 registered MCP servers on Smithery alone, converting 0.25-0.45% to paid would hit the target.
+
+**MCP monetization context:** The broader MCP ecosystem has 16,000+ servers but <0.5% earn $1,000+/mo and 95%+ generate zero revenue (DEV Community, Feb 2026). We're not asking MCP servers to monetize — we're selling security to the teams RUNNING those servers. Different buyer, different motion.
+
+---
+
 ## Kill Criteria Assessment
 
 **"No viable buyer segment willing to pay $49+/mo"**
