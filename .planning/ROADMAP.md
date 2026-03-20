@@ -17,6 +17,14 @@
 ### Phase 1: Deep Research
 **Goal:** Build an evidence-based picture of market demand, competitive landscape, and technical feasibility before committing to building. This phase determines whether to proceed, pivot, or kill.
 **Requirements:** RSCH-01, RSCH-02, RSCH-03, RSCH-04, RSCH-05, RSCH-06
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Pain signals + MCP ecosystem pulse (RSCH-01, RSCH-03)
+- [ ] 01-02-PLAN.md — Competitor movement + technical landscape (RSCH-02, RSCH-05)
+- [ ] 01-03-PLAN.md — Buyer behavior analysis (RSCH-04)
+- [ ] 01-04-PLAN.md — Go/no-go synthesis brief (RSCH-06)
+
 **Success Criteria:**
 1. 15+ real pain signals identified with direct quotes from developers (Reddit, Twitter/X, HN, Discord)
 2. Updated competitive landscape showing current state of all known competitors + any new entrants
