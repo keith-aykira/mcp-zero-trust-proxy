@@ -140,12 +140,26 @@ func TestHandler_SSE_StreamsWithoutBuffering(t *testing.T) {
 	}
 }
 
-// TestHandler_ParsedMCPRequest_InContext verifies handler stores parsed MCPRequest in context.
-func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
-	var capturedCtx context.Context
+// contextCapturingTransport is a custom RoundTripper that captures the outgoing
+// request context so tests can inspect values stored by ServeHTTP.
+type contextCapturingTransport struct {
+	wrapped    http.RoundTripper
+	capturedCh chan context.Context
+}
 
+func (t *contextCapturingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	select {
+	case t.capturedCh <- req.Context():
+	default:
+	}
+	return t.wrapped.RoundTrip(req)
+}
+
+// TestHandler_ParsedMCPRequest_InContext verifies handler stores parsed MCPRequest in context.
+// The context value is visible to middleware running in-process (before the outgoing HTTP call).
+// We capture it via a custom RoundTripper that inspects the outgoing request context.
+func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedCtx = r.Context()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"jsonrpc":"2.0","result":{},"id":1}`)
 	}))
@@ -157,6 +171,14 @@ func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
 		t.Fatalf("NewHandler error: %v", err)
 	}
 
+	// Inject a context-capturing transport so we can see what context was set.
+	capturedCh := make(chan context.Context, 1)
+	transport := &contextCapturingTransport{
+		wrapped:    http.DefaultTransport,
+		capturedCh: capturedCh,
+	}
+	h.SetTransport(transport)
+
 	body := `{"jsonrpc":"2.0","method":"tools/call","params":{"name":"bash"},"id":1}`
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -164,17 +186,18 @@ func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
 
 	h.ServeHTTP(rr, req)
 
-	if capturedCtx == nil {
-		t.Fatal("upstream did not capture context")
-	}
-	// The context should contain the parsed MCP request.
-	mcpReq, ok := capturedCtx.Value(MCPRequestKey).(*MCPRequest)
-	if !ok || mcpReq == nil {
-		t.Error("expected MCPRequest in context, got nil or wrong type")
-		return
-	}
-	if mcpReq.Method != MethodToolsCall {
-		t.Errorf("expected method %q in context, got %q", MethodToolsCall, mcpReq.Method)
+	select {
+	case capturedCtx := <-capturedCh:
+		mcpReq, ok := capturedCtx.Value(MCPRequestKey).(*MCPRequest)
+		if !ok || mcpReq == nil {
+			t.Error("expected MCPRequest in context, got nil or wrong type")
+			return
+		}
+		if mcpReq.Method != MethodToolsCall {
+			t.Errorf("expected method %q in context, got %q", MethodToolsCall, mcpReq.Method)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for transport to capture context")
 	}
 }
 
