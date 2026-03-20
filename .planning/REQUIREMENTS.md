@@ -27,15 +27,15 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 - [ ] **PRXY-01**: OAuth 2.1 PKCE authentication flow with token exchange and refresh
 - [x] **PRXY-02**: Transparent reverse proxy for HTTP+SSE MCP transport (no server code changes)
 - [ ] **PRXY-03**: Per-client session isolation preventing cross-tenant data leakage
-- [ ] **PRXY-04**: Structured JSON audit log of every MCP call (who, what, when, allowed/denied)
+- [x] **PRXY-04**: Structured JSON audit log of every MCP call (who, what, when, allowed/denied)
 - [ ] **PRXY-05**: Single Docker container or standalone binary deployment
 - [x] **PRXY-06**: YAML-based configuration (server URL, allowed clients, token issuer)
 
 ### RBAC & Controls
 
-- [ ] **RBAC-01**: 3 built-in RBAC roles (admin, read-only, tool-restricted) per client
-- [ ] **RBAC-02**: Tool-level permission enforcement on tools/call and tools/list methods
-- [ ] **RBAC-03**: Per-client rate limiting to prevent abuse
+- [x] **RBAC-01**: 3 built-in RBAC roles (admin, read-only, tool-restricted) per client
+- [x] **RBAC-02**: Tool-level permission enforcement on tools/call and tools/list methods
+- [x] **RBAC-03**: Per-client rate limiting to prevent abuse
 
 ### Documentation
 
@@ -102,12 +102,12 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | PRXY-01 | Phase 2 | Pending |
 | PRXY-02 | Phase 2 | Complete (02-02) |
 | PRXY-03 | Phase 2 | Pending |
-| PRXY-04 | Phase 2 | Pending |
+| PRXY-04 | Phase 2 | Complete (02-04) |
 | PRXY-05 | Phase 2 | Pending |
 | PRXY-06 | Phase 2 | Complete (02-01) |
-| RBAC-01 | Phase 2 | Pending |
-| RBAC-02 | Phase 2 | Pending |
-| RBAC-03 | Phase 2 | Pending |
+| RBAC-01 | Phase 2 | Complete (02-04) |
+| RBAC-02 | Phase 2 | Complete (02-04) |
+| RBAC-03 | Phase 2 | Complete (02-04) |
 | DOCS-01 | Phase 2 | Pending |
 | DOCS-02 | Phase 2 | Pending |
 | DOCS-03 | Phase 2 | Pending |
@@ -123,4 +123,4 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-20 after replacing Validation with Deep Research phase*
+*Last updated: 2026-03-20 after 02-04 completion (RBAC-01, RBAC-02, RBAC-03, PRXY-04 complete)*

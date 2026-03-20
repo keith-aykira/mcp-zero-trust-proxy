@@ -73,3 +73,8 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-20 (02-03): Token cache uses sync.Map (lock-free reads) with tokenCacheEntry{identity, expiresAt} — auth is hot path
 - 2026-03-20 (02-03): Session TTL refreshed on each Get() access — active sessions don't expire mid-use
 - 2026-03-20 (02-03): Google TokenURL is oauth2.googleapis.com/token (not accounts.google.com) — test corrected to match actual endpoint
+- 2026-03-20 (02-04): initialize method always allowed for all roles — required for MCP handshake
+- 2026-03-20 (02-04): ReadOnly uses denyToolsCall flag (not per-tool allow list) — cleaner than listing all tools to deny
+- 2026-03-20 (02-04): Audit logger uses injectable io.Writer for testability without file system dependency
+- 2026-03-20 (02-04): Rate limiter uses atomic.Int64 for lastAccess (not time.Time) — prevents race on sync.Map fast-path
+- 2026-03-20 (02-04): golang.org/x/time v0.9.0 added — Plan 01 SUMMARY.md incorrectly listed it as already present
