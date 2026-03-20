@@ -1,16 +1,16 @@
 ## Current Position
 
-Phase: 1 — Deep Research
-Plan: —
-Status: COMPLETE — Go/no-go brief written, DECISION: GO
-Last activity: 2026-03-19 — All 6 research tasks executed, go/no-go brief written
+Phase: 2 — MVP Build
+Plan: 01 of 06 COMPLETE
+Status: IN PROGRESS — Plan 02-01 complete, Go project bootstrap done
+Last activity: 2026-03-20 — 02-01 executed: Go module, interfaces, YAML config, 10 TDD tests pass
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Any MCP server can be protected with enterprise-grade security in 5 minutes via Docker — no code changes required.
-**Current focus:** Phase 2 — MVP Build (ready to plan)
+**Current focus:** Phase 2 — MVP Build (Plan 01 done, Plan 02 up next: OAuth 2.1 PKCE auth)
 
 ## Phase 0 Progress (COMPLETE)
 
@@ -42,3 +42,24 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - Go/no-go decision: GO — all 5 kill criteria passed
 - Research files: docs/research/ (PAIN-SIGNALS, COMPETITIVE-ANALYSIS, MCP-ECOSYSTEM-PULSE, BUYER-BEHAVIOR, TECHNICAL-LANDSCAPE, GO-NO-GO-BRIEF)
 - Key risk: Window is 3-6 months before market consolidates (IBM adding features, PointGuard AI entered Mar 18)
+- Go binary path: /Users/andrewnoble/.cache/pre-commit/repoj93vdc0b/golangenv-default/.go/bin/go (go 1.26.0, no system-wide install)
+- Go module: github.com/AnobleSCM/mcp-zero-trust-proxy
+- Core interfaces stable in internal/proxy/ and internal/middleware/ — all plans 02-06 build against these
+- Three built-in RBAC roles: admin (all tools), readonly (list+read), restricted (tools/list only)
+- Config loads from YAML with ${ENV_VAR} substitution; defaults: listen :8080, 100 req/min, burst 10, audit stdout enabled
+
+## Phase 2 Progress (IN PROGRESS)
+
+- [x] 02-01: Go module bootstrap — interfaces, config system, 10 TDD tests, example YAML
+- [ ] 02-02: OAuth 2.1 PKCE authentication
+- [ ] 02-03: Tool-level RBAC enforcement
+- [ ] 02-04: Session isolation
+- [ ] 02-05: Rate limiting + audit logging
+- [ ] 02-06: HTTP reverse proxy + SSE transport wiring
+
+## Decisions Log
+
+- 2026-03-20 (02-01): Three built-in roles (admin/readonly/restricted) are the only valid role names — strict validation
+- 2026-03-20 (02-01): Audit defaults to enabled=true — zero-config deployments get full audit logging
+- 2026-03-20 (02-01): Load() applies defaults, Validate() checks required fields — two separate passes
+- 2026-03-20 (02-01): Go binary at cache path (not system-wide) — must set in PATH for all Go commands

@@ -29,7 +29,7 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 - [ ] **PRXY-03**: Per-client session isolation preventing cross-tenant data leakage
 - [ ] **PRXY-04**: Structured JSON audit log of every MCP call (who, what, when, allowed/denied)
 - [ ] **PRXY-05**: Single Docker container or standalone binary deployment
-- [ ] **PRXY-06**: YAML-based configuration (server URL, allowed clients, token issuer)
+- [x] **PRXY-06**: YAML-based configuration (server URL, allowed clients, token issuer)
 
 ### RBAC & Controls
 
@@ -104,7 +104,7 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | PRXY-03 | Phase 2 | Pending |
 | PRXY-04 | Phase 2 | Pending |
 | PRXY-05 | Phase 2 | Pending |
-| PRXY-06 | Phase 2 | Pending |
+| PRXY-06 | Phase 2 | Complete (02-01) |
 | RBAC-01 | Phase 2 | Pending |
 | RBAC-02 | Phase 2 | Pending |
 | RBAC-03 | Phase 2 | Pending |
