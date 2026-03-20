@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
 )
@@ -16,18 +15,10 @@ type Middleware interface {
 	Process(ctx context.Context, req *proxy.MCPRequest, identity *proxy.ClientIdentity) (*proxy.MCPRequest, error)
 }
 
-// AuditEntry is an immutable record of a single MCP request passing through the proxy.
-type AuditEntry struct {
-	Timestamp     time.Time     `json:"timestamp"`
-	ClientID      string        `json:"client_id"`
-	SessionID     string        `json:"session_id"`
-	Method        string        `json:"method"`
-	ToolName      string        `json:"tool_name,omitempty"`
-	Allowed       bool          `json:"allowed"`
-	DeniedReason  string        `json:"denied_reason,omitempty"`
-	Latency       time.Duration `json:"latency_ms"`
-	RequestID     string        `json:"request_id"`
-}
+// AuditEntry is an alias for proxy.AuditEntry. It is re-exported here for backward
+// compatibility with code that imports middleware.AuditEntry.
+// The canonical definition lives in the proxy package to avoid import cycles.
+type AuditEntry = proxy.AuditEntry
 
 // Authenticator validates an incoming HTTP request and extracts the client identity.
 type Authenticator interface {
@@ -43,7 +34,6 @@ type RateLimiter interface {
 }
 
 // AuditLogger writes immutable audit entries to the configured output destination.
-type AuditLogger interface {
-	// Log records an audit entry. Implementations must be non-blocking and safe for concurrent use.
-	Log(entry AuditEntry)
-}
+// This is an alias for proxy.AuditLogger. The canonical definition lives in the proxy
+// package to avoid import cycles between proxy and middleware.
+type AuditLogger = proxy.AuditLogger

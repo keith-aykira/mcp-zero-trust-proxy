@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 // MCPRequest represents a parsed JSON-RPC 2.0 request from an MCP client.
@@ -34,6 +35,29 @@ type ClientIdentity struct {
 	Role      string `json:"role"`
 	SessionID string `json:"session_id"`
 	Email     string `json:"email"`
+}
+
+// AuditEntry is an immutable record of a single MCP request passing through the proxy.
+// Defined here (not in the middleware package) because it contains proxy-level types
+// and is needed by the pipeline, which lives in this package.
+type AuditEntry struct {
+	Timestamp    time.Time     `json:"timestamp"`
+	ClientID     string        `json:"client_id"`
+	SessionID    string        `json:"session_id"`
+	Method       string        `json:"method"`
+	ToolName     string        `json:"tool_name,omitempty"`
+	Allowed      bool          `json:"allowed"`
+	DeniedReason string        `json:"denied_reason,omitempty"`
+	Latency      time.Duration `json:"latency_ms"`
+	RequestID    string        `json:"request_id"`
+}
+
+// AuditLogger writes immutable audit entries to the configured output destination.
+// Defined here to allow the pipeline (in this package) to use it without creating
+// an import cycle with the middleware package.
+type AuditLogger interface {
+	// Log records an audit entry. Implementations must be non-blocking and safe for concurrent use.
+	Log(entry AuditEntry)
 }
 
 // ProxyHandler is the core interface implemented by the reverse proxy.

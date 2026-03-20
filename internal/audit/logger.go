@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/middleware"
+	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // logEntry is the JSON-serializable representation of an audit entry.
@@ -107,7 +107,7 @@ func newLogger(cfg *config.AuditConfig, stdoutWriter io.Writer, filePath string)
 
 // Log records an audit entry. If the logger is disabled, it is a no-op.
 // Log is safe for concurrent use — the mutex prevents interleaved lines.
-func (l *Logger) Log(entry middleware.AuditEntry) {
+func (l *Logger) Log(entry proxy.AuditEntry) {
 	if !l.enabled {
 		return
 	}
