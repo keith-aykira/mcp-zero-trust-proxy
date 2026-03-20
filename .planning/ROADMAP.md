@@ -57,7 +57,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Go scaffolding, YAML config, core interfaces (PRXY-06) — COMPLETE 2026-03-20
 - [x] 02-02-PLAN.md — MCP reverse proxy core with JSON-RPC parsing and SSE (PRXY-02) — COMPLETE 2026-03-20
-- [ ] 02-03-PLAN.md — OAuth 2.1 PKCE auth + session isolation (PRXY-01, PRXY-03)
+- [x] 02-03-PLAN.md — OAuth 2.1 PKCE auth + session isolation (PRXY-01, PRXY-03) — COMPLETE 2026-03-20
 - [ ] 02-04-PLAN.md — RBAC engine, audit logger, rate limiter (RBAC-01, RBAC-02, RBAC-03, PRXY-04)
 - [ ] 02-05-PLAN.md — Pipeline wiring, main.go, Docker + binary packaging (PRXY-05)
 - [ ] 02-06-PLAN.md — Integration tests (5 server types) + quick-start docs (DOCS-01, DOCS-02, DOCS-03)

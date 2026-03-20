@@ -1,16 +1,16 @@
 ## Current Position
 
 Phase: 2 — MVP Build
-Plan: 02 of 06 COMPLETE
-Status: IN PROGRESS — Plan 02-02 complete, MCP reverse proxy core done
-Last activity: 2026-03-20 — 02-02 executed: JSON-RPC 2.0 parser, HTTP+SSE reverse proxy, 22 TDD tests pass
+Plan: 04 of 06 COMPLETE
+Status: IN PROGRESS — Plans 02-03 and 02-04 complete (parallel wave), RBAC/audit/ratelimit middleware done
+Last activity: 2026-03-20 — 02-04 executed: RBAC engine (3 roles), JSONL audit logger, per-client rate limiter, 36 TDD tests pass
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Any MCP server can be protected with enterprise-grade security in 5 minutes via Docker — no code changes required.
-**Current focus:** Phase 2 — MVP Build (Plans 01-02 done, Plan 03 up next: Tool-level RBAC enforcement)
+**Current focus:** Phase 2 — MVP Build (Plans 01-04 done, Plan 05 up next: Proxy handler wiring)
 
 ## Phase 0 Progress (COMPLETE)
 
@@ -52,10 +52,10 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 - [x] 02-01: Go module bootstrap — interfaces, config system, 10 TDD tests, example YAML
 - [x] 02-02: MCP reverse proxy core — JSON-RPC 2.0 parser, HTTP+SSE proxy, 22 TDD tests
-- [ ] 02-03: Tool-level RBAC enforcement
-- [ ] 02-04: Session isolation
-- [ ] 02-05: Rate limiting + audit logging
-- [ ] 02-06: HTTP reverse proxy + SSE transport wiring
+- [x] 02-03: OAuth 2.1 PKCE auth — Authenticator, PKCE utils, GitHub/Google/OIDC providers, SessionStore, 31 TDD tests
+- [x] 02-04: RBAC engine + audit logger + rate limiter — 3 roles, JSONL audit, token bucket, 36 TDD tests
+- [ ] 02-05: Proxy handler wiring
+- [ ] 02-06: HTTP server + configuration wiring
 
 ## Decisions Log
 
@@ -68,3 +68,8 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-20 (02-02): httputil.ReverseProxy for HTTP, custom ProxySSE for SSE — ReverseProxy buffers which breaks SSE streaming
 - 2026-03-20 (02-02): Body buffering pattern: io.ReadAll + io.NopCloser(bytes.NewReader) — makes body readable for both parse and proxy forward
 - 2026-03-20 (02-02): SetTransport exported on Handler — enables test transport injection without exposing reverseProxy field directly
+- 2026-03-20 (02-03): Standard library net/http for OAuth calls — no golang.org/x/oauth2 dependency; simpler PKCE code exchange
+- 2026-03-20 (02-03): Default provider falls back to GitHub when AuthConfig.Provider is empty — avoids nil panic in tests
+- 2026-03-20 (02-03): Token cache uses sync.Map (lock-free reads) with tokenCacheEntry{identity, expiresAt} — auth is hot path
+- 2026-03-20 (02-03): Session TTL refreshed on each Get() access — active sessions don't expire mid-use
+- 2026-03-20 (02-03): Google TokenURL is oauth2.googleapis.com/token (not accounts.google.com) — test corrected to match actual endpoint
