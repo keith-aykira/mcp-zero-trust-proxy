@@ -1,0 +1,121 @@
+# MCP Zero-Trust Proxy — Example Configuration
+#
+# This file documents every available configuration option.
+# Copy to config.yaml and fill in your values.
+#
+# Secret values support ${ENV_VAR} substitution — use environment variables
+# instead of hardcoding secrets in this file.
+
+# ============================================================
+# Server Configuration
+# ============================================================
+server:
+  # Required. The URL of the upstream MCP server to proxy.
+  # All authenticated, authorized requests will be forwarded here.
+  upstream_url: "http://localhost:3000"
+
+  # Optional. The address the proxy listens on.
+  # Default: ":8080" (all interfaces on port 8080)
+  listen_addr: ":8080"
+
+# ============================================================
+# Authentication Configuration (OAuth 2.1 PKCE)
+# ============================================================
+auth:
+  # OAuth provider to use for authentication.
+  # Accepted values: "github", "google", "oidc"
+  provider: "github"
+
+  # OAuth application client ID.
+  # Get this from your provider's developer portal.
+  client_id: "your-oauth-client-id"
+
+  # OAuth application client secret.
+  # IMPORTANT: Use environment variable substitution — never hardcode this value.
+  client_secret: "${MCP_PROXY_CLIENT_SECRET}"
+
+  # OIDC issuer URL. Required only when provider = "oidc".
+  # Example for Okta: "https://your-org.okta.com"
+  # Example for Auth0: "https://your-domain.auth0.com"
+  # issuer_url: "https://accounts.google.com"
+
+  # OAuth callback URL registered with your provider.
+  # Must match exactly what you registered in the provider's developer console.
+  redirect_url: "http://localhost:8080/auth/callback"
+
+# ============================================================
+# RBAC Role Configuration
+# ============================================================
+# Three built-in roles are always available: admin, readonly, restricted.
+# You can customize their tool permissions here.
+# If omitted, the default role permissions (below) are used.
+roles:
+  # Admin role: full access to all MCP tools and resources.
+  - name: "admin"
+    # Empty allowed_tools means all tools are permitted.
+    allowed_tools: []
+    # Explicitly denied tools (deny rules take precedence over allow rules).
+    deny_tools: []
+
+  # Readonly role: can list and read resources, but cannot call tools that modify state.
+  - name: "readonly"
+    allowed_tools:
+      - "tools/list"
+      - "resources/list"
+      - "resources/read"
+      - "prompts/list"
+      - "prompts/get"
+    deny_tools: []
+
+  # Restricted role: can only list available tools (cannot call any of them).
+  - name: "restricted"
+    allowed_tools:
+      - "tools/list"
+    deny_tools: []
+
+# ============================================================
+# Rate Limiting Configuration (per-client, token bucket)
+# ============================================================
+rate_limit:
+  # Maximum sustained requests per minute per authenticated client.
+  # Default: 100
+  requests_per_minute: 100
+
+  # Maximum burst size above the sustained rate.
+  # A client can send up to burst_size requests instantly before the rate limit applies.
+  # Default: 10
+  burst_size: 10
+
+# ============================================================
+# Audit Logging Configuration
+# ============================================================
+audit:
+  # Enable or disable the immutable audit trail.
+  # Default: true — strongly recommended to keep enabled in production.
+  enabled: true
+
+  # Audit log output destination.
+  # Accepted values:
+  #   "stdout" — write to standard output (default, works well with Docker/log aggregators)
+  #   "file"   — write to a file (requires file_path)
+  #   "both"   — write to both stdout and a file
+  output: "stdout"
+
+  # Path to the audit log file.
+  # Required when output = "file" or "both".
+  # file_path: "/var/log/mcpproxy/audit.jsonl"
+
+# ============================================================
+# Operational Logging Configuration
+# ============================================================
+logging:
+  # Minimum log level to emit.
+  # Accepted values: "debug", "info", "warn", "error"
+  # Default: "info"
+  level: "info"
+
+  # Log output format.
+  # Accepted values:
+  #   "json" — structured JSON (default, recommended for production + log aggregators)
+  #   "text" — human-readable (useful during development)
+  format: "json"
