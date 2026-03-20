@@ -1,0 +1,13 @@
+.git
+.planning
+docs
+landing-page
+supabase
+src
+.vercel
+*.md
+!LICENSE
+.github
+data-test
+*.test
+bin

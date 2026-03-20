@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  mcpproxy:
+    image: mcpzerotrust/proxy:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: dev
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount your config file here:
+      # - ./config.yaml:/etc/mcpproxy/config.yaml:ro
+      - ./configs/example.yaml:/etc/mcpproxy/config.yaml:ro
+    environment:
+      # Pass OAuth client secret from host environment
+      - MCP_PROXY_CLIENT_SECRET=${MCP_PROXY_CLIENT_SECRET:-}
+    restart: unless-stopped
+
+  # Example: Add your MCP server as a container and proxy to it:
+  #
+  # my-mcp-server:
+  #   image: your-mcp-server:latest
+  #   expose:
+  #     - "3000"
+  #
+  # Then set upstream_url in config.yaml to: http://my-mcp-server:3000

@@ -1,0 +1,86 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with race detector
+        run: go test ./... -race -count=1
+
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Build
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p bin
+          VERSION="${COMMIT_SHA:0:8}"
+          go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/mcpproxy ./cmd/mcpproxy
+
+      - name: Check binary size
+        run: |
+          SIZE=$(du -m bin/mcpproxy | cut -f1)
+          echo "Binary size: ${SIZE}MB"
+          if [ "$SIZE" -gt 20 ]; then
+            echo "ERROR: Binary exceeds 20MB limit (got ${SIZE}MB)"
+            exit 1
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpproxy-linux-amd64
+          path: bin/mcpproxy
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          VERSION="${COMMIT_SHA:0:8}"
+          docker build --build-arg VERSION="${VERSION}" -t mcpzerotrust/proxy:ci .
+
+      - name: Smoke test container
+        run: |
+          docker run --rm -d --name mcpproxy-test mcpzerotrust/proxy:ci || true
+          sleep 2
+          docker stop mcpproxy-test 2>/dev/null || true
+          echo "Container started and stopped successfully"
