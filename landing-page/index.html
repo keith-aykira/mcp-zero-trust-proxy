@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Zero-Trust Proxy — Secure Your MCP Servers in 5 Minutes</title>
+<meta name="description" content="Drop-in authentication proxy for MCP servers. OAuth 2.1 PKCE, RBAC, session isolation, and audit logging — zero code changes required.">
+<style>
+  :root {
+    --navy: #0f1729;
+    --dark-blue: #1a2744;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --green: #10b981;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --surface: #1e293b;
+    --surface-light: #273549;
+    --border: #334155;
+    --white: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* NAV */
+  nav {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: rgba(15, 23, 41, 0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  nav .container { display: flex; justify-content: space-between; align-items: center; }
+  .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+  nav a.cta-nav {
+    background: var(--accent); color: var(--white);
+    padding: 8px 20px; border-radius: 6px; text-decoration: none;
+    font-size: 14px; font-weight: 600; transition: background 0.2s;
+  }
+  nav a.cta-nav:hover { background: var(--accent-hover); }
+
+  /* HERO */
+  .hero {
+    padding: 100px 0 80px;
+    text-align: center;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--red);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+  .hero h1 {
+    font-size: clamp(36px, 5vw, 56px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 20px;
+    max-width: 800px;
+    margin-left: auto; margin-right: auto;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p.sub {
+    font-size: 20px;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto 36px;
+    line-height: 1.5;
+  }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 28px;
+    max-width: 680px;
+    margin: 0 auto 40px;
+    text-align: left;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    overflow-x: auto;
+  }
+  .code-block .comment { color: var(--text-dim); }
+  .code-block .cmd { color: var(--green); }
+  .code-block .flag { color: var(--amber); }
+
+  /* CTA */
+  .cta-group { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--accent); color: var(--white);
+    padding: 14px 32px; border-radius: 8px; text-decoration: none;
+    font-size: 16px; font-weight: 600; transition: all 0.2s;
+    border: none; cursor: pointer;
+  }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-secondary {
+    background: transparent; color: var(--text-muted);
+    padding: 14px 32px; border-radius: 8px; text-decoration: none;
+    font-size: 16px; font-weight: 500; border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* THREAT BANNER */
+  .threat-banner {
+    background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08));
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px;
+    padding: 40px;
+    margin: 60px auto;
+    max-width: 900px;
+  }
+  .threat-banner h2 {
+    font-size: 22px; font-weight: 700; margin-bottom: 24px;
+    color: var(--red); text-align: center;
+  }
+  .threat-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  .threat-stat {
+    text-align: center;
+    padding: 16px;
+  }
+  .threat-stat .number {
+    font-size: 36px; font-weight: 800; color: var(--white);
+    letter-spacing: -1px;
+  }
+  .threat-stat .label {
+    font-size: 13px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;
+  }
+
+  /* FEATURES */
+  .features { padding: 80px 0; }
+  .features h2 {
+    font-size: 32px; font-weight: 800; text-align: center;
+    margin-bottom: 12px; letter-spacing: -0.5px;
+  }
+  .features .subtitle {
+    text-align: center; color: var(--text-muted);
+    font-size: 17px; margin-bottom: 50px;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    transition: border-color 0.2s;
+  }
+  .feature-card:hover { border-color: var(--accent); }
+  .feature-icon {
+    width: 40px; height: 40px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; margin-bottom: 16px;
+    background: rgba(59,130,246,0.12);
+  }
+  .feature-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .feature-card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+  /* COMPARISON */
+  .comparison { padding: 80px 0; }
+  .comparison h2 {
+    font-size: 32px; font-weight: 800; text-align: center;
+    margin-bottom: 12px; letter-spacing: -0.5px;
+  }
+  .comparison .subtitle {
+    text-align: center; color: var(--text-muted);
+    font-size: 17px; margin-bottom: 50px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--border);
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+  th:not(:first-child) { text-align: center; }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+  tr:hover td { background: rgba(59,130,246,0.04); }
+  .check { color: var(--green); font-weight: 700; }
+  .cross { color: var(--text-dim); }
+  .partial { color: var(--amber); }
+  .us-col { background: rgba(59,130,246,0.06); }
+  .us-header { color: var(--accent) !important; }
+
+  /* PRICING */
+  .pricing { padding: 80px 0; }
+  .pricing h2 {
+    font-size: 32px; font-weight: 800; text-align: center;
+    margin-bottom: 12px; letter-spacing: -0.5px;
+  }
+  .pricing .subtitle {
+    text-align: center; color: var(--text-muted);
+    font-size: 17px; margin-bottom: 50px;
+  }
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .price-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+  }
+  .price-card.featured {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(59,130,246,0.15);
+    position: relative;
+  }
+  .price-card.featured::before {
+    content: 'Most Popular';
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: var(--white);
+    padding: 4px 16px; border-radius: 12px;
+    font-size: 12px; font-weight: 700;
+  }
+  .price-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .price-card .price {
+    font-size: 40px; font-weight: 800; letter-spacing: -2px;
+    margin: 16px 0 4px;
+  }
+  .price-card .price span { font-size: 16px; font-weight: 500; color: var(--text-muted); }
+  .price-card .desc { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+  .price-card ul { list-style: none; text-align: left; margin-bottom: 28px; }
+  .price-card li {
+    padding: 6px 0; font-size: 14px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .price-card li::before { content: '✓'; color: var(--green); font-weight: 700; }
+  .price-card .btn-primary { display: block; width: 100%; text-align: center; }
+
+  /* SOCIAL PROOF */
+  .proof {
+    padding: 60px 0;
+    text-align: center;
+  }
+  .proof-logos {
+    display: flex; gap: 32px; justify-content: center;
+    align-items: center; flex-wrap: wrap;
+    opacity: 0.5;
+    margin-bottom: 16px;
+  }
+  .proof-logos span {
+    font-size: 14px; font-weight: 600;
+    color: var(--text-muted); letter-spacing: 0.5px;
+  }
+  .proof p { font-size: 14px; color: var(--text-dim); }
+
+  /* EMAIL CAPTURE */
+  .email-section {
+    padding: 80px 0;
+    text-align: center;
+  }
+  .email-section h2 {
+    font-size: 32px; font-weight: 800;
+    margin-bottom: 12px; letter-spacing: -0.5px;
+  }
+  .email-section p {
+    color: var(--text-muted); font-size: 17px;
+    margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto;
+  }
+  .email-form {
+    display: flex; gap: 12px;
+    justify-content: center;
+    max-width: 500px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+  }
+  .email-form input {
+    flex: 1; min-width: 240px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .email-form input:focus { border-color: var(--accent); }
+  .email-form input::placeholder { color: var(--text-dim); }
+  .email-note {
+    font-size: 13px; color: var(--text-dim);
+    margin-top: 12px;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 40px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    .hero { padding: 60px 0 40px; }
+    .threat-stats { grid-template-columns: repeat(2, 1fr); }
+    .feature-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    table { font-size: 12px; }
+    th, td { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo"><span>mcp</span>proxy</div>
+    <a href="#get-access" class="cta-nav">Get Early Access</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">⚠ 8,000+ MCP servers exposed with zero auth</div>
+    <h1>Secure your MCP servers <em>in 5 minutes</em></h1>
+    <p class="sub">Drop-in authentication proxy. OAuth 2.1 PKCE, RBAC, session isolation, and audit logging — zero code changes to your server.</p>
+    <div class="code-block">
+      <div><span class="comment"># Protect any MCP server instantly</span></div>
+      <div><span class="cmd">docker run</span> <span class="flag">-e</span> MCP_TARGET=localhost:3000 \</div>
+      <div>&nbsp;&nbsp;<span class="flag">-e</span> AUTH_PROVIDER=github \</div>
+      <div>&nbsp;&nbsp;<span class="flag">-p</span> 8443:8443 \</div>
+      <div>&nbsp;&nbsp;mcpproxy/zero-trust</div>
+    </div>
+    <div class="cta-group">
+      <a href="#get-access" class="btn-primary">Get Early Access</a>
+      <a href="#how-it-works" class="btn-secondary">See How It Works</a>
+    </div>
+  </div>
+</section>
+
+<section class="threat-banner">
+  <div class="container">
+    <h2>The MCP Security Crisis Is Now</h2>
+    <div class="threat-stats">
+      <div class="threat-stat">
+        <div class="number">8,000+</div>
+        <div class="label">Exposed MCP servers<br>with zero authentication</div>
+      </div>
+      <div class="threat-stat">
+        <div class="number">30+</div>
+        <div class="label">CVEs in 60 days<br>(Jan–Feb 2026)</div>
+      </div>
+      <div class="threat-stat">
+        <div class="number">9.6</div>
+        <div class="label">CVSS score on<br>mcp-remote RCE</div>
+      </div>
+      <div class="threat-stat">
+        <div class="number">48hrs</div>
+        <div class="label">Clawdbot to<br>infostealer targeting</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="how-it-works">
+  <div class="container">
+    <h2>Everything you need. Nothing you don't.</h2>
+    <p class="subtitle">One proxy. Full zero-trust security. No server code changes.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <h3>OAuth 2.1 PKCE</h3>
+        <p>Industry-standard authentication with PKCE for public clients. Support for GitHub, Google, Okta, Auth0, Azure AD, Keycloak, or any OIDC provider.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Tool-Level RBAC</h3>
+        <p>Control exactly which tools each client can call. Admin, read-only, tool-restricted — define roles in YAML, enforce at the proxy layer.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Session Isolation</h3>
+        <p>Per-client session boundaries prevent cross-tenant data leakage. Each authenticated client gets an isolated execution context.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Immutable Audit Log</h3>
+        <p>Every MCP call logged: who, what, when, allowed or denied. SOC 2-ready export. SIEM integration via OpenTelemetry.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>5-Minute Setup</h3>
+        <p>Docker pull, set your MCP target and auth provider, done. Single container, single config file. No Kubernetes required.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🚦</div>
+        <h3>Rate Limiting</h3>
+        <p>Per-client request throttling. Prevent abuse, protect upstream servers from runaway agents, and enforce usage quotas.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="comparison">
+  <div class="container">
+    <h2>Why not just use...?</h2>
+    <p class="subtitle">We're the only drop-in proxy with full enterprise security.</p>
+    <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>nginx<br>reverse proxy</th>
+          <th>mcp-remote<br>(OAuth)</th>
+          <th>Kong<br>Gateway</th>
+          <th>MCP Auth<br>Proxy (OSS)</th>
+          <th class="us-header">MCP Zero-<br>Trust Proxy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Drop-in (no code changes)</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="us-col check">✓</td>
+        </tr>
+        <tr>
+          <td>OAuth 2.1 PKCE</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="us-col check">✓</td>
+        </tr>
+        <tr>
+          <td>Tool-level RBAC</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="partial">~</td>
+          <td class="cross">✗</td>
+          <td class="us-col check">✓</td>
+        </tr>
+        <tr>
+          <td>Session isolation</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="us-col check">✓</td>
+        </tr>
+        <tr>
+          <td>Audit logging</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+          <td class="us-col check">✓</td>
+        </tr>
+        <tr>
+          <td>No known CVEs</td>
+          <td class="check">✓</td>
+          <td class="cross" style="color: var(--red)">9.6 RCE</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="us-col check">✓</td>
+        </tr>
+        <tr>
+          <td>Setup time</td>
+          <td>30 min</td>
+          <td>15 min</td>
+          <td>Days</td>
+          <td>10 min</td>
+          <td class="us-col" style="color: var(--green); font-weight: 700;">5 min</td>
+        </tr>
+        <tr>
+          <td>Pricing</td>
+          <td>Free</td>
+          <td>Free</td>
+          <td>$$$</td>
+          <td>Free</td>
+          <td class="us-col">From $49/mo</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<section class="pricing" id="pricing">
+  <div class="container">
+    <h2>Simple, transparent pricing</h2>
+    <p class="subtitle">Start free during beta. No credit card required.</p>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Starter</h3>
+        <div class="price">$49<span>/mo</span></div>
+        <div class="desc">For solo developers and small projects</div>
+        <ul>
+          <li>1 MCP server</li>
+          <li>OAuth 2.1 PKCE</li>
+          <li>Basic RBAC (3 built-in roles)</li>
+          <li>7-day audit log retention</li>
+          <li>Community support</li>
+        </ul>
+        <a href="#get-access" class="btn-primary">Get Early Access</a>
+      </div>
+      <div class="price-card featured">
+        <h3>Pro</h3>
+        <div class="price">$99<span>/mo</span></div>
+        <div class="desc">For teams running multiple MCP servers</div>
+        <ul>
+          <li>5 MCP servers</li>
+          <li>Custom RBAC roles</li>
+          <li>Session isolation</li>
+          <li>30-day audit log retention</li>
+          <li>Rate limiting per client</li>
+          <li>Email support</li>
+        </ul>
+        <a href="#get-access" class="btn-primary">Get Early Access</a>
+      </div>
+      <div class="price-card">
+        <h3>Enterprise</h3>
+        <div class="price">$199<span>/mo</span></div>
+        <div class="desc">For organizations with compliance needs</div>
+        <ul>
+          <li>Unlimited MCP servers</li>
+          <li>SSO / SAML</li>
+          <li>SOC 2-ready audit export</li>
+          <li>SIEM integration (OTel)</li>
+          <li>90-day audit log retention</li>
+          <li>Priority support + SLA</li>
+        </ul>
+        <a href="#get-access" class="btn-primary">Get Early Access</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="proof">
+  <div class="container">
+    <div class="proof-logos">
+      <span>OWASP</span>
+      <span>•</span>
+      <span>MICROSOFT</span>
+      <span>•</span>
+      <span>PALO ALTO UNIT 42</span>
+      <span>•</span>
+      <span>ANTHROPIC</span>
+    </div>
+    <p>Leading security organizations recommend MCP server authentication.<br>We make it effortless to implement.</p>
+  </div>
+</section>
+
+<section class="email-section" id="get-access">
+  <div class="container">
+    <h2>Get early access</h2>
+    <p>Join the beta waitlist. Free Pro access for the first 50 teams.</p>
+    <form class="email-form" id="waitlist-form" onsubmit="handleSubmit(event)">
+      <input type="email" id="email-input" placeholder="you@company.com" required>
+      <button type="submit" class="btn-primary" id="submit-btn">Join Waitlist</button>
+    </form>
+    <p class="email-note" id="form-note">No spam. Just a launch notification and beta invite.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>MCP Zero-Trust Proxy &copy; 2026 &nbsp;·&nbsp; Built by developers, for developers who don't want to get breached.</p>
+  </div>
+</footer>
+
+<script>
+function handleSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('email-input').value;
+  const btn = document.getElementById('submit-btn');
+  const note = document.getElementById('form-note');
+
+  // Store locally (replace with real backend: Supabase, ConvertKit, etc.)
+  const waitlist = JSON.parse(localStorage.getItem('mcpproxy_waitlist') || '[]');
+  waitlist.push({ email, timestamp: new Date().toISOString() });
+  localStorage.setItem('mcpproxy_waitlist', JSON.stringify(waitlist));
+
+  btn.textContent = '✓ You\'re on the list!';
+  btn.style.background = '#10b981';
+  btn.disabled = true;
+  note.textContent = `We'll notify ${email} when the beta is ready.`;
+  document.getElementById('email-input').disabled = true;
+}
+</script>
+
+</body>
+</html>
