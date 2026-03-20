@@ -1,16 +1,16 @@
 ## Current Position
 
-Phase: 2 — MVP Build
-Plan: 06 of 06 COMPLETE
-Status: COMPLETE — All 6 plans done; full MVP built, tested, documented, and Dockerized
-Last activity: 2026-03-20 — 02-06 executed: 18 integration tests (5 MCP server types, auth, RBAC, rate limit, audit), QUICKSTART.md, CONFIG-REFERENCE.md
+Phase: 3 — Hardening & Production Readiness
+Plan: Not yet planned
+Status: READY TO PLAN — Phase added after Phase 2 audit identified 14 production-readiness gaps
+Last activity: 2026-03-20 — Phase 3 (Hardening) added; Beta Launch renumbered to Phase 4
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Any MCP server can be protected with enterprise-grade security in 5 minutes via Docker — no code changes required.
-**Current focus:** Phase 2 COMPLETE — MVP ready for beta users
+**Current focus:** Phase 3 — Hardening & Production Readiness (14 gaps from Phase 2 audit)
 
 ## Phase 0 Progress (COMPLETE)
 
@@ -47,6 +47,11 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - Core interfaces stable in internal/proxy/ and internal/middleware/ — all plans 02-06 build against these
 - Three built-in RBAC roles: admin (all tools), readonly (list+read), restricted (tools/list only)
 - Config loads from YAML with ${ENV_VAR} substitution; defaults: listen :8080, 100 req/min, burst 10, audit stdout enabled
+
+### Roadmap Evolution
+
+- Phase 3 added: Hardening & Production Readiness (14 production gaps from Phase 2 audit)
+- Beta Launch & First Revenue renumbered from Phase 3 → Phase 4
 
 ## Phase 2 Progress (COMPLETE)
 

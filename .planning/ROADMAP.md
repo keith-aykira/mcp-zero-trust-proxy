@@ -59,8 +59,8 @@ Plans:
 - [x] 02-02-PLAN.md — MCP reverse proxy core with JSON-RPC parsing and SSE (PRXY-02) — COMPLETE 2026-03-20
 - [x] 02-03-PLAN.md — OAuth 2.1 PKCE auth + session isolation (PRXY-01, PRXY-03) — COMPLETE 2026-03-20
 - [x] 02-04-PLAN.md — RBAC engine, audit logger, rate limiter (RBAC-01, RBAC-02, RBAC-03, PRXY-04) — COMPLETE 2026-03-20
-- [ ] 02-05-PLAN.md — Pipeline wiring, main.go, Docker + binary packaging (PRXY-05)
-- [ ] 02-06-PLAN.md — Integration tests (5 server types) + quick-start docs (DOCS-01, DOCS-02, DOCS-03)
+- [x] 02-05-PLAN.md — Pipeline wiring, main.go, Docker + binary packaging (PRXY-05) — COMPLETE 2026-03-20
+- [x] 02-06-PLAN.md — Integration tests (5 server types) + quick-start docs (DOCS-01, DOCS-02, DOCS-03) — COMPLETE 2026-03-20
 
 **Success Criteria:**
 1. `docker run` command protects any MCP server with OAuth 2.1 PKCE
@@ -70,9 +70,35 @@ Plans:
 5. Quick-start docs enable setup without help from the builder
 6. Integration tests pass against 5 MCP server types
 
-### Phase 3: Beta Launch & First Revenue
+### Phase 3: Hardening & Production Readiness
+**Goal:** Fix all production-readiness gaps identified in the Phase 2 audit so the proxy is robust enough for paying users.
+**Requirements:** HARD-01 through HARD-14
+**Depends on:** Phase 2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 3 to break down)
+
+**Success Criteria:**
+1. User-to-role mapping configurable in YAML (not hardcoded readonly)
+2. Body size limits enforced on all request parsing paths
+3. Batch JSON-RPC requests have per-item RBAC enforcement
+4. OAuth token/state caches have TTL-based cleanup goroutines
+5. Error messages sanitized — no provider internals leaked to clients
+6. CORS headers configurable and applied to all responses
+7. Request ID returned in response headers for client debugging
+8. Client secret supported in OAuth token exchange
+9. Docker image uses correct Go version
+10. TLS termination supported via config
+11. Single body parse shared between Handler and Pipeline (no double-parse)
+12. Audit log rotation supported (file size or time-based)
+13. SSE proxy has configurable timeout and backpressure
+14. All existing tests still pass + new tests for hardening changes
+
+### Phase 4: Beta Launch & First Revenue
 **Goal:** 10+ teams using proxy in production, convert 3-5 to paid.
 **Requirements:** BETA-01, BETA-02, BETA-03, BETA-04
+**Depends on:** Phase 3
 **Success Criteria:**
 1. 10+ active proxy deployments in production
 2. Stripe billing live with 3 pricing tiers
@@ -85,9 +111,10 @@ Plans:
 |---|-------|------|--------------|------------------|
 | 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) |
 | 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
-| 2 | 6/6 | Complete   | 2026-03-20 | 6 |
-| 3 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
+| 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
+| 3 | Hardening & Production Readiness | Fix production gaps from audit | HARD-01 through HARD-14 | 14 |
+| 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-20 after 02-04 completion (RBAC engine, JSONL audit logger, per-client rate limiter, 36 TDD tests with -race)*
+*Last updated: 2026-03-20 — Phase 3 (Hardening) added after Phase 2 audit; Beta Launch renumbered to Phase 4*
