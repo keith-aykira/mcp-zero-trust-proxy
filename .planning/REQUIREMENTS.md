@@ -9,17 +9,18 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Landing page live at mcpzerotrust.dev collecting waitlist emails via Supabase
-- [ ] **INFRA-02**: Git repo initialized and pushed to GitHub (private)
-- [ ] **INFRA-03**: Supabase project with waitlist table and RLS policies
+- [x] **INFRA-01**: Landing page wired to Supabase waitlist (deploy deferred — not public yet)
+- [x] **INFRA-02**: Git repo initialized and pushed to GitHub (private)
+- [x] **INFRA-03**: Supabase project with waitlist table and RLS policies
 
-### Validation
+### Deep Research
 
-- [ ] **VALID-01**: 15+ pain signals identified from MCP security community
-- [ ] **VALID-02**: 8+ substantive replies from direct outreach describing security concerns
-- [ ] **VALID-03**: 2 of 3 discovery calls confirm zero/weak auth AND willingness to pay $49+/mo
-- [ ] **VALID-04**: 25+ email signups on waitlist
-- [ ] **VALID-05**: Go/no-go brief written scoring 5 key questions with evidence
+- [ ] **RSCH-01**: Pain signal analysis — 15+ real developer complaints about MCP security from Reddit, Twitter/X, HN, Discord with direct quotes and severity assessment
+- [ ] **RSCH-02**: Competitor movement report — updated status of all 12 competitors from initial analysis plus any new entrants since Jan 2026
+- [ ] **RSCH-03**: MCP ecosystem pulse — adoption growth data (SDK downloads, new servers, enterprise signals) and protocol/spec changes
+- [ ] **RSCH-04**: Buyer behavior analysis — how teams buy API security tools, pricing benchmarks, purchase triggers, solo dev vs team vs enterprise patterns
+- [ ] **RSCH-05**: Technical landscape update — new CVEs since Feb 2026, MCP spec auth updates, Anthropic/OpenAI built-in security announcements, open-source auth implementations
+- [ ] **RSCH-06**: Go/no-go brief synthesizing all 5 lenses with evidence-based scoring of kill criteria
 
 ### Proxy Core
 
@@ -89,14 +90,15 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 0 | In Progress |
+| INFRA-01 | Phase 0 | Complete (deploy deferred) |
 | INFRA-02 | Phase 0 | Complete |
 | INFRA-03 | Phase 0 | Complete |
-| VALID-01 | Phase 1 | Pending |
-| VALID-02 | Phase 1 | Pending |
-| VALID-03 | Phase 1 | Pending |
-| VALID-04 | Phase 1 | Pending |
-| VALID-05 | Phase 1 | Pending |
+| RSCH-01 | Phase 1 | Pending |
+| RSCH-02 | Phase 1 | Pending |
+| RSCH-03 | Phase 1 | Pending |
+| RSCH-04 | Phase 1 | Pending |
+| RSCH-05 | Phase 1 | Pending |
+| RSCH-06 | Phase 1 | Pending |
 | PRXY-01 | Phase 2 | Pending |
 | PRXY-02 | Phase 2 | Pending |
 | PRXY-03 | Phase 2 | Pending |
@@ -115,10 +117,10 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | BETA-04 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 24 total
-- Mapped to phases: 24
+- v1 requirements: 25 total
+- Mapped to phases: 25
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initialization*
+*Last updated: 2026-03-20 after replacing Validation with Deep Research phase*
