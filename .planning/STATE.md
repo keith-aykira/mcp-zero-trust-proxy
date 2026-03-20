@@ -1,16 +1,16 @@
 ## Current Position
 
 Phase: 2 — MVP Build
-Plan: 04 of 06 COMPLETE
-Status: IN PROGRESS — Plans 02-03 and 02-04 complete (parallel wave), RBAC/audit/ratelimit middleware done
-Last activity: 2026-03-20 — 02-04 executed: RBAC engine (3 roles), JSONL audit logger, per-client rate limiter, 36 TDD tests pass
+Plan: 06 of 06 COMPLETE
+Status: COMPLETE — All 6 plans done; full MVP built, tested, documented, and Dockerized
+Last activity: 2026-03-20 — 02-06 executed: 18 integration tests (5 MCP server types, auth, RBAC, rate limit, audit), QUICKSTART.md, CONFIG-REFERENCE.md
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Any MCP server can be protected with enterprise-grade security in 5 minutes via Docker — no code changes required.
-**Current focus:** Phase 2 — MVP Build (Plans 01-04 done, Plan 05 up next: Proxy handler wiring)
+**Current focus:** Phase 2 COMPLETE — MVP ready for beta users
 
 ## Phase 0 Progress (COMPLETE)
 
@@ -48,14 +48,14 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - Three built-in RBAC roles: admin (all tools), readonly (list+read), restricted (tools/list only)
 - Config loads from YAML with ${ENV_VAR} substitution; defaults: listen :8080, 100 req/min, burst 10, audit stdout enabled
 
-## Phase 2 Progress (IN PROGRESS)
+## Phase 2 Progress (COMPLETE)
 
 - [x] 02-01: Go module bootstrap — interfaces, config system, 10 TDD tests, example YAML
 - [x] 02-02: MCP reverse proxy core — JSON-RPC 2.0 parser, HTTP+SSE proxy, 22 TDD tests
 - [x] 02-03: OAuth 2.1 PKCE auth — Authenticator, PKCE utils, GitHub/Google/OIDC providers, SessionStore, 31 TDD tests
 - [x] 02-04: RBAC engine + audit logger + rate limiter — 3 roles, JSONL audit, token bucket, 36 TDD tests
-- [ ] 02-05: Proxy handler wiring
-- [ ] 02-06: HTTP server + configuration wiring
+- [x] 02-05: Proxy pipeline wiring — middleware chain, Docker image, CI, 9 TDD tests
+- [x] 02-06: Integration tests (18 tests, 5 MCP server types) + QUICKSTART.md + CONFIG-REFERENCE.md
 
 ## Decisions Log
 
@@ -78,3 +78,10 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-20 (02-04): Audit logger uses injectable io.Writer for testability without file system dependency
 - 2026-03-20 (02-04): Rate limiter uses atomic.Int64 for lastAccess (not time.Time) — prevents race on sync.Map fast-path
 - 2026-03-20 (02-04): golang.org/x/time v0.9.0 added — Plan 01 SUMMARY.md incorrectly listed it as already present
+- 2026-03-20 (02-05): AuditEntry/AuditLogger moved to proxy package — middleware uses type aliases (=) for backward compat; resolves import cycle
+- 2026-03-20 (02-05): proxy_test external package for pipeline tests — avoids middleware->proxy import cycle in test files
+- 2026-03-20 (02-05): responseCapture pattern for tools/list filtering — custom ResponseWriter buffers upstream response for RBAC post-processing
+- 2026-03-20 (02-05): Binary size 9.8MB with CGO_ENABLED=0, -s -w flags — well under 20MB limit
+- 2026-03-20 (02-06): testAuthenticator (mock, not real OAuth) for integration tests — real OAuth requires live endpoints; mock tests the pipeline's auth integration path
+- 2026-03-20 (02-06): mutex-protected testAuditLogger — concurrent HTTP handlers require sync.Mutex on any shared state; slice append without lock is a data race
+- 2026-03-20 (02-06): SSEStreamingServer checks request body method, not URL path — ReverseProxy Director overwrites upstream path with r.URL.Path from incoming request

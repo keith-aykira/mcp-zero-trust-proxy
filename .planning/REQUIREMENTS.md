@@ -39,9 +39,9 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 
 ### Documentation
 
-- [ ] **DOCS-01**: Quick-start guide for Docker and binary install
-- [ ] **DOCS-02**: Configuration reference for YAML config
-- [ ] **DOCS-03**: Integration tests against 5 MCP server types
+- [x] **DOCS-01**: Quick-start guide for Docker and binary install
+- [x] **DOCS-02**: Configuration reference for YAML config
+- [x] **DOCS-03**: Integration tests against 5 MCP server types
 
 ### Beta & Revenue
 
@@ -108,9 +108,9 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | RBAC-01 | Phase 2 | Complete (02-04) |
 | RBAC-02 | Phase 2 | Complete (02-04) |
 | RBAC-03 | Phase 2 | Complete (02-04) |
-| DOCS-01 | Phase 2 | Pending |
-| DOCS-02 | Phase 2 | Pending |
-| DOCS-03 | Phase 2 | Pending |
+| DOCS-01 | Phase 2 | Complete |
+| DOCS-02 | Phase 2 | Complete |
+| DOCS-03 | Phase 2 | Complete |
 | BETA-01 | Phase 3 | Pending |
 | BETA-02 | Phase 3 | Pending |
 | BETA-03 | Phase 3 | Pending |
