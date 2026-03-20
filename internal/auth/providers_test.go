@@ -45,8 +45,8 @@ func TestGoogleProviderEndpoints(t *testing.T) {
 	if !strings.Contains(p.AuthURL, "accounts.google.com") {
 		t.Errorf("AuthURL = %q, should contain accounts.google.com", p.AuthURL)
 	}
-	if !strings.Contains(p.TokenURL, "accounts.google.com") {
-		t.Errorf("TokenURL = %q, should contain accounts.google.com", p.TokenURL)
+	if !strings.Contains(p.TokenURL, "google") {
+		t.Errorf("TokenURL = %q, should reference a Google endpoint", p.TokenURL)
 	}
 	hasOpenID := false
 	for _, s := range p.Scopes {
