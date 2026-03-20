@@ -1,0 +1,26 @@
+# OIDC provider config for integration tests.
+server:
+  upstream_url: "http://localhost:9999"
+  listen_addr: ":0"
+
+auth:
+  provider: "oidc"
+  client_id: "test-oidc-client-id"
+  client_secret: "${OIDC_CLIENT_SECRET}"
+  issuer_url: "https://accounts.example.com"
+  redirect_url: "http://localhost:8080/auth/callback"
+
+roles:
+  - name: "admin"
+    allowed_tools: []
+  - name: "readonly"
+    allowed_tools: []
+  - name: "restricted"
+    allowed_tools: []
+
+audit:
+  enabled: false
+
+logging:
+  level: "error"
+  format: "json"

@@ -1,0 +1,24 @@
+# Restricted role config — used to test RBAC filtering and denial.
+# The "restricted" role may only call read_file and list_dir.
+server:
+  upstream_url: "http://localhost:9999"
+  listen_addr: ":0"
+
+roles:
+  - name: "admin"
+    allowed_tools: []
+  - name: "readonly"
+    allowed_tools: []
+  - name: "restricted"
+    allowed_tools: ["read_file", "list_dir"]
+
+rate_limit:
+  requests_per_minute: 1000
+  burst_size: 100
+
+audit:
+  enabled: false
+
+logging:
+  level: "error"
+  format: "json"

@@ -1,0 +1,29 @@
+# Google OAuth config for integration tests.
+server:
+  upstream_url: "http://localhost:9999"
+  listen_addr: ":0"
+
+auth:
+  provider: "google"
+  client_id: "test-google-client-id"
+  client_secret: "${GOOGLE_CLIENT_SECRET}"
+  redirect_url: "http://localhost:8080/auth/callback"
+
+roles:
+  - name: "admin"
+    allowed_tools: []
+  - name: "readonly"
+    allowed_tools: []
+  - name: "restricted"
+    allowed_tools: []
+
+rate_limit:
+  requests_per_minute: 60
+  burst_size: 5
+
+audit:
+  enabled: false
+
+logging:
+  level: "error"
+  format: "json"

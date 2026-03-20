@@ -1,0 +1,12 @@
+# Minimal config — no auth, no RBAC restrictions.
+# Used for basic proxy forwarding tests.
+server:
+  upstream_url: "http://localhost:9999"  # overridden in tests
+  listen_addr: ":0"  # overridden in tests
+
+audit:
+  enabled: false  # suppress audit output in tests
+
+logging:
+  level: "error"
+  format: "json"
