@@ -6,7 +6,7 @@ A drop-in reverse proxy that adds OAuth 2.1 PKCE authentication, tool-level RBAC
 
 **Domain:** mcpzerotrust.dev
 **Owner:** Andrew Noble (andrewnoble1992@gmail.com)
-**Stage:** Phase 0 complete (infra done, landing page NOT public yet)
+**Stage:** Phase 1 complete (deep research done, GO decision made). Ready for Phase 2: MVP Build.
 
 ## Current State
 
@@ -18,9 +18,18 @@ A drop-in reverse proxy that adds OAuth 2.1 PKCE authentication, tool-level RBAC
 
 ## Immediate Priorities
 
-1. **Deploy landing page to Vercel** — When ready to go public (connect mcpzerotrust.dev domain)
-2. **Phase 1: Validation Sprint** — Prove demand before building (outreach, discovery calls, waitlist signups)
-3. **Phase 2: MVP proxy build** — Go-based reverse proxy (see PROJECT-BRIEF.md for architecture)
+1. **Deploy landing page to Vercel** — Connect mcpzerotrust.dev, start collecting waitlist signups
+2. **Phase 2: MVP Build** — Go-based reverse proxy with OAuth 2.1 PKCE, RBAC (3 roles), audit logging, session isolation
+3. **Phase 3: Beta Launch** — 10+ teams in production, first revenue
+
+## Research Findings (Phase 1 — 2026-03-19)
+
+- **Pain:** 15 genuine developer complaints (active breaches, 220K+ exposed instances, 30 CVEs in 60 days)
+- **Competition:** No turnkey competitor in our lane (simple + enterprise + transparent pricing). IBM ContextForge closest but needs K8s.
+- **Ecosystem:** 52M+/mo PyPI downloads, ~4K+ servers. MCP is the de facto standard. Auth added to spec but optional.
+- **Buyers:** $49+/mo viable. Gap between free (sigbit) and enterprise (Kong $500+, Lunar $250/gateway) is wide.
+- **Tech landscape:** 6 new CVEs in Feb-Mar 2026, new AI-native attack vectors. Threat is GROWING.
+- **Decision: GO** — all 5 kill criteria passed. Window is 3-6 months.
 
 ## Key Files
 
