@@ -25,7 +25,7 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 ### Proxy Core
 
 - [ ] **PRXY-01**: OAuth 2.1 PKCE authentication flow with token exchange and refresh
-- [ ] **PRXY-02**: Transparent reverse proxy for HTTP+SSE MCP transport (no server code changes)
+- [x] **PRXY-02**: Transparent reverse proxy for HTTP+SSE MCP transport (no server code changes)
 - [ ] **PRXY-03**: Per-client session isolation preventing cross-tenant data leakage
 - [ ] **PRXY-04**: Structured JSON audit log of every MCP call (who, what, when, allowed/denied)
 - [ ] **PRXY-05**: Single Docker container or standalone binary deployment
@@ -100,7 +100,7 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | RSCH-05 | Phase 1 | Pending |
 | RSCH-06 | Phase 1 | Pending |
 | PRXY-01 | Phase 2 | Pending |
-| PRXY-02 | Phase 2 | Pending |
+| PRXY-02 | Phase 2 | Complete (02-02) |
 | PRXY-03 | Phase 2 | Pending |
 | PRXY-04 | Phase 2 | Pending |
 | PRXY-05 | Phase 2 | Pending |

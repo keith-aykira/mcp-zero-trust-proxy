@@ -1,16 +1,16 @@
 ## Current Position
 
 Phase: 2 — MVP Build
-Plan: 01 of 06 COMPLETE
-Status: IN PROGRESS — Plan 02-01 complete, Go project bootstrap done
-Last activity: 2026-03-20 — 02-01 executed: Go module, interfaces, YAML config, 10 TDD tests pass
+Plan: 02 of 06 COMPLETE
+Status: IN PROGRESS — Plan 02-02 complete, MCP reverse proxy core done
+Last activity: 2026-03-20 — 02-02 executed: JSON-RPC 2.0 parser, HTTP+SSE reverse proxy, 22 TDD tests pass
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Any MCP server can be protected with enterprise-grade security in 5 minutes via Docker — no code changes required.
-**Current focus:** Phase 2 — MVP Build (Plan 01 done, Plan 02 up next: OAuth 2.1 PKCE auth)
+**Current focus:** Phase 2 — MVP Build (Plans 01-02 done, Plan 03 up next: Tool-level RBAC enforcement)
 
 ## Phase 0 Progress (COMPLETE)
 
@@ -51,7 +51,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 ## Phase 2 Progress (IN PROGRESS)
 
 - [x] 02-01: Go module bootstrap — interfaces, config system, 10 TDD tests, example YAML
-- [ ] 02-02: OAuth 2.1 PKCE authentication
+- [x] 02-02: MCP reverse proxy core — JSON-RPC 2.0 parser, HTTP+SSE proxy, 22 TDD tests
 - [ ] 02-03: Tool-level RBAC enforcement
 - [ ] 02-04: Session isolation
 - [ ] 02-05: Rate limiting + audit logging
@@ -63,3 +63,8 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-20 (02-01): Audit defaults to enabled=true — zero-config deployments get full audit logging
 - 2026-03-20 (02-01): Load() applies defaults, Validate() checks required fields — two separate passes
 - 2026-03-20 (02-01): Go binary at cache path (not system-wide) — must set in PATH for all Go commands
+- 2026-03-20 (02-02): Import cycle between proxy and middleware packages — handler.go cannot import middleware; middleware fields deferred to Plans 02-03 through 02-05
+- 2026-03-20 (02-02): Context values don't cross HTTP connections — MCPRequestKey is for in-process middleware only; test verification uses SetTransport hook
+- 2026-03-20 (02-02): httputil.ReverseProxy for HTTP, custom ProxySSE for SSE — ReverseProxy buffers which breaks SSE streaming
+- 2026-03-20 (02-02): Body buffering pattern: io.ReadAll + io.NopCloser(bytes.NewReader) — makes body readable for both parse and proxy forward
+- 2026-03-20 (02-02): SetTransport exported on Handler — enables test transport injection without exposing reverseProxy field directly
