@@ -611,22 +611,49 @@
 </footer>
 
 <script>
-function handleSubmit(e) {
+const SUPABASE_URL = 'https://dwumoznjyckebuirghne.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3dW1vem5qeWNrZWJ1aXJnaG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NzkxNDQsImV4cCI6MjA4OTU1NTE0NH0.75b5Ej67DkJx3ZSt5tFYec4Wn6_iSsXNsFJ7kNWxtKQ';
+
+async function handleSubmit(e) {
   e.preventDefault();
   const email = document.getElementById('email-input').value;
   const btn = document.getElementById('submit-btn');
   const note = document.getElementById('form-note');
 
-  // Store locally (replace with real backend: Supabase, ConvertKit, etc.)
-  const waitlist = JSON.parse(localStorage.getItem('mcpproxy_waitlist') || '[]');
-  waitlist.push({ email, timestamp: new Date().toISOString() });
-  localStorage.setItem('mcpproxy_waitlist', JSON.stringify(waitlist));
-
-  btn.textContent = '✓ You\'re on the list!';
-  btn.style.background = '#10b981';
+  btn.textContent = 'Joining...';
   btn.disabled = true;
-  note.textContent = `We'll notify ${email} when the beta is ready.`;
-  document.getElementById('email-input').disabled = true;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/waitlist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ email, source: 'landing-page' })
+    });
+
+    if (res.ok) {
+      btn.textContent = '\u2713 You\'re on the list!';
+      btn.style.background = '#10b981';
+      note.textContent = `We'll notify ${email} when the beta is ready.`;
+      document.getElementById('email-input').disabled = true;
+    } else if (res.status === 409) {
+      btn.textContent = 'Already signed up!';
+      btn.style.background = '#f59e0b';
+      note.textContent = `${email} is already on the waitlist.`;
+      btn.disabled = false;
+    } else {
+      throw new Error('Signup failed');
+    }
+  } catch (err) {
+    btn.textContent = 'Try again';
+    btn.style.background = '#ef4444';
+    btn.disabled = false;
+    note.textContent = 'Something went wrong. Please try again.';
+  }
 }
 </script>
 
