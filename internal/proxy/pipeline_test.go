@@ -1012,6 +1012,145 @@ func (r *perItemRBAC) FilterToolsList(identity *proxy.ClientIdentity, toolsList 
 	return toolsList, nil
 }
 
+// =============================================================================
+// SSE role enforcement tests (security fix: restrict SSE to admin role only)
+// =============================================================================
+
+// TestSSERoleEnforcement_AdminAllowed verifies that a client with the admin role
+// can make SSE requests (i.e., the pipeline does NOT return 403 for admin).
+func TestSSERoleEnforcement_AdminAllowed(t *testing.T) {
+	// Upstream returns a simple SSE stream for the test; the pipeline should let it through.
+	upstream := &mockUpstreamHandler{responseBody: "", statusCode: 200}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "admin-client", Role: "admin"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("GET", "/sse", nil)
+	req.Header.Set("Accept", "text/event-stream")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	// Admin should NOT receive a 403 — the pipeline passes through to upstream.
+	if w.Code == http.StatusForbidden {
+		t.Errorf("admin role should be allowed SSE, got 403: %s", w.Body.String())
+	}
+}
+
+// TestSSERoleEnforcement_ReadonlyDenied verifies that a client with the readonly
+// role receives 403 Forbidden when attempting an SSE request.
+func TestSSERoleEnforcement_ReadonlyDenied(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "readonly-client", Role: "readonly"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("GET", "/sse", nil)
+	req.Header.Set("Accept", "text/event-stream")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("readonly role should get 403 for SSE, got %d", w.Code)
+	}
+	if upstream.called {
+		t.Error("upstream should NOT be called when SSE is denied")
+	}
+	// Verify the response contains a meaningful error message.
+	body := w.Body.String()
+	if !strings.Contains(body, "SSE streaming requires admin role") {
+		t.Errorf("expected error message about SSE requiring admin role, got: %s", body)
+	}
+}
+
+// TestSSERoleEnforcement_RestrictedDenied verifies that a client with the restricted
+// role also receives 403 Forbidden when attempting an SSE request.
+func TestSSERoleEnforcement_RestrictedDenied(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "restricted-client", Role: "restricted"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("GET", "/sse", nil)
+	req.Header.Set("Accept", "text/event-stream")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("restricted role should get 403 for SSE, got %d", w.Code)
+	}
+	if upstream.called {
+		t.Error("upstream should NOT be called when SSE is denied for restricted role")
+	}
+}
+
+// TestSSERoleEnforcement_NoIdentityDenied verifies that an unauthenticated request
+// (no identity) also cannot access SSE.
+func TestSSERoleEnforcement_NoIdentityDenied(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	// nil auth means no identity is set
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, nil, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("GET", "/sse", nil)
+	req.Header.Set("Accept", "text/event-stream")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("unauthenticated SSE request should get 403, got %d", w.Code)
+	}
+	if upstream.called {
+		t.Error("upstream should NOT be called when SSE is denied for unauthenticated client")
+	}
+}
+
+// TestSSERoleEnforcement_DeniedAudited verifies that denied SSE attempts are logged.
+func TestSSERoleEnforcement_DeniedAudited(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "readonly-client", Role: "readonly"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("GET", "/sse", nil)
+	req.Header.Set("Accept", "text/event-stream")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if len(auditLogger.entries) == 0 {
+		t.Fatal("expected an audit entry for denied SSE attempt")
+	}
+	entry := auditLogger.entries[0]
+	if entry.Allowed {
+		t.Error("denied SSE audit entry should have Allowed=false")
+	}
+	if entry.DeniedReason == "" {
+		t.Error("denied SSE audit entry should have DeniedReason set")
+	}
+	if entry.ClientID != "readonly-client" {
+		t.Errorf("audit entry ClientID should be %q, got %q", "readonly-client", entry.ClientID)
+	}
+}
+
 // TestPipelineLatencyTracking verifies latency is recorded in audit entries.
 func TestPipelineLatencyTracking(t *testing.T) {
 	auth := &mockAuthenticator{

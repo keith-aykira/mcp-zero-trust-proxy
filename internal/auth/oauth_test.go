@@ -254,6 +254,29 @@ func TestHandleAuthStart(t *testing.T) {
 	if q.Get("client_id") != "test-client-id" {
 		t.Errorf("client_id = %q, want test-client-id", q.Get("client_id"))
 	}
+
+	// Verify CSRF cookie is set with the same state value
+	state := q.Get("state")
+	cookies := rr.Result().Cookies()
+	var oauthStateCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "oauth_state" {
+			oauthStateCookie = c
+			break
+		}
+	}
+	if oauthStateCookie == nil {
+		t.Fatal("oauth_state cookie not set in HandleAuthStart response")
+	}
+	if oauthStateCookie.Value != state {
+		t.Errorf("oauth_state cookie value = %q, want %q (state from redirect URL)", oauthStateCookie.Value, state)
+	}
+	if !oauthStateCookie.HttpOnly {
+		t.Error("oauth_state cookie must be HttpOnly")
+	}
+	if oauthStateCookie.MaxAge != 600 {
+		t.Errorf("oauth_state cookie MaxAge = %d, want 600", oauthStateCookie.MaxAge)
+	}
 }
 
 func TestHandleCallbackPKCESuccess(t *testing.T) {
@@ -295,6 +318,7 @@ func TestHandleCallbackPKCESuccess(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=auth-code-123&state=%s", state), nil)
+	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: state})
 	rr := httptest.NewRecorder()
 
 	auth.HandleCallback(rr, req)
@@ -336,6 +360,7 @@ func TestHandleCallbackPKCEWrongVerifier(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=auth-code-456&state=%s", state), nil)
+	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: state})
 	rr := httptest.NewRecorder()
 
 	auth.HandleCallback(rr, req)
@@ -709,6 +734,7 @@ func TestHandleCallbackErrorIsSanitized(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=bad-code&state=%s", state), nil)
+	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: state})
 	rr := httptest.NewRecorder()
 
 	a.HandleCallback(rr, req)
@@ -725,4 +751,88 @@ func TestHandleCallbackErrorIsSanitized(t *testing.T) {
 	if strings.Contains(body, "secret_rotation_policy") {
 		t.Errorf("HandleCallback response contains provider-specific content: %q", body)
 	}
+}
+
+// TestHandleCallbackCSRFProtection verifies that the callback rejects requests
+// when the oauth_state cookie is absent or does not match the state query parameter.
+func TestHandleCallbackCSRFProtection(t *testing.T) {
+	const returnToken = "csrf-test-token"
+
+	verifier, err := GenerateCodeVerifier()
+	if err != nil {
+		t.Fatalf("GenerateCodeVerifier() error: %v", err)
+	}
+	challenge := GenerateCodeChallenge(verifier)
+
+	tokenSrv := mockTokenServer("auth-code-csrf", verifier, challenge, returnToken)
+	defer tokenSrv.Close()
+
+	userInfoSrv := mockUserInfoServer(returnToken, "user1", "user1@example.com")
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{
+		Provider:    "github",
+		ClientID:    "test-client-id",
+		RedirectURL: "http://localhost:8080/callback",
+	}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.TokenURL = tokenSrv.URL
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	const state = "csrf-test-state"
+
+	setupState := func() {
+		a.stateCache.Store(state, pkceEntry{
+			verifier:  verifier,
+			createdAt: time.Now(),
+		})
+	}
+
+	t.Run("no cookie → 403", func(t *testing.T) {
+		setupState()
+		req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=auth-code-csrf&state=%s", state), nil)
+		// No cookie set — simulates an attacker-crafted redirect to the victim
+		rr := httptest.NewRecorder()
+		a.HandleCallback(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("status = %d, want %d (CSRF: no cookie)", rr.Code, http.StatusForbidden)
+		}
+		if !strings.Contains(rr.Body.String(), "CSRF") {
+			t.Errorf("expected CSRF error message, got: %s", rr.Body.String())
+		}
+	})
+
+	t.Run("wrong cookie value → 403", func(t *testing.T) {
+		setupState()
+		req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=auth-code-csrf&state=%s", state), nil)
+		req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "different-state-value"})
+		rr := httptest.NewRecorder()
+		a.HandleCallback(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("status = %d, want %d (CSRF: cookie mismatch)", rr.Code, http.StatusForbidden)
+		}
+		if !strings.Contains(rr.Body.String(), "CSRF") {
+			t.Errorf("expected CSRF error message, got: %s", rr.Body.String())
+		}
+	})
+
+	t.Run("correct cookie → 200", func(t *testing.T) {
+		setupState()
+		req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=auth-code-csrf&state=%s", state), nil)
+		req.AddCookie(&http.Cookie{Name: "oauth_state", Value: state})
+		rr := httptest.NewRecorder()
+		a.HandleCallback(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("status = %d, want %d (valid CSRF cookie); body: %s", rr.Code, http.StatusOK, rr.Body.String())
+		}
+		if !strings.Contains(rr.Body.String(), returnToken) {
+			t.Errorf("response should contain access token %q; got: %s", returnToken, rr.Body.String())
+		}
+	})
 }

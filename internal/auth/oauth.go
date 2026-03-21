@@ -230,6 +230,20 @@ func (a *Authenticator) HandleAuthStart(w http.ResponseWriter, r *http.Request) 
 		createdAt: time.Now(),
 	})
 
+	// Bind the state to the user's browser session via an HTTP-only cookie.
+	// This prevents OAuth login CSRF: an attacker who obtains a redirect URL
+	// with their own state parameter cannot trick a victim into completing the
+	// flow, because the victim's browser will not have the matching cookie.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_state",
+		Value:    state,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   600,
+	})
+
 	// Build authorization URL
 	params := url.Values{}
 	params.Set("response_type", "code")
@@ -261,6 +275,24 @@ func (a *Authenticator) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing state parameter", http.StatusBadRequest)
 		return
 	}
+
+	// CSRF validation: verify the state parameter matches the cookie set during
+	// HandleAuthStart. This ensures only the browser that initiated the flow can
+	// complete it — an attacker cannot forge the HttpOnly cookie from a different
+	// origin.
+	cookie, err := r.Cookie("oauth_state")
+	if err != nil || cookie.Value != state {
+		http.Error(w, "CSRF validation failed", http.StatusForbidden)
+		return
+	}
+	// Clear the cookie now that it has been consumed (one-time use).
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_state",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1,
+	})
 
 	// Retrieve and consume PKCE entry (one-time use)
 	entryVal, ok := a.stateCache.LoadAndDelete(state)

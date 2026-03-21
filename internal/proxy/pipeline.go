@@ -296,6 +296,27 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Step 2b: SSE role enforcement.
+	// SSE streams bypass per-response RBAC inspection — the upstream can emit
+	// responses for any method once the connection is open. Until per-event
+	// filtering is implemented (Option A), only the admin role may open SSE
+	// connections. Restricted/readonly clients must use the standard JSON-RPC
+	// request/response path, which is fully protected by RBAC.
+	if isSSERequest(r) {
+		role := ""
+		if identity != nil {
+			role = identity.Role
+		}
+		if role != "admin" {
+			auditEntry.Allowed = false
+			auditEntry.DeniedReason = "sse: role not permitted"
+			auditEntry.Latency = time.Since(start)
+			p.logAudit(auditEntry)
+			writeJSONRPCError(w, nil, ErrCodeForbidden, "SSE streaming requires admin role", http.StatusForbidden)
+			return
+		}
+	}
+
 	// Step 3: Parse request body (needed for RBAC and tools/list filtering).
 	// Step 3: Parse request body — single parse, shared with upstream via context.
 	// Buffer the body so we can both parse it and forward it to upstream.
