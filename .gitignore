@@ -31,3 +31,4 @@ Thumbs.db
 # Go
 *.test
 coverage.out
+mcpproxy
