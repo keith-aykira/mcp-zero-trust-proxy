@@ -40,6 +40,11 @@ type Handler struct {
 	upstream     *url.URL
 	reverseProxy *httputil.ReverseProxy
 	httpClient   *http.Client
+
+	// sseTimeout is the configurable SSE connection timeout. 0 = no timeout.
+	sseTimeout time.Duration
+	// sseMaxBuffer is the configurable SSE scanner buffer size in bytes.
+	sseMaxBuffer int
 }
 
 // NewHandler constructs a Handler from config. Returns an error if the upstream URL
@@ -75,10 +80,19 @@ func NewHandler(cfg *config.Config) (*Handler, error) {
 		req.Host = upstream.Host
 	}
 
+	// SSE configuration: timeout and buffer size from config.
+	sseTimeout := time.Duration(cfg.Server.SSE.TimeoutSeconds) * time.Second
+	sseMaxBuffer := cfg.Server.SSE.MaxBufferBytes
+	if sseMaxBuffer <= 0 {
+		sseMaxBuffer = 64 * 1024 // 64KB default
+	}
+
 	return &Handler{
 		upstream:     upstream,
 		reverseProxy: rp,
 		httpClient:   httpClient,
+		sseTimeout:   sseTimeout,
+		sseMaxBuffer: sseMaxBuffer,
 	}, nil
 }
 
@@ -126,7 +140,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Route SSE requests to the streaming proxy.
 	if isSSERequest(r) {
 		upstreamURL := h.upstreamURLForRequest(r)
-		if err := ProxySSE(w, r, upstreamURL); err != nil {
+		if err := ProxySSE(w, r, upstreamURL, h.sseTimeout, h.sseMaxBuffer); err != nil {
 			// SSE errors after headers are sent cannot change the status code.
 			// Log silently; client will see connection close.
 			_ = err

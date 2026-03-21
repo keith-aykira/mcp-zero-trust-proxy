@@ -134,6 +134,15 @@ func main() {
 	}
 
 	// Start server in background
+	tlsEnabled := cfg.Server.TLS.CertFile != "" && cfg.Server.TLS.KeyFile != ""
+	if tlsEnabled {
+		log.Info().
+			Str("cert_file", cfg.Server.TLS.CertFile).
+			Msg("TLS enabled")
+	} else {
+		log.Info().Msg("TLS disabled (plain HTTP)")
+	}
+
 	serverErr := make(chan error, 1)
 	go func() {
 		log.Info().
@@ -142,8 +151,14 @@ func main() {
 			Str("version", version).
 			Int("roles", len(cfg.Roles)).
 			Msg("Proxy ready")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			serverErr <- err
+		var serveErr error
+		if tlsEnabled {
+			serveErr = server.ListenAndServeTLS(cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
+		} else {
+			serveErr = server.ListenAndServe()
+		}
+		if serveErr != nil && serveErr != http.ErrServerClosed {
+			serverErr <- serveErr
 		}
 	}()
 

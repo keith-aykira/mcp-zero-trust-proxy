@@ -16,6 +16,29 @@ type ServerConfig struct {
 	UpstreamURL string `yaml:"upstream_url"`
 	// ListenAddr is the address the proxy listens on. Default: ":8080"
 	ListenAddr string `yaml:"listen_addr"`
+	// TLS holds optional TLS termination configuration.
+	TLS TLSConfig `yaml:"tls"`
+	// SSE holds configurable SSE proxy settings.
+	SSE SSEConfig `yaml:"sse"`
+}
+
+// TLSConfig holds TLS termination settings. When CertFile and KeyFile are both
+// non-empty, the server starts with TLS enabled.
+type TLSConfig struct {
+	// CertFile is the path to the TLS certificate file (PEM format).
+	CertFile string `yaml:"cert_file"`
+	// KeyFile is the path to the TLS private key file (PEM format).
+	KeyFile string `yaml:"key_file"`
+}
+
+// SSEConfig controls Server-Sent Events proxy behavior.
+type SSEConfig struct {
+	// TimeoutSeconds is the SSE connection timeout in seconds.
+	// 0 means no timeout (connections live until client disconnects). Default: 0.
+	TimeoutSeconds int `yaml:"timeout_seconds"`
+	// MaxBufferBytes is the maximum scanner buffer size for SSE lines in bytes.
+	// Lines exceeding this trigger backpressure (connection closed). Default: 65536 (64KB).
+	MaxBufferBytes int `yaml:"max_buffer_bytes"`
 }
 
 // AuthConfig holds OAuth 2.1 PKCE authentication provider configuration.

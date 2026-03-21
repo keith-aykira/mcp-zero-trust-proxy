@@ -6,15 +6,22 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // ProxySSE establishes a Server-Sent Events connection to the upstream and streams
 // events back to the client in real time. It sets all required SSE response headers
 // and reads upstream events line by line, flushing each to the client immediately.
 //
+// timeout controls how long the SSE connection may stay open. 0 means no timeout
+// (connection lives until client disconnects or upstream closes).
+//
+// maxBufferSize sets the scanner buffer capacity in bytes. Lines exceeding this
+// limit trigger a scanner error, closing the connection (backpressure). Must be > 0.
+//
 // Connection lifecycle: returns when either the client disconnects (r.Context() done)
 // or the upstream closes the connection.
-func ProxySSE(w http.ResponseWriter, r *http.Request, upstream *url.URL) error {
+func ProxySSE(w http.ResponseWriter, r *http.Request, upstream *url.URL, timeout time.Duration, maxBufferSize int) error {
 	// SSE requires the ResponseWriter to implement http.Flusher for immediate delivery.
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -47,8 +54,15 @@ func ProxySSE(w http.ResponseWriter, r *http.Request, upstream *url.URL) error {
 	upstreamReq.Header.Set("Accept", "text/event-stream")
 	upstreamReq.Header.Set("Cache-Control", "no-cache")
 
-	// Use a default client; caller may inject a custom one in future via options.
-	client := &http.Client{}
+	// Build HTTP client with configurable timeout.
+	// timeout=0 means no client-level timeout; context cancellation handles disconnect.
+	var client *http.Client
+	if timeout > 0 {
+		client = &http.Client{Timeout: timeout}
+	} else {
+		client = &http.Client{}
+	}
+
 	resp, err := client.Do(upstreamReq)
 	if err != nil {
 		return fmt.Errorf("connect to upstream SSE: %w", err)
@@ -70,8 +84,18 @@ func ProxySSE(w http.ResponseWriter, r *http.Request, upstream *url.URL) error {
 	w.WriteHeader(resp.StatusCode)
 	flusher.Flush()
 
-	// Stream events from upstream to client line by line.
+	// Set a safe default buffer size if none provided.
+	if maxBufferSize <= 0 {
+		maxBufferSize = 64 * 1024 // 64KB default
+	}
+
+	// Stream events from upstream to client line by line using configurable buffer.
+	// bufio.Scanner.Buffer sets both the initial buffer and the max size —
+	// lines exceeding maxBufferSize cause scanner.Err() to return bufio.ErrTooLong,
+	// which closes the connection (backpressure).
 	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, maxBufferSize), maxBufferSize)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		fmt.Fprintln(w, line)
