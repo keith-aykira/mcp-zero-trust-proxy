@@ -344,3 +344,290 @@ func TestHandleCallbackPKCEWrongVerifier(t *testing.T) {
 		t.Error("callback should not succeed when PKCE verifier is wrong")
 	}
 }
+
+// ========================
+// NEW TESTS: Cache cleanup, client secret, error sanitization
+// ========================
+
+func TestStartCleanupRemovesExpiredTokenCacheEntries(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	// Store an already-expired token cache entry
+	a.tokenCache.Store("expired-token", tokenCacheEntry{
+		identity:  nil,
+		expiresAt: time.Now().Add(-1 * time.Minute), // expired
+	})
+	// Store a valid (non-expired) entry
+	a.tokenCache.Store("valid-token", tokenCacheEntry{
+		identity:  nil,
+		expiresAt: time.Now().Add(5 * time.Minute), // not expired
+	})
+
+	// Run cleanup manually (tick once)
+	a.runCleanup()
+
+	// Expired entry should be gone
+	if _, ok := a.tokenCache.Load("expired-token"); ok {
+		t.Error("expired token cache entry should have been removed by cleanup")
+	}
+	// Valid entry should remain
+	if _, ok := a.tokenCache.Load("valid-token"); !ok {
+		t.Error("valid token cache entry should NOT have been removed by cleanup")
+	}
+}
+
+func TestStartCleanupRemovesExpiredStateCacheEntries(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	// Store an expired state entry (created >10 minutes ago)
+	a.stateCache.Store("old-state", pkceEntry{
+		verifier:  "verifier1",
+		createdAt: time.Now().Add(-11 * time.Minute), // older than 10 min
+	})
+	// Store a fresh state entry
+	a.stateCache.Store("fresh-state", pkceEntry{
+		verifier:  "verifier2",
+		createdAt: time.Now(), // just created
+	})
+
+	// Run cleanup manually
+	a.runCleanup()
+
+	// Old state should be gone
+	if _, ok := a.stateCache.Load("old-state"); ok {
+		t.Error("expired state cache entry (>10 min old) should have been removed by cleanup")
+	}
+	// Fresh state should remain
+	if _, ok := a.stateCache.Load("fresh-state"); !ok {
+		t.Error("fresh state cache entry should NOT have been removed by cleanup")
+	}
+}
+
+func TestStartStopCleanup(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	// StartCleanup should not panic and should start a goroutine
+	a.StartCleanup()
+
+	// StopCleanup should not panic and should stop the goroutine cleanly
+	// Call it twice to ensure idempotency (no double-close panic)
+	a.StopCleanup()
+}
+
+func TestExchangeCodeIncludesClientSecretWhenConfigured(t *testing.T) {
+	const clientSecret = "super-secret-value"
+	var receivedSecret string
+
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		receivedSecret = r.FormValue("client_secret")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"access_token": "tok-123",
+			"token_type":   "bearer",
+		})
+	}))
+	defer tokenSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{
+		Provider:     "github",
+		ClientID:     "test-client-id",
+		ClientSecret: clientSecret,
+	}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.TokenURL = tokenSrv.URL
+
+	_, err = a.exchangeCode("some-code", "some-verifier")
+	if err != nil {
+		t.Fatalf("exchangeCode() unexpected error: %v", err)
+	}
+
+	if receivedSecret != clientSecret {
+		t.Errorf("client_secret sent = %q, want %q", receivedSecret, clientSecret)
+	}
+}
+
+func TestExchangeCodeOmitsClientSecretWhenEmpty(t *testing.T) {
+	var receivedSecret string
+
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		receivedSecret = r.FormValue("client_secret")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"access_token": "tok-456",
+			"token_type":   "bearer",
+		})
+	}))
+	defer tokenSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{
+		Provider:     "github",
+		ClientID:     "test-client-id",
+		ClientSecret: "", // empty — should not be sent
+	}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.TokenURL = tokenSrv.URL
+
+	_, err = a.exchangeCode("some-code", "some-verifier")
+	if err != nil {
+		t.Fatalf("exchangeCode() unexpected error: %v", err)
+	}
+
+	if receivedSecret != "" {
+		t.Errorf("client_secret should not be sent when empty, but got %q", receivedSecret)
+	}
+}
+
+func TestExchangeCodeErrorDoesNotLeakProviderBody(t *testing.T) {
+	const sensitiveBody = "internal_error: secret provider details xyz"
+
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, sensitiveBody, http.StatusBadRequest)
+	}))
+	defer tokenSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.TokenURL = tokenSrv.URL
+
+	_, err = a.exchangeCode("bad-code", "bad-verifier")
+	if err == nil {
+		t.Fatal("exchangeCode() should return error on non-200 response")
+	}
+
+	// The error message must NOT contain the raw provider response body
+	if strings.Contains(err.Error(), sensitiveBody) {
+		t.Errorf("exchangeCode error leaked provider body: %q", err.Error())
+	}
+	// Must NOT contain "internal_error" or "secret provider"
+	if strings.Contains(err.Error(), "internal_error") {
+		t.Errorf("exchangeCode error contains provider-specific content: %q", err.Error())
+	}
+}
+
+func TestAuthenticateErrorIsSanitized(t *testing.T) {
+	// Provider returns 401 with sensitive details
+	const sensitiveMsg = "oauth2: token_rejected reason=abuse_detected user=hacker"
+	userInfoSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		http.Error(w, sensitiveMsg, http.StatusUnauthorized)
+	}))
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer bad-token")
+
+	_, authErr := a.Authenticate(req)
+	if authErr == nil {
+		t.Fatal("Authenticate() should return error for rejected token")
+	}
+
+	// Error returned to caller must not contain provider-specific sensitive details
+	if strings.Contains(authErr.Error(), sensitiveMsg) {
+		t.Errorf("Authenticate error leaked sensitive provider info: %q", authErr.Error())
+	}
+	if strings.Contains(authErr.Error(), "token_rejected") {
+		t.Errorf("Authenticate error contains provider-specific content: %q", authErr.Error())
+	}
+}
+
+func TestHandleCallbackErrorIsSanitized(t *testing.T) {
+	// Token endpoint returns error with sensitive provider details
+	const sensitiveBody = "error=invalid_grant&error_description=secret_rotation_policy"
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, sensitiveBody, http.StatusBadRequest)
+	}))
+	defer tokenSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.TokenURL = tokenSrv.URL
+
+	// Inject a valid state entry
+	state := "callback-state"
+	verifier, _ := GenerateCodeVerifier()
+	a.stateCache.Store(state, pkceEntry{
+		verifier:  verifier,
+		createdAt: time.Now(),
+	})
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/callback?code=bad-code&state=%s", state), nil)
+	rr := httptest.NewRecorder()
+
+	a.HandleCallback(rr, req)
+
+	if rr.Code == http.StatusOK {
+		t.Fatal("HandleCallback should fail when token exchange fails")
+	}
+
+	// Response body must not contain the raw provider error
+	body := rr.Body.String()
+	if strings.Contains(body, sensitiveBody) {
+		t.Errorf("HandleCallback response leaked sensitive provider body: %q", body)
+	}
+	if strings.Contains(body, "secret_rotation_policy") {
+		t.Errorf("HandleCallback response contains provider-specific content: %q", body)
+	}
+}

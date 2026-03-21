@@ -41,6 +41,9 @@ type Authenticator struct {
 
 	// tokenCache maps Bearer token -> tokenCacheEntry. Valid tokens are cached for 5 minutes.
 	tokenCache sync.Map
+
+	// stopCleanup is closed to signal the background cleanup goroutine to stop.
+	stopCleanup chan struct{}
 }
 
 // NewAuthenticator constructs an Authenticator from the given AuthConfig and SessionStore.
@@ -69,12 +72,67 @@ func NewAuthenticator(cfg *config.AuthConfig, sessionStore *SessionStore) (*Auth
 		provider:     provider,
 		sessionStore: sessionStore,
 		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		stopCleanup:  make(chan struct{}),
 	}, nil
+}
+
+// StartCleanup launches a background goroutine that periodically removes expired
+// entries from stateCache (>10 minutes old) and tokenCache (past expiresAt).
+// It runs every 60 seconds until StopCleanup is called.
+func (a *Authenticator) StartCleanup() {
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				a.runCleanup()
+			case <-a.stopCleanup:
+				return
+			}
+		}
+	}()
+}
+
+// StopCleanup signals the background cleanup goroutine to stop.
+// Safe to call multiple times.
+func (a *Authenticator) StopCleanup() {
+	select {
+	case <-a.stopCleanup:
+		// already closed, nothing to do
+	default:
+		close(a.stopCleanup)
+	}
+}
+
+// runCleanup performs a single pass of cache expiry cleanup.
+// Called periodically by the goroutine started by StartCleanup, and directly in tests.
+func (a *Authenticator) runCleanup() {
+	now := time.Now()
+
+	// Remove expired token cache entries (past expiresAt)
+	a.tokenCache.Range(func(key, val interface{}) bool {
+		entry := val.(tokenCacheEntry)
+		if now.After(entry.expiresAt) {
+			a.tokenCache.Delete(key)
+		}
+		return true
+	})
+
+	// Remove expired state cache entries (created more than 10 minutes ago)
+	a.stateCache.Range(func(key, val interface{}) bool {
+		entry := val.(pkceEntry)
+		if now.Sub(entry.createdAt) > 10*time.Minute {
+			a.stateCache.Delete(key)
+		}
+		return true
+	})
 }
 
 // Authenticate validates the Bearer token in the request's Authorization header.
 // On success it returns a ClientIdentity with ClientID, Email, Role, and SessionID.
 // On failure it returns a non-nil error — the caller should respond with 401.
+// Error messages are sanitized — no provider-internal details are returned to callers.
 func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, error) {
 	token, err := extractBearerToken(r)
 	if err != nil {
@@ -90,10 +148,11 @@ func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, er
 		a.tokenCache.Delete(token)
 	}
 
-	// Call provider's userinfo endpoint to validate token and get identity
+	// Call provider's userinfo endpoint to validate token and get identity.
+	// Internal error details are not propagated to the caller.
 	identity, err := a.fetchUserIdentity(token)
 	if err != nil {
-		return nil, fmt.Errorf("token validation failed: %w", err)
+		return nil, fmt.Errorf("authentication failed")
 	}
 
 	// Create or reuse a session for this identity
@@ -183,7 +242,7 @@ func (a *Authenticator) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	// Exchange code + PKCE verifier for access token
 	accessToken, err := a.exchangeCode(code, entry.verifier)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("token exchange failed: %v", err), http.StatusUnauthorized)
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
 		return
 	}
 
@@ -195,32 +254,38 @@ func (a *Authenticator) HandleCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 // exchangeCode exchanges an authorization code and PKCE verifier for an access token.
+// It includes the client_secret in the request body when configured (HARD-08).
+// Error messages are sanitized — raw provider response bodies are never returned (HARD-05).
 func (a *Authenticator) exchangeCode(code, verifier string) (string, error) {
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("code_verifier", verifier)
 	form.Set("client_id", a.cfg.ClientID)
+	if a.cfg.ClientSecret != "" {
+		form.Set("client_secret", a.cfg.ClientSecret)
+	}
 	if a.cfg.RedirectURL != "" {
 		form.Set("redirect_uri", a.cfg.RedirectURL)
 	}
 
 	req, err := http.NewRequest("POST", a.provider.TokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("token exchange failed")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("token endpoint request failed: %w", err)
+		return "", fmt.Errorf("token exchange failed")
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("token endpoint returned HTTP %d: %s", resp.StatusCode, string(body))
+		// Sanitized: do NOT include raw provider response body
+		return "", fmt.Errorf("token exchange failed (HTTP %d)", resp.StatusCode)
 	}
 
 	var result map[string]interface{}
@@ -252,10 +317,10 @@ func (a *Authenticator) fetchUserIdentity(token string) (*proxy.ClientIdentity, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, fmt.Errorf("token rejected by provider (401)")
+		return nil, fmt.Errorf("user identity verification failed")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("userinfo endpoint returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("user identity verification failed")
 	}
 
 	// Parse provider response — GitHub uses {id, login, email}, OIDC uses {sub, email}

@@ -78,6 +78,9 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize authenticator")
 	}
+	// Start background goroutine for periodic cache cleanup (expired tokens/state entries)
+	authenticator.StartCleanup()
+	defer authenticator.StopCleanup()
 
 	// Step 3: RBAC engine
 	rbacEngine := rbac.NewEngine(cfg.Roles)
