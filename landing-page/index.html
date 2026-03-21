@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes</title>
-<meta name="description" content="Drop-in authentication proxy for MCP servers. OAuth 2.1 PKCE, RBAC, session isolation, and audit logging — zero code changes required.">
+<title>MCP Zero-Trust Proxy — Secure Your AI Tool Servers in Minutes</title>
+<meta name="description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes. Used by teams running Claude, Cursor, and Copilot agents.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -15,9 +15,9 @@
     --cream-border: #e8e4dc;
     --navy: #1a1f2e;
     --navy-light: #2d3452;
-    --ink: #2c2c2c;
-    --ink-muted: #6b6b6b;
-    --ink-faint: #9e9e9e;
+    --ink: #1a1a1a;
+    --ink-muted: #4a4a4a;
+    --ink-faint: #858585;
     --accent: #3d5a8a;
     --accent-hover: #2e4570;
     --accent-light: #edf0f7;
@@ -549,8 +549,8 @@
 <section class="hero">
   <div class="container">
     <div class="hero-badge">⚠ 8,000+ MCP servers exposed with zero auth</div>
-    <h1>Secure your MCP servers <em>in minutes</em></h1>
-    <p class="sub">Drop-in authentication proxy. OAuth 2.1 PKCE, RBAC, session isolation, and audit logging — zero code changes to your server.</p>
+    <h1>Secure your AI tool servers <em>in minutes</em></h1>
+    <p class="sub">AI agents like Claude, Cursor, and Copilot connect to your tools via MCP — but there's no built-in security. We add authentication, access control, and audit logging without touching your server code.</p>
     <div class="code-block">
       <div><span class="comment"># Protect any MCP server instantly</span></div>
       <div><span class="cmd">docker run</span> <span class="flag">-e</span> MCP_TARGET=localhost:3000 \</div>
@@ -600,23 +600,23 @@
     <div class="feature-grid">
       <div class="feature-card">
         <div class="feature-icon">🔐</div>
-        <h3>OAuth 2.1 PKCE</h3>
-        <p>Industry-standard authentication with PKCE for public clients. Support for GitHub, Google, Okta, Auth0, Azure AD, Keycloak, or any OIDC provider.</p>
+        <h3>Authentication</h3>
+        <p>Require login before anyone can use your tools. Works with GitHub, Google, Okta, or any identity provider — using the latest OAuth 2.1 standard.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🛡️</div>
-        <h3>Tool-Level RBAC</h3>
-        <p>Control exactly which tools each client can call. Admin, read-only, tool-restricted — define roles in YAML, enforce at the proxy layer.</p>
+        <h3>Access Control</h3>
+        <p>Decide who can do what. Give one team full access, restrict another to read-only, block specific tools entirely — all configured in a simple YAML file.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🔒</div>
         <h3>Session Isolation</h3>
-        <p>Per-client session boundaries prevent cross-tenant data leakage. Each authenticated client gets an isolated execution context.</p>
+        <p>Every user gets their own walled-off session. One client's data never leaks to another — even if they're using the same server.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">📋</div>
-        <h3>Immutable Audit Log</h3>
-        <p>Every MCP call logged: who, what, when, allowed or denied. Structured JSON export for compliance workflows.</p>
+        <h3>Audit Trail</h3>
+        <p>Every request is recorded — who made it, what they asked for, whether it was allowed. Exportable logs for security reviews and compliance.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">⚡</div>
@@ -626,7 +626,7 @@
       <div class="feature-card">
         <div class="feature-icon">🚦</div>
         <h3>Rate Limiting</h3>
-        <p>Per-client request throttling. Prevent abuse, protect upstream servers from runaway agents, and enforce usage quotas.</p>
+        <p>Prevent any single user or agent from overwhelming your server. Set request limits per client and enforce them automatically.</p>
       </div>
     </div>
   </div>
