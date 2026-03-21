@@ -1,6 +1,6 @@
-# Show HN: MCP Zero-Trust Proxy — drop-in auth for AI tool servers in 5 min
+# Show HN: MCP Zero-Trust Proxy — drop-in auth for any MCP server
 
-**HN Title (< 80 chars):** `Show HN: MCP Zero-Trust Proxy — drop-in auth for AI tool servers in 5 min`
+**HN Title (< 80 chars):** `Show HN: MCP Zero-Trust Proxy — drop-in auth for any MCP server`
 
 **URL:** https://mcpzerotrust.dev
 
@@ -10,11 +10,7 @@
 
 Hi HN,
 
-MCP (Model Context Protocol) is the emerging standard for connecting AI agents to tools and data — Claude, Cursor, Copilot, and others all support it. But authentication is optional in the spec. The result: 8,000+ exposed MCP servers with zero auth, 30+ CVEs in 60 days (Jan–Feb 2026), and the Clawdbot breach that hit 1,800+ servers in 48 hours.
-
-The most popular OAuth workaround — mcp-remote — had a CVSS 9.6 RCE. Anthropic's own Git MCP server had prompt injection flaws that chained into full code execution. 75% of MCP servers are built by individuals with no centralized security review.
-
-I built a drop-in reverse proxy that adds zero-trust security to any MCP server without touching the server code:
+I built a drop-in reverse proxy that adds zero-trust security to any MCP server — no code changes required:
 
 ```
 docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
@@ -25,13 +21,13 @@ docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
 - OAuth 2.1 PKCE authentication (GitHub, Google, Okta, any OIDC provider)
 - Tool-level RBAC — restrict which tools each client can call, enforced at the proxy layer
 - Session isolation — per-client execution boundaries prevent cross-tenant data leakage
-- Immutable audit log — every MCP call logged: who, what, when, allowed/denied
+- Audit logging — every MCP call logged: who, what, when, allowed/denied (structured JSON)
 - Rate limiting per client — token bucket, configurable per tier
 
 **Technical details:**
 
 - Written in Go — single binary, ~10MB, no runtime dependencies
-- 177+ tests with -race flag (zero races)
+- 212 tests with -race flag (zero races)
 - YAML config with `${ENV_VAR}` substitution
 - License keys: ECDSA P-256 signed JWTs, validated locally with zero network calls (works air-gapped)
 - MCP JSON-RPC 2.0 over HTTP+SSE (Streamable HTTP transport)
@@ -43,19 +39,16 @@ docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
 - Pro: $49/mo — 5 servers, 200 req/min, file audit with rotation
 - Enterprise: $199/mo — unlimited everything, priority support
 
-**On open-sourcing:**
+The repo is currently private while I work through the initial beta. Happy to share the code privately with security researchers — just email support@mcpzerotrust.dev.
 
-*Option A (if open-sourcing at launch):* The core proxy is open source on GitHub. The licensing infrastructure (tier enforcement, billing integration) is the commercial layer. I want the security community to be able to audit the auth and RBAC implementation directly — security products shouldn't be black boxes.
+**Why:** MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Cursor, Copilot all use it. But auth is optional in the spec. Result: 8,000+ exposed servers, 30+ CVEs in 60 days, and a CVSS 9.6 RCE in the most popular OAuth workaround (mcp-remote). The Clawdbot breach hit 1,800+ servers in 48 hours.
 
-*Option B (if staying private):* The repo is currently private while I work through the initial beta. I'll be opening it up once I've had a few teams run it in production and I'm confident in the security posture. Happy to share the code privately with security researchers — just ask.
+**Looking for:**
+- Beta testers running MCP servers in production (free Pro access)
+- Feedback on pricing and the approach
+- Security researchers willing to review the auth/RBAC implementation
 
-Looking for feedback from anyone running MCP servers in production, especially:
-- What auth solution (if any) you're using today
-- What would make you trust a proxy sitting in your MCP traffic path
-- Whether the pricing feels right for your use case
-
-GitHub: https://github.com/AnobleSCM/mcp-zero-trust-proxy
-Docs: https://mcpzerotrust.dev
+https://mcpzerotrust.dev
 
 ---
 
