@@ -74,7 +74,7 @@ Plans:
 **Goal:** Fix all production-readiness gaps identified in the Phase 2 audit so the proxy is robust enough for paying users.
 **Requirements:** HARD-01 through HARD-14
 **Depends on:** Phase 2
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md — Config expansion, user-to-role mapping, body size limits, CORS, request ID, single-parse (HARD-01, HARD-02, HARD-06, HARD-07, HARD-11)
@@ -114,7 +114,7 @@ Plans:
 | 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) |
 | 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
 | 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
-| 3 | Hardening & Production Readiness | Fix production gaps from audit | HARD-01 through HARD-14 | 14 |
+| 3 | 1/3 | In Progress|  | 14 |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
 ---
