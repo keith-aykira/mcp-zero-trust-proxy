@@ -70,7 +70,7 @@ Plans:
 5. Quick-start docs enable setup without help from the builder
 6. Integration tests pass against 5 MCP server types
 
-### Phase 3: Hardening & Production Readiness
+### Phase 3: Hardening & Production Readiness (COMPLETE)
 **Goal:** Fix all production-readiness gaps identified in the Phase 2 audit so the proxy is robust enough for paying users.
 **Requirements:** HARD-01 through HARD-14
 **Depends on:** Phase 2
@@ -78,8 +78,8 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Config expansion, user-to-role mapping, body size limits, CORS, request ID, single-parse (HARD-01, HARD-02, HARD-06, HARD-07, HARD-11) — COMPLETE 2026-03-21
-- [ ] 03-02-PLAN.md — OAuth cache cleanup, client secret, error sanitization, SSE timeout, TLS, Docker version (HARD-04, HARD-05, HARD-08, HARD-09, HARD-10, HARD-13)
-- [ ] 03-03-PLAN.md — Batch RBAC enforcement, audit log rotation, full regression suite (HARD-03, HARD-12, HARD-14)
+- [x] 03-02-PLAN.md — OAuth cache cleanup, client secret, error sanitization, SSE timeout, TLS, Docker version (HARD-04, HARD-05, HARD-08, HARD-09, HARD-10, HARD-13) — COMPLETE 2026-03-21
+- [x] 03-03-PLAN.md — Batch RBAC enforcement, audit log rotation, full regression suite (HARD-03, HARD-12, HARD-14) — COMPLETE 2026-03-21
 
 **Success Criteria:**
 1. User-to-role mapping configurable in YAML (not hardcoded readonly)
@@ -101,6 +101,13 @@ Plans:
 **Goal:** 10+ teams using proxy in production, convert 3-5 to paid.
 **Requirements:** BETA-01, BETA-02, BETA-03, BETA-04
 **Depends on:** Phase 3
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — JWT license key validation + tier enforcement in Go proxy (BETA-01, BETA-02)
+- [ ] 04-02-PLAN.md — Stripe billing backend + Supabase Edge Functions for license key generation (BETA-02, BETA-03)
+- [ ] 04-03-PLAN.md — Landing page pricing + Vercel deploy + Docker GHCR release + Show HN draft (BETA-01, BETA-03, BETA-04)
+
 **Success Criteria:**
 1. 10+ active proxy deployments in production
 2. Stripe billing live with 3 pricing tiers
@@ -114,9 +121,9 @@ Plans:
 | 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) |
 | 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
 | 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
-| 3 | 3/3 | Complete   | 2026-03-21 | 14 |
+| 3 | Hardening | Production-readiness gaps | HARD-01 through HARD-14 | 14 (COMPLETE) |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-21 — Phase 3 Plan 01 complete (HARD-01/02/06/07/11); Plans 02-03 pending*
+*Last updated: 2026-03-21 — Phase 4 planned (3 plans, 2 waves); Phase 3 complete (all 14 HARD requirements satisfied)*
