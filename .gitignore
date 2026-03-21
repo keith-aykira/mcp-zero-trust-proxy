@@ -33,5 +33,6 @@ Thumbs.db
 coverage.out
 mcpproxy
 
-# License signing keys (private key must never be committed)
-keys/license-signing-private.pem
+# License signing keys — the entire keys/ directory is gitignored.
+# The public key is embedded via go:embed from internal/license/license-signing-public.pem.
+keys/

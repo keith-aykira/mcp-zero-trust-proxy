@@ -104,6 +104,11 @@ func PublicKeyFromPEM(pemData []byte) (*ecdsa.PublicKey, error) {
 	return ecKey, nil
 }
 
+// jwtHeader is the internal struct for decoding the JWT header.
+type jwtHeader struct {
+	Alg string `json:"alg"`
+}
+
 // jwtClaims is the internal struct for decoding JWT payload claims.
 type jwtClaims struct {
 	Tier         string  `json:"tier"`
@@ -142,6 +147,20 @@ func Parse(keyString string, publicKey *ecdsa.PublicKey) (*License, error) {
 	}
 
 	sigInput := parts[0] + "." + parts[1]
+
+	// Decode and validate the JWT header — must declare alg=ES256.
+	// This guards against algorithm substitution attacks (e.g. alg=none, RS256).
+	headerJSON, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("license key: invalid header encoding: %w", err)
+	}
+	var hdr jwtHeader
+	if err := json.Unmarshal(headerJSON, &hdr); err != nil {
+		return nil, fmt.Errorf("license key: invalid header JSON: %w", err)
+	}
+	if hdr.Alg != "ES256" {
+		return nil, fmt.Errorf("license key: unsupported algorithm %q (expected ES256)", hdr.Alg)
+	}
 
 	// Decode the signature (DER-encoded ASN.1 ECDSA signature)
 	sigBytes, err := base64.RawURLEncoding.DecodeString(parts[2])
