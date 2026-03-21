@@ -1,9 +1,9 @@
 ## Current Position
 
 Phase: 3 — Hardening & Production Readiness
-Plan: 03-02 complete (2/N plans done)
-Status: IN PROGRESS — Plan 02 complete; Plans 03+ pending
-Last activity: 2026-03-21 — Plan 03-02 complete (HARD-04/05/08/09/10/13 satisfied)
+Plan: 03-02 complete (2/3 plans done)
+Status: IN PROGRESS — Plans 01 and 02 complete; Plan 03 pending
+Last activity: 2026-03-21 — Plan 03-01 complete (HARD-01/02/06/07/11 satisfied; config types + pipeline hardening)
 
 ## Project Reference
 
@@ -90,3 +90,9 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-20 (02-06): testAuthenticator (mock, not real OAuth) for integration tests — real OAuth requires live endpoints; mock tests the pipeline's auth integration path
 - 2026-03-20 (02-06): mutex-protected testAuditLogger — concurrent HTTP handlers require sync.Mutex on any shared state; slice append without lock is a data race
 - 2026-03-20 (02-06): SSEStreamingServer checks request body method, not URL path — ReverseProxy Director overwrites upstream path with r.URL.Path from incoming request
+- 2026-03-21 (03-01): Functional options (WithMaxBodySize, WithCORS) for Pipeline — avoids breaking all callers with new required params
+- 2026-03-21 (03-01): CORSConfig duplicated in proxy package (not imported from config) — avoids adding config dep to proxy package, prevents import cycle
+- 2026-03-21 (03-01): OPTIONS preflight handled in ServeHTTP before auth — prevents CORS preflight from triggering 401 Unauthorized
+- 2026-03-21 (03-01): LimitReader wraps body for chunked transfers (ContentLength=-1) — handles overflow detection without known size
+- 2026-03-21 (03-01): Handler body parsing removed entirely (HARD-11) — Pipeline is the single owner of body reading and MCPRequestKey injection
+- 2026-03-21 (03-01): ErrCodeRequestTooLarge (-32004) added as new JSON-RPC error code for 413 responses

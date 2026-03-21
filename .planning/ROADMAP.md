@@ -77,7 +77,7 @@ Plans:
 **Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 03-01-PLAN.md — Config expansion, user-to-role mapping, body size limits, CORS, request ID, single-parse (HARD-01, HARD-02, HARD-06, HARD-07, HARD-11)
+- [x] 03-01-PLAN.md — Config expansion, user-to-role mapping, body size limits, CORS, request ID, single-parse (HARD-01, HARD-02, HARD-06, HARD-07, HARD-11) — COMPLETE 2026-03-21
 - [ ] 03-02-PLAN.md — OAuth cache cleanup, client secret, error sanitization, SSE timeout, TLS, Docker version (HARD-04, HARD-05, HARD-08, HARD-09, HARD-10, HARD-13)
 - [ ] 03-03-PLAN.md — Batch RBAC enforcement, audit log rotation, full regression suite (HARD-03, HARD-12, HARD-14)
 
@@ -114,9 +114,9 @@ Plans:
 | 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) |
 | 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
 | 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
-| 3 | 1/3 | In Progress|  | 14 |
+| 3 | 1/3 complete | In Progress | HARD-01/02/06/07/11 done | 14 |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-20 — Phase 3 planned: 3 plans in 2 waves covering all 14 HARD requirements*
+*Last updated: 2026-03-21 — Phase 3 Plan 01 complete (HARD-01/02/06/07/11); Plans 02-03 pending*
