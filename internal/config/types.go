@@ -10,6 +10,16 @@ type Config struct {
 	Audit     AuditConfig     `yaml:"audit"`
 	Logging   LogConfig       `yaml:"logging"`
 	CORS      CORSConfig      `yaml:"cors"`
+	License   LicenseConfig   `yaml:"license"`
+}
+
+// LicenseConfig holds the optional license key for enabling paid tiers.
+// When Key is empty, the proxy runs in free tier.
+// Supports ${ENV_VAR} syntax for secret injection from environment variables.
+type LicenseConfig struct {
+	// Key is the JWT license key string. Empty = free tier.
+	// Supports ${ENV_VAR} syntax (e.g., "${LICENSE_KEY}").
+	Key string `yaml:"key"`
 }
 
 // UserRolesConfig maps authenticated user emails to RBAC role names.

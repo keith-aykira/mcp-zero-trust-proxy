@@ -510,3 +510,60 @@ user_roles:
 		t.Errorf("error should mention invalid role 'superadmin', got: %v", err)
 	}
 }
+
+// TestLoad_LicenseKey verifies that license.key loads correctly from YAML.
+func TestLoad_LicenseKey(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+license:
+  key: "some.jwt.token"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with license: %v", err)
+	}
+
+	if cfg.License.Key != "some.jwt.token" {
+		t.Errorf("expected license.key %q, got %q", "some.jwt.token", cfg.License.Key)
+	}
+}
+
+// TestLoad_LicenseKeyEmpty verifies that omitting license.key results in empty string (free tier).
+func TestLoad_LicenseKeyEmpty(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config without license: %v", err)
+	}
+
+	if cfg.License.Key != "" {
+		t.Errorf("expected empty license.key for free tier, got %q", cfg.License.Key)
+	}
+}
+
+// TestLoad_LicenseKeyEnvVar verifies that ${ENV_VAR} syntax works for license.key.
+func TestLoad_LicenseKeyEnvVar(t *testing.T) {
+	t.Setenv("TEST_LICENSE_KEY", "env.jwt.token")
+
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+license:
+  key: "${TEST_LICENSE_KEY}"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with license env var: %v", err)
+	}
+
+	if cfg.License.Key != "env.jwt.token" {
+		t.Errorf("expected license.key from env var %q, got %q", "env.jwt.token", cfg.License.Key)
+	}
+}
