@@ -69,9 +69,22 @@ async function verifyStripeSignature(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
+  // Constant-time comparison to prevent timing attacks
+  function timingSafeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    const encoder = new TextEncoder();
+    const bufA = encoder.encode(a);
+    const bufB = encoder.encode(b);
+    let result = 0;
+    for (let i = 0; i < bufA.length; i++) {
+      result |= bufA[i] ^ bufB[i];
+    }
+    return result === 0;
+  }
+
   // Compare against any v1 signature in the header (Stripe rotates secrets)
   const receivedSigs = signatureParts.map((p) => p.slice(3));
-  return receivedSigs.some((sig) => sig === expectedSig);
+  return receivedSigs.some((sig) => timingSafeEqual(sig, expectedSig));
 }
 
 // ─── License helpers ──────────────────────────────────────────────────────────
@@ -262,9 +275,8 @@ serve(async (req: Request) => {
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!webhookSecret) {
     console.error("STRIPE_WEBHOOK_SECRET is not configured");
-    // Return 200 to avoid Stripe retries — log the config error
-    return new Response(JSON.stringify({ received: true, warning: "webhook secret not configured" }), {
-      status: 200,
+    return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -296,9 +308,8 @@ serve(async (req: Request) => {
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error("Missing Supabase environment variables");
-    // Return 200 to acknowledge receipt — config fix needed
-    return new Response(JSON.stringify({ received: true, warning: "database not configured" }), {
-      status: 200,
+    return new Response(JSON.stringify({ error: "Database not configured" }), {
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -329,12 +340,11 @@ serve(async (req: Request) => {
         break;
     }
   } catch (err) {
-    // Log error but always return 200 to Stripe to prevent infinite retries
-    // on events we've partially processed or for transient errors
+    // Return 500 so Stripe retries the event — transient errors should be retried
     console.error(`Error processing Stripe event ${event.type}:`, err);
     return new Response(
-      JSON.stringify({ received: true, error: "Processing error — check logs" }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
+      JSON.stringify({ error: "Processing error — check logs" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
