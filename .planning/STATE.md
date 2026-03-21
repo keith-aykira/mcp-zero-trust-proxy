@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-last_updated: "2026-03-21T00:55:21.973Z"
-last_activity: 2026-03-21 — Plan 03-03 complete (HARD-03/12/14 satisfied; batch RBAC, audit rotation, full regression 177 tests)
+status: in-progress
+last_updated: "2026-03-21T15:08:22.000Z"
+last_activity: 2026-03-21 — Plan 04-02 checkpoint (billing backend built; awaiting review before Plan 03 deploy)
 progress:
   total_phases: 5
   completed_phases: 3
@@ -14,17 +14,17 @@ progress:
 
 ## Current Position
 
-Phase: 3 — Hardening & Production Readiness
-Plan: 03-03 complete (3/3 plans done)
-Status: PHASE COMPLETE — All 14 HARD requirements satisfied; ready for Phase 4 Beta Launch
-Last activity: 2026-03-21 — Plan 03-03 complete (HARD-03/12/14 satisfied; batch RBAC, audit rotation, full regression 177 tests)
+Phase: 4 — Beta Launch & First Revenue
+Plan: 04-02 at checkpoint (2/3 tasks complete — awaiting human review before Plan 03)
+Status: IN PROGRESS — billing backend built, checkpoint reached for user review before deploy
+Last activity: 2026-03-21 — Plan 04-02 checkpoint (ECDSA license generation + Stripe webhook Edge Functions + product setup script complete)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** Any MCP server can be protected with enterprise-grade security in 5 minutes via Docker — no code changes required.
-**Current focus:** Phase 3 — Hardening & Production Readiness (14 gaps from Phase 2 audit)
+**Current focus:** Phase 4 — Beta Launch & First Revenue (Stripe billing + landing page deploy + outreach)
 
 ## Phase 0 Progress (COMPLETE)
 
@@ -115,3 +115,9 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-21 (03-03): Audit rotation triggered post-write inside mutex — prevents race between write and rename
 - 2026-03-21 (03-03): bytesWritten counter for rotation size tracking — avoids stat syscall on every write
 - 2026-03-21 (03-03): Single .1 backup rotation scheme — simple, sufficient for production log management
+- 2026-03-21 (04-02): Deno crypto.subtle only for JWT signing (ECDSA ES256) and Stripe webhook sig verification (HMAC-SHA256) — no SDK, lightweight Edge Functions
+- 2026-03-21 (04-02): 0 = unlimited for enterprise tier max_upstreams/max_rpm — matches Plan 01 proxy validation convention
+- 2026-03-21 (04-02): tier must be in Stripe metadata (checkout session or payment link) — no server-side tier lookup required at webhook time
+- 2026-03-21 (04-02): CREATE_LICENSE_FUNCTION_URL secret for internal function-to-function calls — stripe-webhook invokes create-license via HTTP fetch
+- 2026-03-21 (04-02): PKCS#8 PEM format for signing private key — required by crypto.subtle.importKey('pkcs8')
+- 2026-03-21 (04-02): Service role RLS only for license inserts/updates — anon read is intentional (JWT is the secret, not the row)
