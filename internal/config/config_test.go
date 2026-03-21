@@ -266,3 +266,247 @@ func TestLoad_FileNotFound(t *testing.T) {
 		t.Fatal("expected error when loading non-existent file, got nil")
 	}
 }
+
+// TestLoad_UserRolesMapping verifies that user_roles mapping loads correctly.
+func TestLoad_UserRolesMapping(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_roles:
+  default: "readonly"
+  mapping:
+    "alice@example.com": "admin"
+    "bob@example.com": "restricted"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with user_roles: %v", err)
+	}
+
+	if cfg.UserRoles.Default != "readonly" {
+		t.Errorf("expected user_roles.default %q, got %q", "readonly", cfg.UserRoles.Default)
+	}
+	if cfg.UserRoles.Mapping["alice@example.com"] != "admin" {
+		t.Errorf("expected alice to have admin role, got %q", cfg.UserRoles.Mapping["alice@example.com"])
+	}
+	if cfg.UserRoles.Mapping["bob@example.com"] != "restricted" {
+		t.Errorf("expected bob to have restricted role, got %q", cfg.UserRoles.Mapping["bob@example.com"])
+	}
+}
+
+// TestLoad_MaxBodySize verifies that max_body_size parses to int64 bytes.
+func TestLoad_MaxBodySize(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+  max_body_size: 2097152
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with max_body_size: %v", err)
+	}
+
+	if cfg.Server.MaxBodySize != 2097152 {
+		t.Errorf("expected max_body_size 2097152, got %d", cfg.Server.MaxBodySize)
+	}
+}
+
+// TestLoad_MaxBodySizeDefault verifies default max_body_size is 1MB.
+func TestLoad_MaxBodySizeDefault(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Server.MaxBodySize != 1048576 {
+		t.Errorf("expected default max_body_size 1048576 (1MB), got %d", cfg.Server.MaxBodySize)
+	}
+}
+
+// TestLoad_CORSConfig verifies that cors block parses allowed_origins, methods, headers, max_age.
+func TestLoad_CORSConfig(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+cors:
+  allowed_origins:
+    - "https://example.com"
+    - "https://app.example.com"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "OPTIONS"
+  allowed_headers:
+    - "Authorization"
+    - "Content-Type"
+  max_age: 3600
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with cors: %v", err)
+	}
+
+	if len(cfg.CORS.AllowedOrigins) != 2 {
+		t.Errorf("expected 2 allowed_origins, got %d", len(cfg.CORS.AllowedOrigins))
+	}
+	if cfg.CORS.AllowedOrigins[0] != "https://example.com" {
+		t.Errorf("expected first origin %q, got %q", "https://example.com", cfg.CORS.AllowedOrigins[0])
+	}
+	if len(cfg.CORS.AllowedMethods) != 3 {
+		t.Errorf("expected 3 allowed_methods, got %d", len(cfg.CORS.AllowedMethods))
+	}
+	if len(cfg.CORS.AllowedHeaders) != 2 {
+		t.Errorf("expected 2 allowed_headers, got %d", len(cfg.CORS.AllowedHeaders))
+	}
+	if cfg.CORS.MaxAge != 3600 {
+		t.Errorf("expected max_age 3600, got %d", cfg.CORS.MaxAge)
+	}
+}
+
+// TestLoad_TLSConfig verifies that tls block parses cert_file and key_file.
+func TestLoad_TLSConfig(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+  tls:
+    cert_file: "/etc/ssl/cert.pem"
+    key_file: "/etc/ssl/key.pem"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with tls: %v", err)
+	}
+
+	if cfg.Server.TLS.CertFile != "/etc/ssl/cert.pem" {
+		t.Errorf("expected cert_file %q, got %q", "/etc/ssl/cert.pem", cfg.Server.TLS.CertFile)
+	}
+	if cfg.Server.TLS.KeyFile != "/etc/ssl/key.pem" {
+		t.Errorf("expected key_file %q, got %q", "/etc/ssl/key.pem", cfg.Server.TLS.KeyFile)
+	}
+}
+
+// TestLoad_SSEConfig verifies that sse.timeout_seconds and sse.max_buffer_bytes parse correctly.
+func TestLoad_SSEConfig(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+  sse:
+    timeout_seconds: 120
+    max_buffer_bytes: 131072
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with sse: %v", err)
+	}
+
+	if cfg.Server.SSE.TimeoutSeconds != 120 {
+		t.Errorf("expected sse.timeout_seconds 120, got %d", cfg.Server.SSE.TimeoutSeconds)
+	}
+	if cfg.Server.SSE.MaxBufferBytes != 131072 {
+		t.Errorf("expected sse.max_buffer_bytes 131072, got %d", cfg.Server.SSE.MaxBufferBytes)
+	}
+}
+
+// TestLoad_AuditRotationConfig verifies that audit.rotation block parses max_size_mb and max_age_hours.
+func TestLoad_AuditRotationConfig(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+audit:
+  enabled: true
+  output: "file"
+  file_path: "/var/log/audit.jsonl"
+  rotation:
+    max_size_mb: 100
+    max_age_hours: 720
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with audit.rotation: %v", err)
+	}
+
+	if cfg.Audit.Rotation.MaxSizeMB != 100 {
+		t.Errorf("expected rotation.max_size_mb 100, got %d", cfg.Audit.Rotation.MaxSizeMB)
+	}
+	if cfg.Audit.Rotation.MaxAgeHours != 720 {
+		t.Errorf("expected rotation.max_age_hours 720, got %d", cfg.Audit.Rotation.MaxAgeHours)
+	}
+}
+
+// TestLoad_UserRolesDefault verifies that user_roles.default defaults to "readonly".
+func TestLoad_UserRolesDefault(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.UserRoles.Default != "readonly" {
+		t.Errorf("expected default user_roles.default to be %q, got %q", "readonly", cfg.UserRoles.Default)
+	}
+}
+
+// TestValidate_UserRolesUnknownRole verifies Validate rejects user_roles with unknown role names.
+func TestValidate_UserRolesUnknownRole(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_roles:
+  default: "superuser"
+  mapping:
+    "alice@example.com": "admin"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config: %v", err)
+	}
+
+	err = Validate(cfg)
+	if err == nil {
+		t.Fatal("expected validation error for unknown role name in user_roles.default, got nil")
+	}
+	if !strings.Contains(err.Error(), "superuser") {
+		t.Errorf("error should mention invalid role 'superuser', got: %v", err)
+	}
+}
+
+// TestValidate_UserRolesMappingUnknownRole verifies Validate rejects mapping with unknown role name.
+func TestValidate_UserRolesMappingUnknownRole(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_roles:
+  default: "readonly"
+  mapping:
+    "alice@example.com": "superadmin"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config: %v", err)
+	}
+
+	err = Validate(cfg)
+	if err == nil {
+		t.Fatal("expected validation error for unknown role in user_roles.mapping, got nil")
+	}
+	if !strings.Contains(err.Error(), "superadmin") {
+		t.Errorf("error should mention invalid role 'superadmin', got: %v", err)
+	}
+}

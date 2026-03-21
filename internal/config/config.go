@@ -57,6 +57,16 @@ func Validate(cfg *Config) error {
 		}
 	}
 
+	// Validate user_roles default and mapping values
+	if cfg.UserRoles.Default != "" && !validRoleNames[cfg.UserRoles.Default] {
+		errs = append(errs, fmt.Sprintf("unknown role name %q in user_roles.default: valid roles are admin, readonly, restricted", cfg.UserRoles.Default))
+	}
+	for email, role := range cfg.UserRoles.Mapping {
+		if !validRoleNames[role] {
+			errs = append(errs, fmt.Sprintf("unknown role name %q in user_roles.mapping for %q: valid roles are admin, readonly, restricted", role, email))
+		}
+	}
+
 	// Validate auth provider if set
 	if cfg.Auth.Provider != "" {
 		validProviders := map[string]bool{"github": true, "google": true, "oidc": true}
@@ -109,6 +119,14 @@ func applyDefaults(cfg *Config) {
 	// Server defaults
 	if cfg.Server.ListenAddr == "" {
 		cfg.Server.ListenAddr = ":8080"
+	}
+	if cfg.Server.MaxBodySize == 0 {
+		cfg.Server.MaxBodySize = 1048576 // 1MB
+	}
+
+	// UserRoles defaults
+	if cfg.UserRoles.Default == "" {
+		cfg.UserRoles.Default = "readonly"
 	}
 
 	// Rate limit defaults

@@ -587,6 +587,101 @@ func TestAuthenticateErrorIsSanitized(t *testing.T) {
 	}
 }
 
+// TestResolveRole_MappedEmail verifies that a known email resolves to its mapped role.
+func TestResolveRole_MappedEmail(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	a.SetUserRoles(map[string]string{
+		"alice@example.com": "admin",
+		"bob@example.com":   "restricted",
+	}, "readonly")
+
+	if role := a.resolveRole("alice@example.com"); role != "admin" {
+		t.Errorf("resolveRole(alice) = %q, want %q", role, "admin")
+	}
+	if role := a.resolveRole("bob@example.com"); role != "restricted" {
+		t.Errorf("resolveRole(bob) = %q, want %q", role, "restricted")
+	}
+}
+
+// TestResolveRole_UnmappedEmail verifies that an unknown email returns the default role.
+func TestResolveRole_UnmappedEmail(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	a.SetUserRoles(map[string]string{
+		"alice@example.com": "admin",
+	}, "restricted")
+
+	if role := a.resolveRole("unknown@example.com"); role != "restricted" {
+		t.Errorf("resolveRole(unknown) = %q, want %q", role, "restricted")
+	}
+}
+
+// TestResolveRole_DefaultWhenNoMapping verifies the default role is used when no mapping is set.
+func TestResolveRole_DefaultWhenNoMapping(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	// No SetUserRoles call — should use hardcoded default ("readonly")
+	if role := a.resolveRole("anyone@example.com"); role != "readonly" {
+		t.Errorf("resolveRole without mapping = %q, want %q", role, "readonly")
+	}
+}
+
+// TestAuthenticateUsesResolvedRole verifies that fetched identity uses resolveRole result.
+func TestAuthenticateUsesResolvedRole(t *testing.T) {
+	const validToken = "valid-token-role-test"
+	const adminEmail = "admin@example.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user1", adminEmail)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+	a.SetUserRoles(map[string]string{
+		adminEmail: "admin",
+	}, "readonly")
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	identity, err := a.Authenticate(req)
+	if err != nil {
+		t.Fatalf("Authenticate() error: %v", err)
+	}
+
+	if identity.Role != "admin" {
+		t.Errorf("identity.Role = %q, want %q", identity.Role, "admin")
+	}
+}
+
 func TestHandleCallbackErrorIsSanitized(t *testing.T) {
 	// Token endpoint returns error with sensitive provider details
 	const sensitiveBody = "error=invalid_grant&error_description=secret_rotation_policy"

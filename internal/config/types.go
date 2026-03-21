@@ -4,10 +4,33 @@ package config
 type Config struct {
 	Server    ServerConfig    `yaml:"server"`
 	Auth      AuthConfig      `yaml:"auth"`
+	UserRoles UserRolesConfig `yaml:"user_roles"`
 	Roles     []RoleConfig    `yaml:"roles"`
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
 	Audit     AuditConfig     `yaml:"audit"`
 	Logging   LogConfig       `yaml:"logging"`
+	CORS      CORSConfig      `yaml:"cors"`
+}
+
+// UserRolesConfig maps authenticated user emails to RBAC role names.
+type UserRolesConfig struct {
+	// Mapping maps email addresses to role names. Role names must be valid built-in roles.
+	Mapping map[string]string `yaml:"mapping"`
+	// Default is the role assigned to authenticated users not in Mapping. Default: "readonly".
+	Default string `yaml:"default"`
+}
+
+// CORSConfig controls Cross-Origin Resource Sharing headers.
+type CORSConfig struct {
+	// AllowedOrigins lists origins permitted to make cross-origin requests.
+	// If empty, no CORS headers are added.
+	AllowedOrigins []string `yaml:"allowed_origins"`
+	// AllowedMethods lists HTTP methods permitted in CORS requests.
+	AllowedMethods []string `yaml:"allowed_methods"`
+	// AllowedHeaders lists request headers permitted in CORS requests.
+	AllowedHeaders []string `yaml:"allowed_headers"`
+	// MaxAge is the Access-Control-Max-Age value in seconds.
+	MaxAge int `yaml:"max_age"`
 }
 
 // ServerConfig holds the proxy's network configuration.
@@ -16,6 +39,9 @@ type ServerConfig struct {
 	UpstreamURL string `yaml:"upstream_url"`
 	// ListenAddr is the address the proxy listens on. Default: ":8080"
 	ListenAddr string `yaml:"listen_addr"`
+	// MaxBodySize is the maximum request body size in bytes. Default: 1048576 (1MB).
+	// Requests exceeding this limit are rejected with 413 before any parsing.
+	MaxBodySize int64 `yaml:"max_body_size"`
 	// TLS holds optional TLS termination configuration.
 	TLS TLSConfig `yaml:"tls"`
 	// SSE holds configurable SSE proxy settings.
@@ -84,6 +110,16 @@ type AuditConfig struct {
 	Output string `yaml:"output"`
 	// FilePath is the path to the audit log file (required when output = "file" or "both").
 	FilePath string `yaml:"file_path"`
+	// Rotation controls log file rotation settings.
+	Rotation AuditRotationConfig `yaml:"rotation"`
+}
+
+// AuditRotationConfig controls audit log file rotation.
+type AuditRotationConfig struct {
+	// MaxSizeMB is the maximum size of a single audit log file in megabytes before rotation.
+	MaxSizeMB int `yaml:"max_size_mb"`
+	// MaxAgeHours is the maximum age of audit log files in hours before deletion.
+	MaxAgeHours int `yaml:"max_age_hours"`
 }
 
 // LogConfig controls the proxy's operational log output.

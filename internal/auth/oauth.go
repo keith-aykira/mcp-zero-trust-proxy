@@ -44,6 +44,11 @@ type Authenticator struct {
 
 	// stopCleanup is closed to signal the background cleanup goroutine to stop.
 	stopCleanup chan struct{}
+
+	// userRoles maps email -> role name for role resolution.
+	userRoles    map[string]string
+	defaultRole  string
+	rolesMu      sync.RWMutex
 }
 
 // NewAuthenticator constructs an Authenticator from the given AuthConfig and SessionStore.
@@ -129,6 +134,33 @@ func (a *Authenticator) runCleanup() {
 	})
 }
 
+// SetUserRoles configures email-to-role mapping and a default role for unrecognized emails.
+// This must be called before the first Authenticate call if role mapping is desired.
+// It is safe to call from multiple goroutines.
+func (a *Authenticator) SetUserRoles(mapping map[string]string, defaultRole string) {
+	a.rolesMu.Lock()
+	defer a.rolesMu.Unlock()
+	a.userRoles = mapping
+	a.defaultRole = defaultRole
+}
+
+// resolveRole returns the RBAC role for the given email address.
+// If a mapping exists and the email is found, returns the mapped role.
+// Otherwise returns the configured default role (or "readonly" if none set).
+func (a *Authenticator) resolveRole(email string) string {
+	a.rolesMu.RLock()
+	defer a.rolesMu.RUnlock()
+	if a.userRoles != nil {
+		if role, ok := a.userRoles[email]; ok {
+			return role
+		}
+	}
+	if a.defaultRole != "" {
+		return a.defaultRole
+	}
+	return "readonly"
+}
+
 // Authenticate validates the Bearer token in the request's Authorization header.
 // On success it returns a ClientIdentity with ClientID, Email, Role, and SessionID.
 // On failure it returns a non-nil error — the caller should respond with 401.
@@ -154,6 +186,9 @@ func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, er
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
 	}
+
+	// Apply email-to-role mapping if configured.
+	identity.Role = a.resolveRole(identity.Email)
 
 	// Create or reuse a session for this identity
 	session, err := a.sessionStore.Create(identity)
