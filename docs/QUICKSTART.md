@@ -273,6 +273,45 @@ The proxy writes one JSONL line per request to stdout (by default):
 
 ---
 
+## License Key
+
+MCP Zero-Trust Proxy has three tiers:
+
+| Tier | Price | MCP Servers | Rate Limit | Audit |
+|------|-------|-------------|------------|-------|
+| **Free** | $0/mo | 1 | 10 req/min | stdout only |
+| **Pro** | $49/mo | 5 | 200 req/min | file + rotation |
+| **Enterprise** | $199/mo | Unlimited | Unlimited | All features |
+
+**Free tier:** No license key needed. The proxy starts in free tier automatically if no key is provided.
+
+**Pro and Enterprise tiers:** Obtain a license key at [mcpzerotrust.dev](https://mcpzerotrust.dev) after subscribing, then add it to your config:
+
+```yaml
+license:
+  key: "${LICENSE_KEY}"
+```
+
+Set the environment variable when running the proxy:
+
+```bash
+# Binary
+export LICENSE_KEY=your-license-key-here
+mcpproxy --config ./config.yaml
+
+# Docker
+docker run \
+  -p 8080:8080 \
+  -v ./config.yaml:/etc/mcpproxy/config.yaml \
+  -e LICENSE_KEY=your-license-key-here \
+  ghcr.io/anoblescm/mcp-zero-trust-proxy:latest \
+  --config /etc/mcpproxy/config.yaml
+```
+
+If the license key is missing, expired, or invalid, the proxy falls back to free-tier limits and logs a warning at startup.
+
+---
+
 ## Next steps
 
 - **Full configuration reference:** [CONFIG-REFERENCE.md](CONFIG-REFERENCE.md) — documents every YAML field with types, defaults, and examples

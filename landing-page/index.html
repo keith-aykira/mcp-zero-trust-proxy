@@ -530,34 +530,39 @@
 <section class="pricing" id="pricing">
   <div class="container">
     <h2>Simple, transparent pricing</h2>
-    <p class="subtitle">Start free during beta. No credit card required.</p>
+    <p class="subtitle">Founding member pricing — locked in for life.</p>
+    <div style="text-align: center; margin-bottom: 32px;">
+      <span style="display: inline-block; background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.25); border-radius: 20px; padding: 6px 20px; font-size: 13px; font-weight: 600;">Founding member pricing — locked in for life</span>
+    </div>
     <div class="pricing-grid">
       <div class="price-card">
-        <h3>Starter</h3>
-        <div class="price">$49<span>/mo</span></div>
-        <div class="desc">For solo developers and small projects</div>
+        <h3>Free</h3>
+        <div class="price">$0<span>/mo</span></div>
+        <div class="desc">For developers getting started</div>
         <ul>
           <li>1 MCP server</li>
+          <li>10 requests/minute</li>
           <li>OAuth 2.1 PKCE</li>
           <li>Basic RBAC (3 built-in roles)</li>
-          <li>7-day audit log retention</li>
+          <li>Stdout audit logging</li>
           <li>Community support</li>
         </ul>
-        <a href="#get-access" class="btn-primary">Get Early Access</a>
+        <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy/blob/main/docs/QUICKSTART.md" class="btn-primary" style="background: var(--surface-light); color: var(--text);">Get Started</a>
       </div>
       <div class="price-card featured">
         <h3>Pro</h3>
-        <div class="price">$99<span>/mo</span></div>
+        <div class="price">$49<span>/mo</span></div>
         <div class="desc">For teams running multiple MCP servers</div>
         <ul>
           <li>5 MCP servers</li>
-          <li>Custom RBAC roles</li>
+          <li>200 requests/minute</li>
+          <li>OAuth 2.1 PKCE</li>
+          <li>Tool-level RBAC</li>
           <li>Session isolation</li>
-          <li>30-day audit log retention</li>
-          <li>Rate limiting per client</li>
+          <li>File audit log + rotation</li>
           <li>Email support</li>
         </ul>
-        <a href="#get-access" class="btn-primary">Get Early Access</a>
+        <a href="STRIPE_PRO_LINK" class="btn-primary">Start Pro</a>
       </div>
       <div class="price-card">
         <h3>Enterprise</h3>
@@ -565,13 +570,14 @@
         <div class="desc">For organizations with compliance needs</div>
         <ul>
           <li>Unlimited MCP servers</li>
-          <li>SSO / SAML</li>
+          <li>Unlimited request rate</li>
+          <li>All Pro features</li>
+          <li>SSO / SAML (coming soon)</li>
           <li>SOC 2-ready audit export</li>
           <li>SIEM integration (OTel)</li>
-          <li>90-day audit log retention</li>
           <li>Priority support + SLA</li>
         </ul>
-        <a href="#get-access" class="btn-primary">Get Early Access</a>
+        <a href="STRIPE_ENTERPRISE_LINK" class="btn-primary">Start Enterprise</a>
       </div>
     </div>
   </div>
