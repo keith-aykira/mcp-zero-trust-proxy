@@ -152,6 +152,21 @@ supabase secrets set CREATE_LICENSE_FUNCTION_URL=https://dwumoznjyckebuirghne.su
 - User approved billing backend at checkpoint — plan is fully complete
 - No blockers — ready for Plan 03 (landing page deploy + Edge Function deployment)
 
+## Self-Check: PASSED
+
+All 5 plan artifacts verified present:
+- FOUND: scripts/generate-license-keypair.sh
+- FOUND: supabase/migrations/20260321_create_licenses.sql
+- FOUND: supabase/functions/create-license/index.ts
+- FOUND: supabase/functions/stripe-webhook/index.ts
+- FOUND: scripts/setup-stripe-products.sh
+
+All task commits verified:
+- FOUND: 2f329bc (Task 1 — keypair + migration + create-license)
+- FOUND: 63ee26b (Task 2 — stripe-webhook + setup script)
+- 11cb996 (final metadata commit — plan complete)
+- 8efd217 (HANDOFF_CURRENT.md updated)
+
 ---
 *Phase: 04-beta-launch-first-revenue*
 *Completed: 2026-03-21*
