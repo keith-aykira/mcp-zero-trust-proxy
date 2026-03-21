@@ -889,6 +889,133 @@ func TestProxy_HealthCheck(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Batch RBAC integration test (HARD-03)
+// =============================================================================
+
+// makeBatchBody creates a JSON-RPC batch request body from items.
+func makeBatchBody(items []struct {
+	method string
+	id     int
+	tool   string
+}) []byte {
+	reqs := make([]map[string]interface{}, len(items))
+	for i, item := range items {
+		req := map[string]interface{}{
+			"jsonrpc": "2.0",
+			"id":      item.id,
+			"method":  item.method,
+		}
+		if item.tool != "" {
+			req["params"] = map[string]interface{}{
+				"name":      item.tool,
+				"arguments": map[string]interface{}{},
+			}
+		}
+		reqs[i] = req
+	}
+	b, _ := json.Marshal(reqs)
+	return b
+}
+
+// TestProxy_BatchRBAC_MixedAllowDeny sends a 3-item batch through the full pipeline where
+// 2 items are allowed and 1 is denied, and verifies per-item RBAC enforcement.
+func TestProxy_BatchRBAC_MixedAllowDeny(t *testing.T) {
+	t.Parallel()
+
+	mock := NewMockServer(ToolsOnlyServer)
+	t.Cleanup(mock.Close)
+
+	// Use "restricted" role: allowed_tools = [read_file, list_dir]
+	pipeline, auditLog := newPipelineWithRole(t, mock.URL(), "restricted")
+	proxyServer := httptest.NewServer(pipeline)
+	t.Cleanup(proxyServer.Close)
+
+	// Batch: item 1 = tools/list (allowed), item 2 = tools/call execute_command (denied),
+	//        item 3 = tools/call read_file (allowed)
+	body := makeBatchBody([]struct {
+		method string
+		id     int
+		tool   string
+	}{
+		{"tools/list", 1, ""},
+		{"tools/call", 2, "execute_command"},
+		{"tools/call", 3, "read_file"},
+	})
+
+	req, err := http.NewRequest(http.MethodPost, proxyServer.URL, bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("create batch request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("batch request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200 for batch, got %d: %s", resp.StatusCode, body)
+	}
+
+	// Parse as JSON array.
+	responseBytes, _ := io.ReadAll(resp.Body)
+	var responses []map[string]interface{}
+	if err := json.Unmarshal(responseBytes, &responses); err != nil {
+		t.Fatalf("expected JSON array response: %v — body: %s", err, responseBytes)
+	}
+	if len(responses) != 3 {
+		t.Fatalf("expected 3 responses in batch, got %d", len(responses))
+	}
+
+	// Item 1 (tools/list) should succeed.
+	if _, hasError := responses[0]["error"]; hasError {
+		t.Errorf("item 1 (tools/list) should succeed, got error: %v", responses[0]["error"])
+	}
+
+	// Item 2 (execute_command for restricted role) should be denied.
+	if _, hasError := responses[1]["error"]; !hasError {
+		t.Errorf("item 2 (execute_command, restricted role) should be denied, got: %v", responses[1])
+	} else {
+		errObj, _ := responses[1]["error"].(map[string]interface{})
+		if errObj != nil {
+			code, _ := errObj["code"].(float64)
+			if code != -32002 { // ErrCodeForbidden
+				t.Errorf("expected forbidden error code -32002 for denied item, got %v", code)
+			}
+		}
+	}
+
+	// Item 3 (read_file for restricted role) should succeed.
+	if _, hasError := responses[2]["error"]; hasError {
+		t.Errorf("item 3 (read_file) should succeed, got error: %v", responses[2]["error"])
+	}
+
+	// Verify audit log has 3 separate entries.
+	time.Sleep(10 * time.Millisecond) // allow async audit writes to complete
+	entries := auditLog.snapshot()
+	if len(entries) != 3 {
+		t.Errorf("expected 3 audit entries (one per batch item), got %d", len(entries))
+	}
+
+	// Verify the denied entry.
+	var foundDenied bool
+	for _, entry := range entries {
+		if entry.Method == "tools/call" && entry.ToolName == "execute_command" {
+			if entry.Allowed {
+				t.Error("audit entry for denied execute_command should have Allowed=false")
+			}
+			foundDenied = true
+		}
+	}
+	if !foundDenied {
+		t.Error("no audit entry found for denied execute_command item")
+	}
+}
+
 func TestProxy_GracefulShutdown(t *testing.T) {
 	t.Parallel()
 

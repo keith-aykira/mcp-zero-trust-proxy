@@ -261,6 +261,151 @@ func TestLog_DisabledIsNoOp(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Audit log rotation tests (HARD-12)
+// =============================================================================
+
+// TestRotation_BySize verifies that the log file rotates when MaxSizeMB is exceeded.
+func TestRotation_BySize(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "audit.log")
+
+	// Set MaxSizeMB to a tiny value so it triggers on the second write.
+	// Each log entry is ~200 bytes, so 1 byte triggers rotation after every write.
+	cfg := &config.AuditConfig{
+		Enabled:  true,
+		Output:   "file",
+		FilePath: filePath,
+		Rotation: config.AuditRotationConfig{MaxSizeMB: 0, MaxAgeHours: 0}, // disabled initially
+	}
+
+	// Use a minimal size that forces rotation: 1 byte limit (any write exceeds it).
+	logger, err := audit.NewLoggerWithRotation(cfg, filePath, 1, 0)
+	if err != nil {
+		t.Fatalf("NewLoggerWithRotation: %v", err)
+	}
+
+	// Write first entry — this writes to the file.
+	logger.Log(makeEntry())
+	// Write second entry — should trigger rotation.
+	logger.Log(makeEntry())
+	logger.Close()
+
+	// After rotation, both the .1 backup AND the current file should exist.
+	rotatedPath := filePath + ".1"
+	if _, err := os.Stat(rotatedPath); os.IsNotExist(err) {
+		t.Errorf("rotated file %q should exist after size-based rotation", rotatedPath)
+	}
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		t.Errorf("current log file %q should still exist after rotation", filePath)
+	}
+}
+
+// TestRotation_ByAge verifies that the log file rotates when MaxAgeHours is exceeded.
+func TestRotation_ByAge(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "audit-age.log")
+
+	cfg := &config.AuditConfig{
+		Enabled:  true,
+		Output:   "file",
+		FilePath: filePath,
+	}
+
+	// Use 0 hours age limit (forces rotation on every write after first).
+	// We simulate "old" file by using a past creation time.
+	logger, err := audit.NewLoggerWithRotation(cfg, filePath, 0, -1) // -1 hours = past
+	if err != nil {
+		t.Fatalf("NewLoggerWithRotation: %v", err)
+	}
+
+	// Write entry — with age past expiry, second write should trigger rotation.
+	logger.Log(makeEntry())
+	logger.Log(makeEntry())
+	logger.Close()
+
+	rotatedPath := filePath + ".1"
+	if _, err := os.Stat(rotatedPath); os.IsNotExist(err) {
+		t.Errorf("rotated file %q should exist after age-based rotation", rotatedPath)
+	}
+}
+
+// TestRotation_Disabled verifies that with both limits at 0, file appends indefinitely.
+func TestRotation_Disabled(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "audit-no-rotate.log")
+
+	cfg := &config.AuditConfig{
+		Enabled:  true,
+		Output:   "file",
+		FilePath: filePath,
+		Rotation: config.AuditRotationConfig{MaxSizeMB: 0, MaxAgeHours: 0},
+	}
+
+	logger, err := audit.NewLogger(cfg)
+	if err != nil {
+		t.Fatalf("NewLogger: %v", err)
+	}
+
+	// Write 10 entries — none should trigger rotation.
+	for i := 0; i < 10; i++ {
+		logger.Log(makeEntry())
+	}
+	logger.Close()
+
+	// No .1 file should exist.
+	rotatedPath := filePath + ".1"
+	if _, err := os.Stat(rotatedPath); !os.IsNotExist(err) {
+		t.Errorf("rotation should be disabled — rotated file %q should NOT exist", rotatedPath)
+	}
+
+	// All 10 entries should be in the single file.
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) != 10 {
+		t.Errorf("expected 10 entries, got %d", len(lines))
+	}
+}
+
+// TestRotation_ConcurrentSafe verifies rotation is safe under concurrent writes.
+func TestRotation_ConcurrentSafe(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "audit-concurrent.log")
+
+	cfg := &config.AuditConfig{
+		Enabled:  true,
+		Output:   "file",
+		FilePath: filePath,
+	}
+
+	// Small size limit to force rotation during concurrent writes.
+	logger, err := audit.NewLoggerWithRotation(cfg, filePath, 1, 0)
+	if err != nil {
+		t.Fatalf("NewLoggerWithRotation: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 5; j++ {
+				logger.Log(makeEntry())
+			}
+		}()
+	}
+	wg.Wait()
+	logger.Close()
+
+	// No panic = concurrent safety passes. Also verify the file exists.
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		t.Error("log file should still exist after concurrent rotation writes")
+	}
+}
+
 // TestLog_LatencyMs verifies latency is written as integer milliseconds.
 func TestLog_LatencyMs(t *testing.T) {
 	var buf bytes.Buffer
