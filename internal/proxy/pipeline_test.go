@@ -724,6 +724,294 @@ func TestHandlerNoParsing(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Batch JSON-RPC per-item RBAC enforcement tests (HARD-03)
+// =============================================================================
+
+// batchBody builds a JSON-RPC batch request body from a list of (method, toolName) pairs.
+// toolName is ignored for non-tools/call methods.
+func batchBody(items []struct{ method, tool string }) []byte {
+	reqs := make([]map[string]interface{}, len(items))
+	for i, item := range items {
+		req := map[string]interface{}{
+			"jsonrpc": "2.0",
+			"id":      i + 1,
+			"method":  item.method,
+		}
+		if item.tool != "" {
+			req["params"] = map[string]string{"name": item.tool}
+		}
+		reqs[i] = req
+	}
+	b, _ := json.Marshal(reqs)
+	return b
+}
+
+// TestBatchRBAC_MixedAllowDeny verifies that in a batch with 3 items where item 2
+// is denied, the response array contains items 1 and 3 as successes and item 2 as a JSON-RPC error.
+func TestBatchRBAC_MixedAllowDeny(t *testing.T) {
+	// RBAC: allow tools/list and read_file, deny execute_command
+	processCount := 0
+	rbacEngine := &perItemRBAC{
+		allow: func(req *proxy.MCPRequest) bool {
+			processCount++
+			if req.Method == "tools/call" {
+				name := ""
+				var p struct{ Name string `json:"name"` }
+				json.Unmarshal(req.Params, &p) //nolint:errcheck
+				name = p.Name
+				return name != "execute_command"
+			}
+			return true
+		},
+	}
+
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "u1", Role: "restricted"}}
+	rl := &mockRateLimiter{allow: true}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbacEngine, auditLogger)
+
+	// 3-item batch: tools/list (allowed), tools/call execute_command (denied), tools/call read_file (allowed)
+	body := batchBody([]struct{ method, tool string }{
+		{"tools/list", ""},
+		{"tools/call", "execute_command"},
+		{"tools/call", "read_file"},
+	})
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for batch response, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Parse the response as a JSON array
+	var responses []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &responses); err != nil {
+		t.Fatalf("batch response should be a JSON array, got: %s", w.Body.String())
+	}
+	if len(responses) != 3 {
+		t.Fatalf("expected 3 responses in batch, got %d", len(responses))
+	}
+
+	// Item 2 (index 1) should be an error
+	if _, hasError := responses[1]["error"]; !hasError {
+		t.Errorf("item 2 (execute_command) should have been denied (error), got: %v", responses[1])
+	}
+	errObj, _ := responses[1]["error"].(map[string]interface{})
+	if errObj != nil {
+		code, _ := errObj["code"].(float64)
+		if code != float64(proxy.ErrCodeForbidden) {
+			t.Errorf("expected error code %d for denied item, got %v", proxy.ErrCodeForbidden, code)
+		}
+	}
+}
+
+// TestBatchRBAC_AllAllowed verifies all items are forwarded when all are allowed.
+func TestBatchRBAC_AllAllowed(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "u1", Role: "admin"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{} // no errors — all allowed
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	body := batchBody([]struct{ method, tool string }{
+		{"tools/list", ""},
+		{"tools/call", "read_file"},
+		{"tools/call", "list_dir"},
+	})
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var responses []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &responses); err != nil {
+		t.Fatalf("expected JSON array response: %v — body: %s", err, w.Body.String())
+	}
+	if len(responses) != 3 {
+		t.Fatalf("expected 3 responses, got %d", len(responses))
+	}
+	for i, resp := range responses {
+		if _, hasError := resp["error"]; hasError {
+			t.Errorf("item %d should be allowed but got error: %v", i+1, resp["error"])
+		}
+	}
+}
+
+// TestBatchRBAC_AllDenied verifies all items return error responses when all are denied.
+func TestBatchRBAC_AllDenied(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "u1", Role: "readonly"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{processErr: fmt.Errorf("rbac: method denied")} // deny all
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	body := batchBody([]struct{ method, tool string }{
+		{"tools/call", "read_file"},
+		{"tools/call", "execute_command"},
+	})
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for batch error array, got %d", w.Code)
+	}
+
+	var responses []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &responses); err != nil {
+		t.Fatalf("expected JSON array response: %v — body: %s", err, w.Body.String())
+	}
+	if len(responses) != 2 {
+		t.Fatalf("expected 2 error responses, got %d", len(responses))
+	}
+	for i, resp := range responses {
+		if _, hasError := resp["error"]; !hasError {
+			t.Errorf("item %d should be denied but got no error: %v", i+1, resp)
+		}
+	}
+	// Upstream should NOT have been called since all items were denied
+	if upstream.called {
+		t.Error("upstream should NOT be called when all batch items are denied")
+	}
+}
+
+// TestBatchRBAC_SingleRequestUnchanged verifies single (non-batch) request behavior is unchanged.
+func TestBatchRBAC_SingleRequestUnchanged(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "u1", Role: "admin"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("read_file")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("single request should still work, got %d", w.Code)
+	}
+	if !upstream.called {
+		t.Error("upstream should be called for single allowed request")
+	}
+	// Response should NOT be a JSON array
+	var arr []interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &arr); err == nil {
+		t.Error("single request should return object, not array")
+	}
+}
+
+// TestBatchRBAC_AuditPerItem verifies that each batch item gets its own audit entry.
+func TestBatchRBAC_AuditPerItem(t *testing.T) {
+	rbacEngine := &perItemRBAC{
+		allow: func(req *proxy.MCPRequest) bool {
+			if req.Method == "tools/call" {
+				var p struct{ Name string `json:"name"` }
+				json.Unmarshal(req.Params, &p) //nolint:errcheck
+				return p.Name != "execute_command"
+			}
+			return true
+		},
+	}
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "u1", Role: "admin"}}
+	rl := &mockRateLimiter{allow: true}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbacEngine, auditLogger)
+
+	body := batchBody([]struct{ method, tool string }{
+		{"tools/list", ""},
+		{"tools/call", "execute_command"},
+		{"tools/call", "read_file"},
+	})
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	entries := auditLogger.entries
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 audit entries (one per batch item), got %d", len(entries))
+	}
+	// Item 2 should be denied
+	if entries[1].Allowed {
+		t.Error("audit entry for item 2 (execute_command) should have Allowed=false")
+	}
+	if entries[1].DeniedReason == "" {
+		t.Error("denied audit entry should have DeniedReason set")
+	}
+	// Items 1 and 3 should be allowed
+	if !entries[0].Allowed {
+		t.Error("audit entry for item 1 (tools/list) should have Allowed=true")
+	}
+	if !entries[2].Allowed {
+		t.Error("audit entry for item 3 (read_file) should have Allowed=true")
+	}
+}
+
+// TestBatchRBAC_EmptyBatch verifies empty batch returns empty array response.
+func TestBatchRBAC_EmptyBatch(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	auth := &mockAuthenticator{identity: &proxy.ClientIdentity{ClientID: "u1", Role: "admin"}}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte("[]")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	// Should return 200 with empty array
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var responses []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &responses); err != nil {
+		t.Fatalf("expected JSON array: %v — body: %s", err, w.Body.String())
+	}
+	if len(responses) != 0 {
+		t.Errorf("expected empty array, got %d items", len(responses))
+	}
+}
+
+// perItemRBAC is a mock RBAC engine where each Process call uses a custom allow func.
+type perItemRBAC struct {
+	allow func(req *proxy.MCPRequest) bool
+}
+
+func (r *perItemRBAC) Process(ctx context.Context, req *proxy.MCPRequest, identity *proxy.ClientIdentity) (*proxy.MCPRequest, error) {
+	if r.allow(req) {
+		return req, nil
+	}
+	return nil, fmt.Errorf("rbac: method denied for role")
+}
+
+func (r *perItemRBAC) FilterToolsList(identity *proxy.ClientIdentity, toolsList json.RawMessage) (json.RawMessage, error) {
+	return toolsList, nil
+}
+
 // TestPipelineLatencyTracking verifies latency is recorded in audit entries.
 func TestPipelineLatencyTracking(t *testing.T) {
 	auth := &mockAuthenticator{

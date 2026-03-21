@@ -321,6 +321,17 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(bodyBytes) > 0 {
+		// Check for batch before parsing — an empty batch [] still needs batch handling.
+		if isBatchRequest(bodyBytes) {
+			reqs, err := ParseRequest(bodyBytes)
+			if err != nil {
+				writeJSONRPCError(w, nil, ErrCodeParseError, "Parse error: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			p.processBatch(w, r, reqs, identity, start, requestID)
+			return
+		}
+
 		reqs, err := ParseRequest(bodyBytes)
 		if err == nil && len(reqs) > 0 {
 			mcpReq = reqs[0]
@@ -393,6 +404,123 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	auditEntry.Allowed = true
 	auditEntry.Latency = time.Since(start)
 	p.logAudit(auditEntry)
+}
+
+// isBatchRequest returns true if the raw body is a JSON array (batch JSON-RPC request).
+func isBatchRequest(body []byte) bool {
+	trimmed := trimLeftSpace(body)
+	return len(trimmed) > 0 && trimmed[0] == '['
+}
+
+// processBatch handles a batch JSON-RPC request by applying per-item RBAC enforcement.
+//
+// For each item in the batch:
+//   - RBAC is checked independently.
+//   - If denied: a JSON-RPC error response is built for that item.
+//   - If allowed: the item is forwarded to upstream individually, and the response is collected.
+//   - An audit entry is logged for each item.
+//
+// The final batch response is a JSON array matching the order and IDs of the input items.
+func (p *Pipeline) processBatch(w http.ResponseWriter, r *http.Request, reqs []*MCPRequest, identity *ClientIdentity, start time.Time, requestID string) {
+	ctx := r.Context()
+
+	// If no identity from auth, use anonymous for RBAC checks.
+	if identity == nil && p.rbac != nil {
+		identity = &ClientIdentity{ClientID: "anonymous", Role: "readonly"}
+	}
+
+	responses := make([]json.RawMessage, len(reqs))
+
+	for i, req := range reqs {
+		itemStart := time.Now()
+		auditEntry := AuditEntry{
+			Timestamp: itemStart.UTC(),
+			RequestID: requestID,
+			Method:    req.Method,
+		}
+		if req.Method == MethodToolsCall {
+			auditEntry.ToolName = ExtractToolName(req)
+		}
+		if identity != nil {
+			auditEntry.ClientID = identity.ClientID
+			auditEntry.SessionID = identity.SessionID
+		}
+
+		// Apply RBAC for this item.
+		if p.rbac != nil {
+			_, err := p.rbac.Process(ctx, req, identity)
+			if err != nil {
+				// Denied — build a JSON-RPC error response for this item.
+				auditEntry.Allowed = false
+				auditEntry.DeniedReason = "rbac: " + err.Error()
+				auditEntry.Latency = time.Since(itemStart)
+				p.logAudit(auditEntry)
+
+				errResp := MCPResponse{
+					JSONRPC: "2.0",
+					ID:      req.ID,
+					Error: &RPCError{
+						Code:    ErrCodeForbidden,
+						Message: "Forbidden: " + err.Error(),
+					},
+				}
+				raw, _ := json.Marshal(errResp)
+				responses[i] = raw
+				continue
+			}
+		}
+
+		// Allowed — forward this item to upstream individually.
+		itemBodyBytes, err := json.Marshal(req)
+		if err != nil {
+			// Marshal failure: treat as internal error.
+			auditEntry.Allowed = false
+			auditEntry.DeniedReason = "internal: marshal error"
+			auditEntry.Latency = time.Since(itemStart)
+			p.logAudit(auditEntry)
+			errResp := MCPResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &RPCError{Code: ErrCodeInternalError, Message: "internal error"},
+			}
+			raw, _ := json.Marshal(errResp)
+			responses[i] = raw
+			continue
+		}
+
+		// Build a per-item request with the item body.
+		itemReq := r.Clone(context.WithValue(ctx, MCPRequestKey, req))
+		itemReq.Body = io.NopCloser(bytes.NewReader(itemBodyBytes))
+		itemReq.ContentLength = int64(len(itemBodyBytes))
+
+		captured := &responseCapture{header: make(http.Header)}
+		p.upstream.ServeHTTP(captured, itemReq)
+
+		// If the method is tools/list, apply RBAC filtering on the response.
+		if req.Method == MethodToolsList && p.rbac != nil && identity != nil {
+			filtered, filterErr := p.filterToolsListResponse(captured.body.Bytes(), identity)
+			if filterErr == nil {
+				responses[i] = filtered
+			} else {
+				responses[i] = captured.body.Bytes()
+			}
+		} else {
+			responses[i] = captured.body.Bytes()
+		}
+
+		// Trim trailing newline from JSON encoder output if present.
+		responses[i] = bytes.TrimRight(responses[i], "\n")
+
+		auditEntry.Allowed = true
+		auditEntry.Latency = time.Since(itemStart)
+		p.logAudit(auditEntry)
+	}
+
+	// Write the batch response array.
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	result, _ := json.Marshal(responses)
+	w.Write(result) //nolint:errcheck
 }
 
 // filterToolsListResponse parses an upstream tools/list JSON-RPC response and
