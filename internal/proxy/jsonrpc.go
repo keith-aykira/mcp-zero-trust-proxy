@@ -28,6 +28,7 @@ const (
 	ErrCodeUnauthorized = -32001
 	ErrCodeForbidden    = -32002
 	ErrCodeRateLimited  = -32003
+	ErrCodeRequestTooLarge = -32004
 )
 
 // toolsCallParams is used to extract the tool name from tools/call requests.

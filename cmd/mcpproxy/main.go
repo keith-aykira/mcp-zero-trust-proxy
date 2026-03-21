@@ -114,6 +114,12 @@ func main() {
 	}
 
 	// Step 7: Pipeline — wires all middleware together
+	corsConfig := &proxy.CORSConfig{
+		AllowedOrigins: cfg.CORS.AllowedOrigins,
+		AllowedMethods: cfg.CORS.AllowedMethods,
+		AllowedHeaders: cfg.CORS.AllowedHeaders,
+		MaxAge:         cfg.CORS.MaxAge,
+	}
 	pipeline := proxy.NewPipeline(
 		handler,
 		authenticator,
@@ -121,6 +127,8 @@ func main() {
 		rbacEngine,
 		auditLogger,
 		authenticator, // Authenticator also implements AuthHandler (HandleAuthStart, HandleCallback)
+		proxy.WithMaxBodySize(cfg.Server.MaxBodySize),
+		proxy.WithCORS(corsConfig),
 	)
 
 	// Register routes

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -37,16 +38,45 @@ type AuthHandler interface {
 	HandleCallback(w http.ResponseWriter, r *http.Request)
 }
 
+// CORSConfig controls Cross-Origin Resource Sharing headers applied by the pipeline.
+// When AllowedOrigins is empty, no CORS headers are added.
+type CORSConfig struct {
+	AllowedOrigins []string
+	AllowedMethods []string
+	AllowedHeaders []string
+	MaxAge         int // seconds
+}
+
+// PipelineOption is a functional option for configuring a Pipeline.
+type PipelineOption func(*Pipeline)
+
+// WithMaxBodySize sets the maximum request body size in bytes.
+// Requests exceeding this limit are rejected with 413 before any parsing.
+func WithMaxBodySize(n int64) PipelineOption {
+	return func(p *Pipeline) {
+		p.maxBodySize = n
+	}
+}
+
+// WithCORS configures CORS header injection for the pipeline.
+func WithCORS(cfg *CORSConfig) PipelineOption {
+	return func(p *Pipeline) {
+		p.corsConfig = cfg
+	}
+}
+
 // Pipeline orchestrates the middleware chain for incoming MCP requests.
 //
 // Request flow for MCP traffic:
-//  1. Authenticate — validate Bearer token, extract ClientIdentity
-//  2. Rate limit — check per-client token bucket
-//  3. Parse request — decode JSON-RPC body
-//  4. RBAC — enforce method/tool-level policy
-//  5. Proxy — forward to upstream MCP server
-//  6. Post-proxy — filter tools/list responses through RBAC
-//  7. Audit — log outcome (allowed or denied) with latency
+//  1. CORS preflight — handle OPTIONS before auth
+//  2. Body size enforcement — reject oversized bodies before parsing
+//  3. Authenticate — validate Bearer token, extract ClientIdentity
+//  4. Rate limit — check per-client token bucket
+//  5. Parse request — decode JSON-RPC body (single parse, shared with upstream)
+//  6. RBAC — enforce method/tool-level policy
+//  7. Proxy — forward to upstream MCP server
+//  8. Post-proxy — filter tools/list responses through RBAC
+//  9. Audit — log outcome (allowed or denied) with latency
 //
 // Special routes that bypass the pipeline:
 //   - GET /health → returns {"status":"ok"}
@@ -59,6 +89,8 @@ type Pipeline struct {
 	rbac        RBACEngine
 	auditLogger AuditLogger
 	authHandler AuthHandler
+	maxBodySize int64
+	corsConfig  *CORSConfig
 }
 
 // NewPipeline constructs a production Pipeline.
@@ -70,8 +102,9 @@ func NewPipeline(
 	rbac RBACEngine,
 	auditLogger AuditLogger,
 	authHandler AuthHandler,
+	opts ...PipelineOption,
 ) *Pipeline {
-	return &Pipeline{
+	p := &Pipeline{
 		upstream:    upstream,
 		auth:        auth,
 		rateLimiter: rl,
@@ -79,6 +112,10 @@ func NewPipeline(
 		auditLogger: auditLogger,
 		authHandler: authHandler,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 // NewPipelineForTest constructs a Pipeline without an auth handler (for unit tests).
@@ -90,14 +127,19 @@ func NewPipelineForTest(
 	rl RateLimiter,
 	rbac RBACEngine,
 	auditLogger AuditLogger,
+	opts ...PipelineOption,
 ) *Pipeline {
-	return &Pipeline{
+	p := &Pipeline{
 		upstream:    upstream,
 		auth:        auth,
 		rateLimiter: rl,
 		rbac:        rbac,
 		auditLogger: auditLogger,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 // ServeHTTP is the main entry point for all incoming HTTP requests.
@@ -105,6 +147,15 @@ func NewPipelineForTest(
 // for all other requests.
 func (p *Pipeline) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	// Apply CORS headers before routing — all responses get them.
+	p.applyCORS(w, r)
+
+	// Handle OPTIONS preflight — respond without running the pipeline.
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
 	// Health check: bypass all middleware.
 	if path == "/health" {
@@ -122,6 +173,36 @@ func (p *Pipeline) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Run the security pipeline for all MCP traffic.
 	p.runPipeline(w, r)
+}
+
+// applyCORS sets Cross-Origin Resource Sharing headers on the response.
+// If corsConfig is nil or AllowedOrigins is empty, no headers are added.
+func (p *Pipeline) applyCORS(w http.ResponseWriter, r *http.Request) {
+	if p.corsConfig == nil || len(p.corsConfig.AllowedOrigins) == 0 {
+		return
+	}
+
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return
+	}
+
+	// Check if the request origin is in the allowed list.
+	for _, allowed := range p.corsConfig.AllowedOrigins {
+		if allowed == "*" || allowed == origin {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if len(p.corsConfig.AllowedMethods) > 0 {
+				w.Header().Set("Access-Control-Allow-Methods", strings.Join(p.corsConfig.AllowedMethods, ", "))
+			}
+			if len(p.corsConfig.AllowedHeaders) > 0 {
+				w.Header().Set("Access-Control-Allow-Headers", strings.Join(p.corsConfig.AllowedHeaders, ", "))
+			}
+			if p.corsConfig.MaxAge > 0 {
+				w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", p.corsConfig.MaxAge))
+			}
+			break
+		}
+	}
 }
 
 // handleAuthRoute dispatches /auth/* requests to the OAuth handler.
@@ -147,10 +228,33 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	requestID := generateRequestID()
 
+	// Set X-Request-ID header before any writes so both success and error responses include it.
+	w.Header().Set("X-Request-ID", requestID)
+
 	// Build an initial audit entry — will be completed after pipeline runs.
 	auditEntry := AuditEntry{
 		Timestamp: start.UTC(),
 		RequestID: requestID,
+	}
+
+	// Step 0: Enforce body size limit BEFORE any parsing.
+	// Check ContentLength first for known sizes; for chunked transfers (ContentLength=-1),
+	// wrap the body with LimitReader and check after reading.
+	if p.maxBodySize > 0 && r.ContentLength > p.maxBodySize {
+		p.logAudit(AuditEntry{
+			Timestamp:    start.UTC(),
+			RequestID:    requestID,
+			Allowed:      false,
+			DeniedReason: "request body too large",
+			Latency:      time.Since(start),
+		})
+		writeJSONRPCError(w, nil, ErrCodeRequestTooLarge, "Request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	// Wrap body with LimitReader for chunked transfers (ContentLength=-1).
+	// Read limit is maxBodySize+1 so we can detect overflow.
+	if p.maxBodySize > 0 && r.Body != nil {
+		r.Body = io.NopCloser(io.LimitReader(r.Body, p.maxBodySize+1))
 	}
 
 	// Step 1: Authenticate.
@@ -193,6 +297,7 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 3: Parse request body (needed for RBAC and tools/list filtering).
+	// Step 3: Parse request body — single parse, shared with upstream via context.
 	// Buffer the body so we can both parse it and forward it to upstream.
 	var bodyBytes []byte
 	var mcpReq *MCPRequest
@@ -204,6 +309,15 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		r.Body.Close()
+		// LimitReader overflow check for chunked transfers.
+		if p.maxBodySize > 0 && int64(len(bodyBytes)) > p.maxBodySize {
+			auditEntry.Allowed = false
+			auditEntry.DeniedReason = "request body too large"
+			auditEntry.Latency = time.Since(start)
+			p.logAudit(auditEntry)
+			writeJSONRPCError(w, nil, ErrCodeRequestTooLarge, "Request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 	}
 
 	if len(bodyBytes) > 0 {

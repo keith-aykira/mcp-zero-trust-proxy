@@ -155,10 +155,10 @@ func (t *contextCapturingTransport) RoundTrip(req *http.Request) (*http.Response
 	return t.wrapped.RoundTrip(req)
 }
 
-// TestHandler_ParsedMCPRequest_InContext verifies handler stores parsed MCPRequest in context.
-// The context value is visible to middleware running in-process (before the outgoing HTTP call).
-// We capture it via a custom RoundTripper that inspects the outgoing request context.
-func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
+// TestHandler_DoesNotParseBody_InContext verifies that Handler does NOT set MCPRequestKey in context.
+// Body parsing and context injection are now exclusively handled by Pipeline (HARD-11).
+// We capture the outgoing request context via a custom RoundTripper to confirm no MCPRequestKey.
+func TestHandler_DoesNotParseBody_InContext(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"jsonrpc":"2.0","result":{},"id":1}`)
@@ -171,7 +171,7 @@ func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
 		t.Fatalf("NewHandler error: %v", err)
 	}
 
-	// Inject a context-capturing transport so we can see what context was set.
+	// Inject a context-capturing transport so we can see what context was forwarded.
 	capturedCh := make(chan context.Context, 1)
 	transport := &contextCapturingTransport{
 		wrapped:    http.DefaultTransport,
@@ -188,13 +188,10 @@ func TestHandler_ParsedMCPRequest_InContext(t *testing.T) {
 
 	select {
 	case capturedCtx := <-capturedCh:
-		mcpReq, ok := capturedCtx.Value(MCPRequestKey).(*MCPRequest)
-		if !ok || mcpReq == nil {
-			t.Error("expected MCPRequest in context, got nil or wrong type")
-			return
-		}
-		if mcpReq.Method != MethodToolsCall {
-			t.Errorf("expected method %q in context, got %q", MethodToolsCall, mcpReq.Method)
+		// Handler must NOT set MCPRequestKey — Pipeline is responsible for this
+		mcpReq := capturedCtx.Value(MCPRequestKey)
+		if mcpReq != nil {
+			t.Errorf("Handler should NOT set MCPRequestKey in context — Pipeline handles this; got %v", mcpReq)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for transport to capture context")

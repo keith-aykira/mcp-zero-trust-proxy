@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/middleware"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
 )
@@ -543,6 +545,182 @@ func TestPipelineNoAuthNilSkipsAuthentication(t *testing.T) {
 	}
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+// TestPipelineBodySizeLimit_Rejects verifies that requests over MaxBodySize are rejected with 413.
+func TestPipelineBodySizeLimit_Rejects(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	// MaxBodySize of 10 bytes — any real request body will exceed this
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithMaxBodySize(10))
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("expected 413 for oversized body, got %d", w.Code)
+	}
+	if upstream.called {
+		t.Error("upstream should NOT be called when body exceeds limit")
+	}
+}
+
+// TestPipelineBodySizeLimit_Allows verifies that requests under MaxBodySize pass through.
+func TestPipelineBodySizeLimit_Allows(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	// MaxBodySize of 10000 bytes — enough for our test request
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithMaxBodySize(10000))
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for normal-sized body, got %d", w.Code)
+	}
+	if !upstream.called {
+		t.Error("upstream should be called when body is within limit")
+	}
+}
+
+// TestPipelineRequestID_SuccessResponse verifies X-Request-ID is in every success response.
+func TestPipelineRequestID_SuccessResponse(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Header().Get("X-Request-ID") == "" {
+		t.Error("X-Request-ID should be set on success responses")
+	}
+}
+
+// TestPipelineRequestID_ErrorResponse verifies X-Request-ID is in error responses.
+func TestPipelineRequestID_ErrorResponse(t *testing.T) {
+	auth := &mockAuthenticator{err: fmt.Errorf("unauthorized")}
+	upstream := &mockUpstreamHandler{}
+	p := proxy.NewPipelineForTest(upstream, auth, nil, nil, nil)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+	if w.Header().Get("X-Request-ID") == "" {
+		t.Error("X-Request-ID should be set on error responses too")
+	}
+}
+
+// TestPipelineCORS_OptionsPreflightHandled verifies that OPTIONS preflight requests get a 204 with CORS headers.
+func TestPipelineCORS_OptionsPreflightHandled(t *testing.T) {
+	upstream := &mockUpstreamHandler{}
+	corsConfig := &proxy.CORSConfig{
+		AllowedOrigins: []string{"https://example.com"},
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders: []string{"Authorization", "Content-Type"},
+		MaxAge:         3600,
+	}
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithCORS(corsConfig))
+
+	req := httptest.NewRequest("OPTIONS", "/", nil)
+	req.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected 204 for OPTIONS preflight, got %d", w.Code)
+	}
+	if upstream.called {
+		t.Error("upstream should NOT be called for OPTIONS preflight")
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
+		t.Errorf("Access-Control-Allow-Origin: got %q, want %q", w.Header().Get("Access-Control-Allow-Origin"), "https://example.com")
+	}
+}
+
+// TestPipelineCORS_HeadersOnNonPreflightRequests verifies CORS headers are applied to all responses.
+func TestPipelineCORS_HeadersOnNonPreflightRequests(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	corsConfig := &proxy.CORSConfig{
+		AllowedOrigins: []string{"https://example.com"},
+		AllowedMethods: []string{"POST"},
+	}
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithCORS(corsConfig))
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
+	req.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
+		t.Errorf("Access-Control-Allow-Origin: got %q, want %q", w.Header().Get("Access-Control-Allow-Origin"), "https://example.com")
+	}
+}
+
+// TestPipelineCORS_NoCORSWhenNotConfigured verifies that CORS headers are absent when no config is set.
+func TestPipelineCORS_NoCORSWhenNotConfigured(t *testing.T) {
+	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil) // no CORS config
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
+	req.Header.Set("Origin", "https://malicious.example.com")
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("Access-Control-Allow-Origin should be absent when CORS not configured, got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+// TestHandlerNoParsing verifies that Handler.ServeHTTP no longer parses the JSON-RPC body itself.
+func TestHandlerNoParsing(t *testing.T) {
+	// A handler that reads and returns the body it received
+	var upstreamBodyReceived []byte
+	upstreamSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		upstreamBodyReceived = body
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstreamSrv.Close()
+
+	// Handler should NOT set MCPRequestKey — that's Pipeline's job now
+	body := []byte(`{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"my_tool"}}`)
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			UpstreamURL: upstreamSrv.URL,
+		},
+	}
+	h, err := proxy.NewHandler(cfg)
+	if err != nil {
+		t.Fatalf("NewHandler error: %v", err)
+	}
+	h.ServeHTTP(rr, req)
+
+	// Body should be forwarded intact
+	if string(upstreamBodyReceived) != string(body) {
+		t.Errorf("body not forwarded correctly: got %q, want %q", upstreamBodyReceived, body)
+	}
+
+	// The context should NOT have MCPRequestKey set by Handler (Pipeline sets it now)
+	mcpReq := req.Context().Value(proxy.MCPRequestKey)
+	if mcpReq != nil {
+		t.Error("Handler should NOT set MCPRequestKey in context — that is Pipeline's responsibility")
 	}
 }
 

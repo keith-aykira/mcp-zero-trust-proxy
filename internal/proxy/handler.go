@@ -2,9 +2,7 @@ package proxy
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -103,40 +101,12 @@ func (h *Handler) SetTransport(t http.RoundTripper) {
 }
 
 // ServeHTTP is the main entry point. It:
-//  1. Reads and buffers the request body.
-//  2. Attempts to parse the body as JSON-RPC 2.0.
-//  3. Stores the first parsed MCPRequest in context (for middleware).
-//  4. Detects SSE requests (Accept: text/event-stream) and delegates.
-//  5. Forwards all other requests to upstream via httputil.ReverseProxy.
+//  1. Detects SSE requests (Accept: text/event-stream) and delegates to ProxySSE.
+//  2. Forwards all other requests to upstream via httputil.ReverseProxy.
+//
+// Body reading and JSON-RPC parsing are handled exclusively by Pipeline (HARD-11).
+// Handler is a simple pass-through — it does not parse the body or set context values.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Read the full request body so we can both parse it and forward it.
-	// We use io.ReadAll + bytes.NewReader to allow re-reading.
-	var bodyBytes []byte
-	if r.Body != nil {
-		var err error
-		bodyBytes, err = io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read request body", http.StatusBadRequest)
-			return
-		}
-		r.Body.Close()
-	}
-
-	// Attempt JSON-RPC parse. Failure is non-fatal — not all endpoints use JSON-RPC.
-	ctx := r.Context()
-	if len(bodyBytes) > 0 {
-		reqs, err := ParseRequest(bodyBytes)
-		if err == nil && len(reqs) > 0 {
-			// Store the first (or only) request in context for downstream middleware.
-			ctx = context.WithValue(ctx, MCPRequestKey, reqs[0])
-		}
-	}
-
-	// Replace the request body with a new reader so it can be forwarded.
-	r = r.WithContext(ctx)
-	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	r.ContentLength = int64(len(bodyBytes))
-
 	// Route SSE requests to the streaming proxy.
 	if isSSERequest(r) {
 		upstreamURL := h.upstreamURLForRequest(r)
