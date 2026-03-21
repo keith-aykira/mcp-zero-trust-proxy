@@ -48,7 +48,7 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 - [x] **BETA-01**: 10+ active proxy deployments in production environments
 - [x] **BETA-02**: Stripe billing integration with 3 pricing tiers ($49/$99/$199)
 - [x] **BETA-03**: $500+ MRR from 5+ paying customers
-- [ ] **BETA-04**: Show HN post and community launch
+- [x] **BETA-04**: Show HN post and community launch
 
 ## v2 Requirements
 
@@ -114,7 +114,7 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | BETA-01 | Phase 3 | Complete |
 | BETA-02 | Phase 3 | Complete |
 | BETA-03 | Phase 3 | Complete |
-| BETA-04 | Phase 3 | Pending |
+| BETA-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 25 total

@@ -101,12 +101,12 @@ Plans:
 **Goal:** 10+ teams using proxy in production, convert 3-5 to paid.
 **Requirements:** BETA-01, BETA-02, BETA-03, BETA-04
 **Depends on:** Phase 3
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 04-01-PLAN.md — JWT license key validation + tier enforcement in Go proxy (BETA-01, BETA-02)
-- [ ] 04-02-PLAN.md — Stripe billing backend + Supabase Edge Functions for license key generation (BETA-02, BETA-03)
-- [ ] 04-03-PLAN.md — Landing page pricing + Vercel deploy + Docker GHCR release + Show HN draft (BETA-01, BETA-03, BETA-04)
+- [x] 04-01-PLAN.md — JWT license key validation + tier enforcement in Go proxy (BETA-01, BETA-02) — COMPLETE 2026-03-21
+- [x] 04-02-PLAN.md — Stripe billing backend + Supabase Edge Functions for license key generation (BETA-02, BETA-03) — COMPLETE 2026-03-21
+- [x] 04-03-PLAN.md — Landing page pricing + GHCR release workflow + Show HN draft (BETA-01, BETA-03, BETA-04) — COMPLETE 2026-03-21
 
 **Success Criteria:**
 1. 10+ active proxy deployments in production
@@ -118,11 +118,11 @@ Plans:
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) | 2/3 | In Progress|  | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
+| 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) | 3/3 | Complete   | 2026-03-21 | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
 | 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
 | 3 | Hardening | Production-readiness gaps | HARD-01 through HARD-14 | 14 (COMPLETE) |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-21 — Phase 4 planned (3 plans, 2 waves); Phase 3 complete (all 14 HARD requirements satisfied)*
+*Last updated: 2026-03-21 — Phase 4 complete (all 3 plans done); all 16 plans across 5 phases complete. Manual go-live steps remain: Vercel deploy, Stripe placeholder replacement, v1.0.0 tag push, Show HN post.*

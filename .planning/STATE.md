@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-03-21T15:17:13.900Z"
-last_activity: 2026-03-21 — Plan 04-02 complete (billing backend user-approved; BETA-02/03 satisfied)
+status: complete
+last_updated: "2026-03-21T18:45:00.000Z"
+last_activity: 2026-03-21 — Plan 04-03 complete (launch package approved; BETA-01/03/04 satisfied — all 16 plans done)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 ## Current Position
 
 Phase: 4 — Beta Launch & First Revenue
-Plan: 04-03 (next — landing page deploy + Edge Function deployment)
-Status: IN PROGRESS — billing backend complete and approved; ready for Plan 03 (deploy to production)
-Last activity: 2026-03-21 — Plan 04-02 complete (billing backend user-approved; BETA-02/03 satisfied)
+Plan: 04-03 (COMPLETE — all 16 plans done, all phases complete)
+Status: COMPLETE — full launch package committed and user-approved. Landing page with pricing, GHCR release workflow, QUICKSTART license docs, Show HN draft ready to post. Manual go-live steps remain (Vercel deploy, Stripe placeholder replacement, v1.0.0 tag, HN post).
+Last activity: 2026-03-21 — Plan 04-03 complete (launch package approved; BETA-01/03/04 satisfied)
 
 ## Project Reference
 
@@ -126,3 +126,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-21 (04-02): CREATE_LICENSE_FUNCTION_URL secret for internal function-to-function calls — stripe-webhook invokes create-license via HTTP fetch
 - 2026-03-21 (04-02): PKCS#8 PEM format for signing private key — required by crypto.subtle.importKey('pkcs8')
 - 2026-03-21 (04-02): Service role RLS only for license inserts/updates — anon read is intentional (JWT is the secret, not the row)
+- 2026-03-21 (04-03): Stripe checkout links use named placeholders (STRIPE_PRO_LINK / STRIPE_ENTERPRISE_LINK) — agent generates page without live credentials; user replaces before deploy
+- 2026-03-21 (04-03): GHCR auth uses GITHUB_TOKEN only — no PAT required, works out of the box for any push to AnobleSCM org
+- 2026-03-21 (04-03): Show HN body leads with breach data (8,000+ exposed servers, 30+ CVEs) — evidence-first hook for technical audience
+- 2026-03-21 (04-03): "Founding member pricing — locked in for life" badge above pricing grid — urgency framing for early adopters
