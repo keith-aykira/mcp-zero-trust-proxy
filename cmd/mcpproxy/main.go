@@ -13,6 +13,7 @@ import (
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/audit"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/auth"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/license"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/rbac"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/ratelimit"
@@ -48,6 +49,33 @@ func main() {
 		log.Fatal().Err(err).Msg("Invalid configuration")
 	}
 
+	// Parse and validate license key (uses the public key embedded in the binary).
+	// An empty license key runs as free tier — no network calls required.
+	lic, err := license.ParseEmbedded(cfg.License.Key)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Invalid license key — check your license.key config or use free tier (no key)")
+	}
+
+	// Apply tier-based overrides to configuration.
+	// These caps ensure the running proxy never exceeds what the license allows.
+	switch lic.Tier {
+	case license.TierFree:
+		// Free tier: cap rate limit to 10 req/min, force audit to stdout only.
+		cfg.RateLimit.RequestsPerMinute = 10
+		if cfg.RateLimit.BurstSize > 5 {
+			cfg.RateLimit.BurstSize = 5
+		}
+		cfg.Audit.Output = "stdout"
+		cfg.Audit.FilePath = ""
+	case license.TierPro:
+		// Pro tier: cap rate limit to license.MaxRPM if configured value exceeds it.
+		if lic.MaxRPM > 0 && cfg.RateLimit.RequestsPerMinute > lic.MaxRPM {
+			cfg.RateLimit.RequestsPerMinute = lic.MaxRPM
+		}
+	case license.TierEnterprise:
+		// Enterprise tier: no caps — all configured values are honoured.
+	}
+
 	// Apply log level from config
 	level, err := zerolog.ParseLevel(cfg.Logging.Level)
 	if err != nil {
@@ -68,6 +96,19 @@ func main() {
 		Bool("audit", cfg.Audit.Enabled).
 		Str("provider", cfg.Auth.Provider).
 		Msg("Starting MCP Zero-Trust Proxy")
+
+	// Log license tier at startup.
+	tierLog := log.Info().Str("tier", string(lic.Tier))
+	if lic.Tier != license.TierFree {
+		tierLog = tierLog.
+			Str("subject", lic.Subject).
+			Int("max_upstreams", lic.MaxUpstreams).
+			Int("max_rpm", lic.MaxRPM)
+		if !lic.ExpiresAt.IsZero() {
+			tierLog = tierLog.Time("expires_at", lic.ExpiresAt)
+		}
+	}
+	tierLog.Msg("License tier active")
 
 	// Step 1: Session store (required by auth)
 	sessionStore := auth.NewSessionStore(24 * time.Hour)

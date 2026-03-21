@@ -32,3 +32,6 @@ Thumbs.db
 *.test
 coverage.out
 mcpproxy
+
+# License signing keys (private key must never be committed)
+keys/license-signing-private.pem

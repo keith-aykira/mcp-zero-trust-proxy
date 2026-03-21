@@ -5,17 +5,27 @@
 package license
 
 import (
+	_ "embed"
+
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 	"strings"
 	"time"
 )
+
+// embeddedPublicKeyPEM is the ECDSA P-256 public key embedded at build time.
+// Replace keys/license-signing-public.pem to rotate the signing key.
+//
+//go:embed license-signing-public.pem
+var embeddedPublicKeyPEM []byte
 
 // Tier represents a subscription tier that controls feature limits.
 type Tier string
@@ -62,6 +72,38 @@ func FreeTierLicense() *License {
 	}
 }
 
+// ParseEmbedded parses the license key using the public key embedded in the binary.
+// This is the function called by main.go — it requires no external key material.
+// An empty keyString returns a free-tier License with no error.
+func ParseEmbedded(keyString string) (*License, error) {
+	pub, err := PublicKeyFromPEM(embeddedPublicKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("license: failed to load embedded public key: %w", err)
+	}
+	return Parse(keyString, pub)
+}
+
+// PublicKeyFromPEM parses a PEM-encoded ECDSA P-256 public key.
+// The PEM block must be of type "PUBLIC KEY" in PKIX/SubjectPublicKeyInfo format.
+func PublicKeyFromPEM(pemData []byte) (*ecdsa.PublicKey, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil {
+		return nil, fmt.Errorf("license: no PEM block found in public key data")
+	}
+	if block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("license: expected PEM type 'PUBLIC KEY', got %q", block.Type)
+	}
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("license: parsing public key: %w", err)
+	}
+	ecKey, ok := key.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("license: public key is not an ECDSA key")
+	}
+	return ecKey, nil
+}
+
 // jwtClaims is the internal struct for decoding JWT payload claims.
 type jwtClaims struct {
 	Tier         string  `json:"tier"`
@@ -77,7 +119,7 @@ type ecdsaSignature struct {
 	R, S *big.Int
 }
 
-// Parse decodes and validates a license key string.
+// Parse decodes and validates a license key string using the provided public key.
 //
 // An empty keyString returns a free-tier License with no error.
 //
