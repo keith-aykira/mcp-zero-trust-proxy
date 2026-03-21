@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-last_updated: "2026-03-21T15:08:22.000Z"
-last_activity: 2026-03-21 — Plan 04-02 checkpoint (billing backend built; awaiting review before Plan 03 deploy)
+last_updated: "2026-03-21T15:12:00.000Z"
+last_activity: 2026-03-21 — Plan 04-01 complete (JWT license validation + tier enforcement in proxy binary; BETA-01/02 satisfied)
 progress:
   total_phases: 5
   completed_phases: 3
@@ -115,6 +115,11 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-21 (03-03): Audit rotation triggered post-write inside mutex — prevents race between write and rename
 - 2026-03-21 (03-03): bytesWritten counter for rotation size tracking — avoids stat syscall on every write
 - 2026-03-21 (03-03): Single .1 backup rotation scheme — simple, sufficient for production log management
+- 2026-03-21 (04-01): stdlib-only JWT — crypto/ecdsa + encoding/asn1 + crypto/x509 (no external JWT library); reduces attack surface
+- 2026-03-21 (04-01): ASN.1 DER signature encoding — matches openssl output format for offline key generation
+- 2026-03-21 (04-01): ParseEmbedded() as main.go API — binary self-contained via go:embed; no runtime key file required
+- 2026-03-21 (04-01): Tier enforcement via config field overrides at startup — simpler than middleware checks; avoids adding license checks throughout chain
+- 2026-03-21 (04-01): Private key never committed — keys/license-signing-private.pem excluded from git
 - 2026-03-21 (04-02): Deno crypto.subtle only for JWT signing (ECDSA ES256) and Stripe webhook sig verification (HMAC-SHA256) — no SDK, lightweight Edge Functions
 - 2026-03-21 (04-02): 0 = unlimited for enterprise tier max_upstreams/max_rpm — matches Plan 01 proxy validation convention
 - 2026-03-21 (04-02): tier must be in Stripe metadata (checkout session or payment link) — no server-side tier lookup required at webhook time

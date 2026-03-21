@@ -45,7 +45,7 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 
 ### Beta & Revenue
 
-- [ ] **BETA-01**: 10+ active proxy deployments in production environments
+- [x] **BETA-01**: 10+ active proxy deployments in production environments
 - [x] **BETA-02**: Stripe billing integration with 3 pricing tiers ($49/$99/$199)
 - [x] **BETA-03**: $500+ MRR from 5+ paying customers
 - [ ] **BETA-04**: Show HN post and community launch
@@ -111,7 +111,7 @@ Deferred to after 90-day validation. Tracked but not in current roadmap.
 | DOCS-01 | Phase 2 | Complete |
 | DOCS-02 | Phase 2 | Complete |
 | DOCS-03 | Phase 2 | Complete |
-| BETA-01 | Phase 3 | Pending |
+| BETA-01 | Phase 3 | Complete |
 | BETA-02 | Phase 3 | Complete |
 | BETA-03 | Phase 3 | Complete |
 | BETA-04 | Phase 3 | Pending |
