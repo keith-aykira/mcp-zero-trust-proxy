@@ -560,8 +560,19 @@
     </div>
     <div class="cta-group">
       <a href="#get-access" class="btn-primary">Get Early Access</a>
-      <a href="#how-it-works" class="btn-secondary">See How It Works</a>
+      <a href="#how-it-works" style="color: var(--ink-muted); text-decoration: none; font-size: 14px;">See how it works ↓</a>
     </div>
+  </div>
+</section>
+
+<!-- EARLY EMAIL CAPTURE -->
+<section style="padding: 48px 0; text-align: center; border-bottom: 1px solid var(--cream-border);">
+  <div class="container">
+    <p style="color: var(--ink-muted); font-size: 15px; margin-bottom: 16px;">Free Pro access for the first 50 teams</p>
+    <form class="email-form" onsubmit="handleEarlySubmit(event)" style="max-width: 420px;">
+      <input type="email" id="email-input-early" placeholder="you@company.com" required style="flex:1; min-width:220px; padding:12px 16px; border-radius:7px; border:1px solid var(--cream-border); background:var(--surface); color:var(--ink); font-size:14px; font-family:'Inter',sans-serif; outline:none;">
+      <button type="submit" class="btn-primary" id="submit-btn-early" style="padding:12px 24px; font-size:14px;">Join Waitlist</button>
+    </form>
   </div>
 </section>
 
@@ -629,6 +640,45 @@
         <p>Prevent any single user or agent from overwhelming your server. Set request limits per client and enforce them automatically.</p>
       </div>
     </div>
+
+    <!-- ARCHITECTURE DIAGRAM -->
+    <div style="max-width: 720px; margin: 72px auto 0; padding: 40px; background: var(--surface); border: 1px solid var(--cream-border); border-radius: 10px; box-shadow: var(--shadow-xs);">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 24px; text-align: center;">How it fits in your stack</div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap;">
+        <div style="text-align: center; padding: 16px 24px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">💻</div>
+          <div style="font-weight: 600; font-size: 14px; color: var(--navy);">AI Client</div>
+          <div style="font-size: 12px; color: var(--ink-faint);">Claude, Cursor, Copilot</div>
+        </div>
+        <div style="font-size: 20px; color: var(--ink-faint); padding: 0 8px;">→</div>
+        <div style="text-align: center; padding: 20px 28px; background: var(--accent-light); border: 2px solid var(--accent); border-radius: 10px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">🛡️</div>
+          <div style="font-weight: 600; font-size: 14px; color: var(--accent);">MCP Zero-Trust Proxy</div>
+          <div style="font-size: 11px; color: var(--ink-muted); margin-top: 4px;">Auth · RBAC · Audit · Rate Limit</div>
+        </div>
+        <div style="font-size: 20px; color: var(--ink-faint); padding: 0 8px;">→</div>
+        <div style="text-align: center; padding: 16px 24px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">⚙️</div>
+          <div style="font-weight: 600; font-size: 14px; color: var(--navy);">Your MCP Server</div>
+          <div style="font-size: 12px; color: var(--ink-faint);">Unchanged, untouched</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIG SNIPPET -->
+    <div style="max-width: 720px; margin: 32px auto 0; padding: 40px; background: var(--surface); border: 1px solid var(--cream-border); border-radius: 10px; box-shadow: var(--shadow-xs);">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 16px;">Example config.yaml</div>
+      <div style="background: var(--navy); border-radius: 8px; padding: 20px 24px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.7; color: #c8d1e0; overflow-x: auto;">
+        <div><span style="color: #8eb8f7;">roles</span><span style="color: #6b7a99;">:</span></div>
+        <div>&nbsp;&nbsp;- <span style="color: #8eb8f7;">name</span><span style="color: #6b7a99;">:</span> <span style="color: #a8d4a0;">"admin"</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #8eb8f7;">allowed_tools</span><span style="color: #6b7a99;">:</span> <span style="color: #a8d4a0;">["*"]</span></div>
+        <div>&nbsp;&nbsp;- <span style="color: #8eb8f7;">name</span><span style="color: #6b7a99;">:</span> <span style="color: #a8d4a0;">"developer"</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #8eb8f7;">allowed_tools</span><span style="color: #6b7a99;">:</span> <span style="color: #a8d4a0;">["read_file", "search"]</span></div>
+        <div>&nbsp;&nbsp;- <span style="color: #8eb8f7;">name</span><span style="color: #6b7a99;">:</span> <span style="color: #a8d4a0;">"viewer"</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #8eb8f7;">allowed_tools</span><span style="color: #6b7a99;">:</span> <span style="color: #a8d4a0;">[]</span> &nbsp;<span style="color: #6b7a99;"># read-only, no tool access</span></div>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -763,11 +813,10 @@
           <li>Unlimited MCP servers</li>
           <li>Unlimited request rate</li>
           <li>All Pro features</li>
-          <li>SSO / SAML (coming soon)</li>
           <li>Structured audit export</li>
-          <li>SIEM integration (coming soon)</li>
           <li>Priority support + SLA</li>
         </ul>
+        <p style="font-size: 12px; color: var(--ink-faint); margin-bottom: 28px; padding-top: 8px; border-top: 1px solid var(--cream-border);">Roadmap: SSO/SAML, SIEM/OpenTelemetry</p>
         <a href="https://buy.stripe.com/test_4gM14mdqJcoO9SH6aQ6Ri01" class="btn-primary">Start Enterprise</a>
       </div>
     </div>
@@ -776,17 +825,17 @@
 
 <section class="proof">
   <div class="container">
-    <div class="proof-label">Referenced by</div>
     <div class="proof-logos">
-      <span>OWASP</span>
+      <span>212 tests</span>
       <span>·</span>
-      <span>MICROSOFT</span>
+      <span>Race-condition free</span>
       <span>·</span>
-      <span>PALO ALTO UNIT 42</span>
+      <span>Written in Go</span>
       <span>·</span>
-      <span>ANTHROPIC</span>
+      <span>Single binary</span>
+      <span>·</span>
+      <span>~10MB</span>
     </div>
-    <p>These organizations have published guidance on securing MCP servers.<br>We built the tool that makes it easy.</p>
   </div>
 </section>
 
@@ -852,6 +901,41 @@ async function handleSubmit(e) {
     btn.style.background = '#8b3a3a';
     btn.disabled = false;
     note.textContent = 'Something went wrong. Please try again.';
+  }
+}
+
+async function handleEarlySubmit(e) {
+  e.preventDefault();
+  var email = document.getElementById('email-input-early').value;
+  var btn = document.getElementById('submit-btn-early');
+  btn.textContent = 'Joining...';
+  btn.disabled = true;
+  try {
+    var res = await fetch(SUPABASE_URL + '/rest/v1/waitlist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ email: email, source: 'landing-page-hero' })
+    });
+    if (res.ok) {
+      btn.textContent = '\u2713 You\'re in!';
+      btn.style.background = '#4a7c59';
+      document.getElementById('email-input-early').disabled = true;
+    } else if (res.status === 409) {
+      btn.textContent = 'Already signed up!';
+      btn.style.background = '#8b6914';
+      btn.disabled = false;
+    } else {
+      throw new Error('fail');
+    }
+  } catch (err) {
+    btn.textContent = 'Try again';
+    btn.style.background = '#8b3a3a';
+    btn.disabled = false;
   }
 }
 </script>
