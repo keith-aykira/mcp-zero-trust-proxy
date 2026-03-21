@@ -41,7 +41,9 @@ func ProxySSE(w http.ResponseWriter, r *http.Request, upstream *url.URL, timeout
 		return fmt.Errorf("create upstream SSE request: %w", err)
 	}
 
-	// Forward original request headers (auth tokens, session IDs, etc.) to upstream.
+	// Forward original request headers (session IDs, etc.) to upstream.
+	// Authorization is intentionally excluded — the proxy has already validated
+	// the client's OAuth token and must not forward it to upstream operators.
 	for key, vals := range r.Header {
 		// Skip hop-by-hop headers that should not be forwarded.
 		if isHopByHopHeader(key) {
@@ -51,6 +53,9 @@ func ProxySSE(w http.ResponseWriter, r *http.Request, upstream *url.URL, timeout
 			upstreamReq.Header.Add(key, v)
 		}
 	}
+	// Strip the client's Authorization header so upstream operators cannot steal
+	// client OAuth tokens.
+	upstreamReq.Header.Del("Authorization")
 	upstreamReq.Header.Set("Accept", "text/event-stream")
 	upstreamReq.Header.Set("Cache-Control", "no-cache")
 

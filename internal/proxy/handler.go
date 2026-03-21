@@ -76,6 +76,10 @@ func NewHandler(cfg *config.Config) (*Handler, error) {
 		req.URL.Scheme = upstream.Scheme
 		req.URL.Host = upstream.Host
 		req.Host = upstream.Host
+		// Strip the client's Authorization header so upstream operators cannot
+		// steal client OAuth tokens. The proxy has already validated the token;
+		// upstream must not receive it.
+		req.Header.Del("Authorization")
 	}
 
 	// SSE configuration: timeout and buffer size from config.
