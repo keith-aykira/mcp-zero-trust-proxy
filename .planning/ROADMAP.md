@@ -74,10 +74,12 @@ Plans:
 **Goal:** Fix all production-readiness gaps identified in the Phase 2 audit so the proxy is robust enough for paying users.
 **Requirements:** HARD-01 through HARD-14
 **Depends on:** Phase 2
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 3 to break down)
+- [ ] 03-01-PLAN.md — Config expansion, user-to-role mapping, body size limits, CORS, request ID, single-parse (HARD-01, HARD-02, HARD-06, HARD-07, HARD-11)
+- [ ] 03-02-PLAN.md — OAuth cache cleanup, client secret, error sanitization, SSE timeout, TLS, Docker version (HARD-04, HARD-05, HARD-08, HARD-09, HARD-10, HARD-13)
+- [ ] 03-03-PLAN.md — Batch RBAC enforcement, audit log rotation, full regression suite (HARD-03, HARD-12, HARD-14)
 
 **Success Criteria:**
 1. User-to-role mapping configurable in YAML (not hardcoded readonly)
@@ -117,4 +119,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-20 — Phase 3 (Hardening) added after Phase 2 audit; Beta Launch renumbered to Phase 4*
+*Last updated: 2026-03-20 — Phase 3 planned: 3 plans in 2 waves covering all 14 HARD requirements*
