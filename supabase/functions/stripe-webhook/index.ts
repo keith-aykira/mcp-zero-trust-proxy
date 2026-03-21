@@ -8,6 +8,7 @@
 //
 // Secrets required:
 //   STRIPE_WEBHOOK_SECRET       — Stripe webhook signing secret
+//   LICENSE_SIGNING_KEY         — PKCS#8 PEM-encoded ECDSA P-256 private key (for renewals)
 //   SUPABASE_URL                — auto-provided by Supabase
 //   SUPABASE_SERVICE_ROLE_KEY   — auto-provided by Supabase
 //   CREATE_LICENSE_FUNCTION_URL — URL of the create-license Edge Function
@@ -87,6 +88,101 @@ async function verifyStripeSignature(
   return receivedSigs.some((sig) => timingSafeEqual(sig, expectedSig));
 }
 
+// ─── JWT helpers (for in-place license renewal) ───────────────────────────────
+
+// Tier limits: 0 means unlimited
+const TIER_LIMITS: Record<string, { max_upstreams: number; max_rpm: number }> = {
+  pro: { max_upstreams: 5, max_rpm: 200 },
+  enterprise: { max_upstreams: 0, max_rpm: 0 },
+};
+
+const ISSUER = "mcpzerotrust.dev";
+const TOKEN_LIFETIME_DAYS = 30;
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const lines = pem
+    .split("\n")
+    .filter((l) => !l.startsWith("-----"))
+    .join("");
+  const binary = atob(lines);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function importEcPrivateKey(pkcs8Pem: string): Promise<CryptoKey> {
+  const keyData = pemToArrayBuffer(pkcs8Pem);
+  return await crypto.subtle.importKey(
+    "pkcs8",
+    keyData,
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"],
+  );
+}
+
+function base64urlEncode(data: Uint8Array | ArrayBuffer): string {
+  const bytes =
+    data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data);
+  let str = "";
+  for (const b of bytes) {
+    str += String.fromCharCode(b);
+  }
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function encodeJsonPart(obj: Record<string, unknown>): string {
+  return base64urlEncode(new TextEncoder().encode(JSON.stringify(obj)));
+}
+
+async function signJwt(
+  header: Record<string, unknown>,
+  payload: Record<string, unknown>,
+  privateKey: CryptoKey,
+): Promise<string> {
+  const encodedHeader = encodeJsonPart(header);
+  const encodedPayload = encodeJsonPart(payload);
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: { name: "SHA-256" } },
+    privateKey,
+    new TextEncoder().encode(signingInput),
+  );
+
+  return `${signingInput}.${base64urlEncode(signature)}`;
+}
+
+async function generateLicenseJwt(email: string, tier: string): Promise<{ licenseKey: string; expiresAt: string }> {
+  const signingKeyPem = Deno.env.get("LICENSE_SIGNING_KEY");
+  if (!signingKeyPem) {
+    throw new Error("LICENSE_SIGNING_KEY secret is not set");
+  }
+
+  const privateKey = await importEcPrivateKey(signingKeyPem);
+  const limits = TIER_LIMITS[tier] ?? { max_upstreams: 5, max_rpm: 200 };
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + TOKEN_LIFETIME_DAYS * 24 * 60 * 60;
+  const expiresAt = new Date(exp * 1000).toISOString();
+
+  const header = { alg: "ES256", typ: "JWT" };
+  const payload = {
+    iss: ISSUER,
+    sub: email,
+    iat: now,
+    exp,
+    tier,
+    max_upstreams: limits.max_upstreams,
+    max_rpm: limits.max_rpm,
+  };
+
+  const licenseKey = await signJwt(header, payload, privateKey);
+  return { licenseKey, expiresAt };
+}
+
 // ─── License helpers ──────────────────────────────────────────────────────────
 
 async function createLicense(
@@ -137,18 +233,38 @@ async function revokeLicense(
   }
 }
 
+// renewLicense updates the existing license row in-place with a fresh JWT and expiry.
+// This is atomic — there is no window where the customer has no valid license.
+// It avoids the unique constraint conflict that would arise from revoke-then-insert,
+// and eliminates the coverage gap that revoke-then-create would cause.
 async function renewLicense(
   supabase: ReturnType<typeof createClient>,
   stripeSubscriptionId: string,
   email: string,
   tier: string,
-  stripeCustomerId: string,
 ): Promise<void> {
-  // Revoke old license first
-  await revokeLicense(supabase, stripeSubscriptionId);
+  // Generate a fresh JWT (same signing path as create-license)
+  const { licenseKey, expiresAt } = await generateLicenseJwt(email, tier);
+  const limits = TIER_LIMITS[tier] ?? { max_upstreams: 5, max_rpm: 200 };
 
-  // Create a new license with a fresh 30-day expiry
-  await createLicense(email, tier, stripeSubscriptionId, stripeCustomerId);
+  // Update in-place: clears revoked_at, refreshes key + expiry atomically.
+  // No INSERT means no unique-constraint conflict and no coverage gap.
+  const { error } = await supabase
+    .from("licenses")
+    .update({
+      license_key: licenseKey,
+      tier,
+      max_upstreams: limits.max_upstreams,
+      max_rpm: limits.max_rpm,
+      expires_at: expiresAt,
+      revoked_at: null,
+      issued_at: new Date().toISOString(),
+    })
+    .eq("stripe_subscription_id", stripeSubscriptionId);
+
+  if (error) {
+    throw new Error(`Failed to renew license: ${error.message}`);
+  }
 }
 
 // ─── Event handlers ───────────────────────────────────────────────────────────
@@ -242,14 +358,12 @@ async function handleSubscriptionUpdated(
     const existingLicense = licenses[0];
     const effectiveTier = tier || existingLicense.tier;
     const effectiveEmail = existingLicense.email;
-    const effectiveCustomerId = stripeCustomerId || existingLicense.stripe_customer_id;
 
     await renewLicense(
       supabase,
       stripeSubscriptionId,
       effectiveEmail,
       effectiveTier,
-      effectiveCustomerId,
     );
     console.log(
       `License renewed for ${effectiveEmail} (${effectiveTier}, sub ${stripeSubscriptionId})`,
@@ -292,7 +406,7 @@ serve(async (req: Request) => {
   }
 
   // Parse event
-  let event: { type: string; data: { object: Record<string, unknown> } };
+  let event: { id: string; type: string; data: { object: Record<string, unknown> } };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -318,6 +432,24 @@ serve(async (req: Request) => {
     auth: { persistSession: false },
   });
 
+  // ── Idempotency guard: skip duplicate Stripe event deliveries ──────────────
+  // Stripe can deliver the same event multiple times (retries, network issues).
+  // We check for the event ID in stripe_events before processing, and record it
+  // after success, so duplicate deliveries are safely ignored.
+  const { data: existingEvent } = await supabase
+    .from("stripe_events")
+    .select("event_id")
+    .eq("event_id", event.id)
+    .maybeSingle();
+
+  if (existingEvent) {
+    console.log(`Duplicate event ${event.id} — skipping`);
+    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const eventObject = event.data.object;
 
   try {
@@ -340,13 +472,21 @@ serve(async (req: Request) => {
         break;
     }
   } catch (err) {
-    // Return 500 so Stripe retries the event — transient errors should be retried
+    // Return 500 so Stripe retries the event — transient errors should be retried.
+    // Do NOT record the event ID on failure so the retry will be processed.
     console.error(`Error processing Stripe event ${event.type}:`, err);
     return new Response(
       JSON.stringify({ error: "Processing error — check logs" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
+
+  // Record the processed event ID so duplicate deliveries are skipped
+  await supabase.from("stripe_events").insert({
+    event_id: event.id,
+    event_type: event.type,
+    processed_at: new Date().toISOString(),
+  });
 
   return new Response(JSON.stringify({ received: true }), {
     status: 200,
