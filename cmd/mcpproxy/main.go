@@ -78,6 +78,9 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize authenticator")
 	}
+	// Wire user-to-role mapping from config
+	authenticator.SetUserRoles(cfg.UserRoles.Mapping, cfg.UserRoles.Default)
+
 	// Start background goroutine for periodic cache cleanup (expired tokens/state entries)
 	authenticator.StartCleanup()
 	defer authenticator.StopCleanup()
