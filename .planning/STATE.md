@@ -1,9 +1,9 @@
 ## Current Position
 
 Phase: 3 — Hardening & Production Readiness
-Plan: 03-02 complete (2/3 plans done)
-Status: IN PROGRESS — Plans 01 and 02 complete; Plan 03 pending
-Last activity: 2026-03-21 — Plan 03-01 complete (HARD-01/02/06/07/11 satisfied; config types + pipeline hardening)
+Plan: 03-03 complete (3/3 plans done)
+Status: PHASE COMPLETE — All 14 HARD requirements satisfied; ready for Phase 4 Beta Launch
+Last activity: 2026-03-21 — Plan 03-03 complete (HARD-03/12/14 satisfied; batch RBAC, audit rotation, full regression 177 tests)
 
 ## Project Reference
 
@@ -96,3 +96,8 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-21 (03-01): LimitReader wraps body for chunked transfers (ContentLength=-1) — handles overflow detection without known size
 - 2026-03-21 (03-01): Handler body parsing removed entirely (HARD-11) — Pipeline is the single owner of body reading and MCPRequestKey injection
 - 2026-03-21 (03-01): ErrCodeRequestTooLarge (-32004) added as new JSON-RPC error code for 413 responses
+- 2026-03-21 (03-03): Detect batch by raw body first byte '[' not len(reqs) — handles empty batch correctly
+- 2026-03-21 (03-03): Forward allowed batch items individually to upstream — avoids partial-batch protocol complexity
+- 2026-03-21 (03-03): Audit rotation triggered post-write inside mutex — prevents race between write and rename
+- 2026-03-21 (03-03): bytesWritten counter for rotation size tracking — avoids stat syscall on every write
+- 2026-03-21 (03-03): Single .1 backup rotation scheme — simple, sufficient for production log management
