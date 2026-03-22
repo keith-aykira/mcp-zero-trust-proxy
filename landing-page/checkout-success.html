@@ -135,7 +135,7 @@
       <p style="font-size:14px;color:var(--text-muted);">Add your license key to your proxy config:</p>
       <code id="docker-command"></code>
     </div>
-    <p class="support-text">Need help? <a href="mailto:support@mcpzerotrust.dev" class="support-link">support@mcpzerotrust.dev</a></p>
+    <p class="support-text">Need help? <a href="mailto:andrewnoble1992@gmail.com" class="support-link">andrewnoble1992@gmail.com</a></p>
     <a href="https://mcpzerotrust.dev" class="home-link">&#8592; Back to mcpzerotrust.dev</a>
   </div>
 
@@ -214,7 +214,7 @@ document.getElementById('email-lookup-btn').addEventListener('click', async func
   showState('state-loading');
   var result = await fetchLicense({ email: email });
   if (result.status === 200) { displayLicense(result.data); }
-  else { showError(result.data.message || 'No license found for that email. Contact support@mcpzerotrust.dev.'); }
+  else { showError(result.data.message || 'No license found for that email. Contact andrewnoble1992@gmail.com.'); }
 });
 
 async function init() {
@@ -250,7 +250,7 @@ async function init() {
     } catch (err) {
       attempts++;
       if (attempts >= maxAttempts) {
-        showError('Network error. Please refresh or contact support@mcpzerotrust.dev.');
+        showError('Network error. Please refresh or contact andrewnoble1992@gmail.com.');
         return;
       }
       await new Promise(function(r) { setTimeout(r, 2000 * attempts); });
