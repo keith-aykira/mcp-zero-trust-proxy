@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-last_updated: "2026-03-23T22:08:14.713Z"
-last_activity: 2026-03-23 — Plan 06-02 complete (CTA consolidation + professional email; PLH-02, PLH-05 satisfied)
+status: executing
+last_updated: "2026-03-23T22:08:20Z"
+last_activity: 2026-03-23 — Plan 06-03 complete (landing page copy hardening; PLH-03, PLH-04, PLH-06, PLH-07, PLH-08, PLH-09 satisfied)
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 22
 ---
 
 ## Current Position
 
 Phase: 6 — Pre-Launch Hardening
-Plan: 06-02 (COMPLETE — CTA consolidation + professional email)
-Status: IN PROGRESS — Phase 6 plan 02 done. Landing page CTAs cleaned up, personal email replaced with support@mcpzerotrust.dev.
-Last activity: 2026-03-23 — Plan 06-02 complete (CTA consolidation + professional email; PLH-02, PLH-05 satisfied)
+Plan: 06-03 (COMPLETE — landing page copy hardening, citations, FAQ, open-source decision)
+Status: IN PROGRESS — Phase 6 plan 03 done. Test count corrected (223), threat stats cited, native auth FAQ added, superlatives removed, OPEN-SOURCE-DECISION.md created.
+Last activity: 2026-03-23 — Plan 06-03 complete (landing page copy hardening; PLH-03, PLH-04, PLH-06, PLH-07, PLH-08, PLH-09 satisfied)
 
 ## Project Reference
 
@@ -139,3 +139,9 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-23 (05-03): UTM link placeholders [USE UTM LINK FOR THIS CHANNEL] added to outreach templates — prevents using wrong tracked link per channel
 - 2026-03-23 (05-03): awesome-mcp-servers PR is highest priority registry submission — most-starred MCP resource list, crawled by AI search engines
 - 2026-03-23 (05-03): Registry submission order: awesome-mcp-servers -> Smithery -> Official MCP Registry (by traffic volume, then review speed)
+- 2026-03-23 (06-03): Closed-source for v1.0 — competitive copying risk outweighs trust benefit before brand recognition established; review at 90-day milestone
+- 2026-03-23 (06-03): Native auth objection addressed in both JSON-LD schema and visible FAQ section — universal HN question for security tools, not answering it would be a red flag
+- 2026-03-23 (06-03): Factual claim language: "Tested with Go's race detector" replaces "Race-condition free" — more credible to technical audiences
+
+- 2026-03-23 (06-01): Free tier rate limit increased from 10 to 60 req/min — AI agent workflows (Claude/Cursor) exhaust 10 req/min in seconds, making product appear broken to first-time users
+- 2026-03-23 (06-01): Free tier burst increased from 5 to 30 — multi-tool MCP sessions fire several requests in quick succession; 5-burst was causing false rate limit errors
