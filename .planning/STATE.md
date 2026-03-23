@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: complete
-last_updated: "2026-03-21T18:45:00.000Z"
-last_activity: 2026-03-21 — Plan 04-03 complete (launch package approved; BETA-01/03/04 satisfied — all 16 plans done)
+status: completed
+last_updated: "2026-03-23T03:28:27.042Z"
+last_activity: 2026-03-21 — Plan 04-03 complete (launch package approved; BETA-01/03/04 satisfied)
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 19
+  completed_plans: 17
 ---
 
 ## Current Position
 
-Phase: 4 — Beta Launch & First Revenue
-Plan: 04-03 (COMPLETE — all 16 plans done, all phases complete)
-Status: COMPLETE — full launch package committed and user-approved. Landing page with pricing, GHCR release workflow, QUICKSTART license docs, Show HN draft ready to post. Manual go-live steps remain (Vercel deploy, Stripe placeholder replacement, v1.0.0 tag, HN post).
-Last activity: 2026-03-21 — Plan 04-03 complete (launch package approved; BETA-01/03/04 satisfied)
+Phase: 5 — Marketing, SEO & Discoverability
+Plan: 05-01 (COMPLETE — FAQ schema + sitemap expansion)
+Status: IN PROGRESS — Phase 5 plan 1 complete. FAQPage JSON-LD + enhanced SoftwareApplication schema live in index.html; sitemap expanded to 5 URLs. Plans 05-02 and 05-03 remain.
+Last activity: 2026-03-23 — Plan 05-01 complete (FAQPage schema + sitemap expansion; MKT-02/03/04 satisfied)
 
 ## Project Reference
 
@@ -66,6 +66,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 - Phase 3 added: Hardening & Production Readiness (14 production gaps from Phase 2 audit)
 - Beta Launch & First Revenue renumbered from Phase 3 → Phase 4
+- Phase 5 added: Marketing, SEO & Discoverability — search, social, AI search engines, community
 
 ## Phase 2 Progress (COMPLETE)
 
@@ -130,3 +131,6 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-21 (04-03): GHCR auth uses GITHUB_TOKEN only — no PAT required, works out of the box for any push to AnobleSCM org
 - 2026-03-21 (04-03): Show HN body leads with breach data (8,000+ exposed servers, 30+ CVEs) — evidence-first hook for technical audience
 - 2026-03-21 (04-03): "Founding member pricing — locked in for life" badge above pricing grid — urgency framing for early adopters
+- 2026-03-23 (05-01): FAQPage questions cover 5 buyer intents: setup, comparison, self-hosting, pricing, client compatibility — these match exact developer search queries
+- 2026-03-23 (05-01): Comparison page sitemap entries added before pages exist — search engines pre-discover URLs, crawl happens immediately on page publish
+- 2026-03-23 (05-01): SoftwareApplication enhanced with downloadUrl pointing to GitHub Releases — supports direct download indexing and AI citation eligibility
