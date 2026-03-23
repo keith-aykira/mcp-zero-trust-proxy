@@ -83,21 +83,36 @@ Three layers, each building on the last:
 1. Build the Go binary from source using the project's Go toolchain
 2. Create a mock MCP server (Go httptest) that responds to:
    - `tools/list` — returns 5 tools with distinct names
-   - `tools/call` — echoes back the tool name and arguments
+   - `tools/call` — echoes back the tool name and arguments (with configurable delay for graceful shutdown testing)
    - `resources/list` / `resources/read` — returns test resources
    - `prompts/list` / `prompts/get` — returns test prompts
-3. Write a test config YAML:
+3. **Create a mock Authenticator** (REQUIRED — no mock exists in the codebase). This is a test implementation of the `proxy.Authenticator` interface that:
+   - Accepts Bearer tokens from a predefined map
+   - Returns hardcoded identities (ClientID, Email, Role) per token
+   - Token map example:
+     ```
+     "marcus-token"          -> {ClientID: "marcus",          Email: "marcus@test.local",          Role: "admin"}
+     "priya-admin-token"     -> {ClientID: "priya-admin",     Email: "priya@startup.io",           Role: "admin"}
+     "priya-intern-token"    -> {ClientID: "priya-intern",    Email: "intern@startup.io",          Role: "readonly"}
+     "james-token"           -> {ClientID: "james",           Email: "james@bigcorp.com",          Role: "admin"}
+     "sofia-attorney-token"  -> {ClientID: "sofia-attorney",  Email: "attorney@lawfirm.com",       Role: "admin"}
+     "sofia-paralegal-token" -> {ClientID: "sofia-paralegal", Email: "paralegal@lawfirm.com",      Role: "readonly"}
+     "kai-token"             -> {ClientID: "kai",             Email: "kai@seriesb.io",             Role: "admin"}
+     ```
+   - Note: The production `Authenticator` resolves roles via `userRoles[email]`, so the user-to-role mapping in the config YAML must use email keys (e.g., `marcus@test.local: admin`), not plain usernames.
+4. Write a test config YAML:
    - `upstream_url` pointing to mock server
-   - Auth using a mock authenticator (Bearer token validation, no real OAuth)
+   - Auth: mock authenticator from step 3
    - 3 roles configured: admin (all tools), readonly (list only), restricted (specific tools)
-   - User-to-role mapping: `marcus=admin`, `priya-admin=admin`, `priya-intern=readonly`, `james=admin`, `sofia-attorney=admin`, `sofia-paralegal=readonly`, `kai=admin`
-   - Rate limit: 100/min sustained, 10 burst
-   - Audit: file output to a temp directory
-   - License: free tier (no key)
-4. Start the proxy, verify `/health` returns 200
-5. Make one successful `tools/list` request to confirm the pipeline works
+   - User-to-role mapping (email keys): `marcus@test.local=admin`, `priya@startup.io=admin`, `intern@startup.io=readonly`, `james@bigcorp.com=admin`, `attorney@lawfirm.com=admin`, `paralegal@lawfirm.com=readonly`, `kai@seriesb.io=admin`
+   - Rate limit: 200/min sustained, 20 burst
+   - Audit: file output to a temp directory + stdout
+   - `max_body_size`: 1048576 (1MB — this is the default; James's oversized body test should send >1MB)
+   - License: **test-signed Pro tier JWT** (use `license.SignJWT()` from test infrastructure to generate). This is necessary because free tier overrides config to 10 RPM / stdout-only audit / 1 upstream — which would make most persona scenarios hit false negatives.
+5. Start the proxy, verify `/health` returns `{"status":"ok"}` with HTTP 200
+6. Make one successful `tools/list` request to confirm the pipeline works
 
-**Success criteria:** Proxy running, accepting requests, forwarding to upstream, returning valid JSON-RPC responses.
+**Success criteria:** Proxy running, accepting requests, forwarding to upstream, returning valid JSON-RPC responses. All persona tokens accepted by mock authenticator.
 
 ---
 
@@ -112,13 +127,13 @@ Each persona runs as a parallel agent with real curl/HTTP commands against the l
 **Scenario:**
 1. Read QUICKSTART.md — can Marcus figure out what to do with only the docs?
 2. Write a minimal config YAML from scratch (not copy the example — what would a first-timer write?)
-3. Start the proxy with the binary
+3. Start the proxy with the binary (no license key — free tier)
 4. Make a successful `tools/list` request with a valid Bearer token
 5. Make a successful `tools/call` request
-6. Verify audit log file was created with the correct JSON-L format
-7. Try to add a second upstream URL — hit the free tier limit
-8. Read the error message — is it clear what to do next?
-9. Check: are there instructions anywhere for upgrading from free to Pro?
+6. Verify audit output appears on stdout (free tier forces stdout-only — no file output). Check the JSON-L format is valid and contains expected fields.
+7. Send 15 requests in quick succession — verify rate limiting kicks in at 10 RPM (free tier limit, not the config's 200 RPM)
+8. Try to add a second `upstream_url` to the config — note: the YAML schema only accepts a single string field, not a list. The config won't even parse with two upstreams. Document this UX gap: there's no error message explaining the free tier limit — it's structurally impossible. Marcus has no idea multi-upstream is a paid feature.
+9. Check: are there instructions anywhere for upgrading from free to Pro? Is the free→Pro boundary explained?
 
 **Findings template:**
 - Setup time (minutes from "reading docs" to "first successful request")
@@ -159,15 +174,15 @@ Each persona runs as a parallel agent with real curl/HTTP commands against the l
    - Missing `method` field
    - Null `params`
    - Empty body
-   - Body exceeding max size limit (11MB if limit is 10MB)
+   - Body exceeding max size limit (send >1MB; default `max_body_size` is 1048576 bytes / 1MB)
    - Deeply nested JSON (100 levels)
    - Invalid JSON (syntax error)
    - Valid JSON but not JSON-RPC (missing jsonrpc field)
 2. **RBAC bypass attempts:**
-   - Call a denied tool with different casing (`Tools/Call` vs `tools/call`)
+   - Call a denied tool with different casing (`Tools/Call` vs `tools/call`) — note: Go map lookups are case-sensitive, so this tests that the proxy does NOT normalize method casing. Expected: denied because `Tools/Call` doesn't match any `allowedMethods` key. Document as "methods are case-sensitive" (not "RBAC caught the bypass").
    - Add extra fields to the JSON-RPC request
    - Use a tool name that's a substring of an allowed tool
-   - Send a batch request mixing allowed and denied tools
+   - Send a batch request mixing allowed and denied tools — expected: JSON array response where denied items get individual JSON-RPC error objects, allowed items get results. Verify per-item RBAC and per-item audit logging.
 3. **Info leakage checks:**
    - Every error response checked for: stack traces, file paths, upstream URLs, provider config, internal IP addresses
    - Auth failure responses — do they reveal whether the token format is wrong vs expired vs unknown?
@@ -227,20 +242,21 @@ Each persona runs as a parallel agent with real curl/HTTP commands against the l
 
 **Scenario:**
 1. Build Docker image — check final image size (target: under 20MB)
-2. Start proxy, hit `/health` — verify it returns structured JSON
+2. Start proxy, hit `/health` — verify it returns `{"status":"ok"}` with HTTP 200
 3. Send 500 requests in 60 seconds — measure:
    - Response latency (p50, p95, p99)
    - Memory usage before and after
    - Goroutine count before and after (check for leaks)
 4. Send a SIGTERM during active requests — verify:
-   - In-flight requests complete (graceful shutdown)
+   - In-flight requests complete (graceful shutdown, 10-second timeout)
    - New requests are rejected
    - Proxy exits with code 0
+   - Note: Mock server responds instantly, so configure a deliberate 2-second delay on the mock for this specific test to ensure in-flight requests are observable during drain.
 5. Generate enough audit log data to trigger file rotation — verify:
    - Old log file renamed correctly
    - New log file created
    - No log entries lost during rotation
-6. Check: is there a `/metrics` or `/debug/vars` endpoint? (Probably not — document the gap)
+6. Document known gap: no `/metrics` or `/debug/vars` endpoint exists. Note this in the report as a production readiness gap for monitoring-focused teams.
 7. Check: what happens if the upstream MCP server is down? Does the proxy return a clear error or hang?
 8. Check: what happens if the config file has a syntax error? Does the proxy fail to start with a clear message?
 
