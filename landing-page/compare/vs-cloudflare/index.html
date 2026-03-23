@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Zero-Trust Proxy vs Cloudflare for MCP Server Security -- 2026</title>
+<meta name="description" content="Comparing MCP Zero-Trust Proxy and Cloudflare for securing MCP servers. Self-hosted, MCP-specific RBAC vs Cloudflare's SaaS-only Zero Trust. Data residency, tool-level control.">
+<link rel="canonical" href="https://mcpzerotrust.dev/compare/vs-cloudflare/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mcpzerotrust.dev/compare/vs-cloudflare/">
+<meta property="og:title" content="MCP Zero-Trust Proxy vs Cloudflare for MCP Server Security -- 2026">
+<meta property="og:description" content="Cloudflare Zero Trust is excellent for web apps. MCP Zero-Trust Proxy is purpose-built for MCP: self-hosted, tool-level RBAC, no vendor lock-in.">
+<meta property="og:site_name" content="MCP Zero-Trust Proxy">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MCP Zero-Trust Proxy vs Cloudflare for MCP Server Security -- 2026">
+<meta name="twitter:description" content="Need self-hosted MCP security without vendor lock-in? MCP Zero-Trust Proxy adds tool-level RBAC and JSON-RPC awareness that Cloudflare can't provide.">
+<meta name="robots" content="index, follow">
+<meta name="keywords" content="cloudflare mcp alternative self-hosted, cloudflare zero trust mcp, mcp security self-hosted, cloudflare alternative mcp proxy, mcp server security">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "MCP Zero-Trust Proxy vs Cloudflare for MCP Server Security -- 2026",
+  "description": "Comparing MCP Zero-Trust Proxy and Cloudflare Zero Trust for securing MCP servers. Self-hosted MCP-specific security vs SaaS-only general web protection.",
+  "url": "https://mcpzerotrust.dev/compare/vs-cloudflare/",
+  "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://mcpzerotrust.dev/" },
+      { "@type": "ListItem", "position": 2, "name": "Comparisons", "item": "https://mcpzerotrust.dev/compare/" },
+      { "@type": "ListItem", "position": 3, "name": "vs Cloudflare", "item": "https://mcpzerotrust.dev/compare/vs-cloudflare/" }
+    ]
+  }
+}
+</script>
+<style>
+  :root {
+    --cream: #faf9f6;
+    --cream-dark: #f2f0eb;
+    --cream-border: #e8e4dc;
+    --navy: #1a1f2e;
+    --navy-light: #2d3452;
+    --ink: #1a1a1a;
+    --ink-muted: #4a4a4a;
+    --ink-faint: #858585;
+    --accent: #3d5a8a;
+    --accent-hover: #2e4570;
+    --accent-light: #edf0f7;
+    --sage: #4a7c59;
+    --sage-light: #edf4ef;
+    --rust: #8b3a3a;
+    --rust-light: #f5eded;
+    --amber: #8b6914;
+    --amber-light: #faf4e6;
+    --white: #ffffff;
+    --surface: #ffffff;
+    --shadow-xs: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+
+  /* NAV */
+  nav {
+    padding: 22px 0;
+    border-bottom: 1px solid var(--cream-border);
+    position: sticky; top: 0;
+    background: rgba(250, 249, 246, 0.96);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  nav .container { display: flex; justify-content: space-between; align-items: center; }
+  .logo {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 19px;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+    color: var(--navy);
+    text-decoration: none;
+  }
+  .logo span { color: var(--accent); }
+  nav a.cta-nav {
+    background: var(--navy); color: var(--white);
+    padding: 9px 22px; border-radius: 6px; text-decoration: none;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.1px;
+    transition: background 0.2s;
+  }
+  nav a.cta-nav:hover { background: var(--navy-light); }
+
+  /* PAGE HEADER */
+  .page-header {
+    padding: 80px 0 60px;
+    text-align: center;
+    border-bottom: 1px solid var(--cream-border);
+  }
+  .breadcrumb {
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin-bottom: 24px;
+  }
+  .breadcrumb a { color: var(--ink-faint); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb span { margin: 0 8px; }
+  .page-header h1 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.8px;
+    color: var(--navy);
+    margin-bottom: 20px;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .page-header .updated {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-top: 16px;
+    font-weight: 500;
+  }
+
+  /* VERDICT BOX */
+  .verdict {
+    background: var(--accent-light);
+    border: 1px solid rgba(61, 90, 138, 0.18);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin: 48px 0;
+  }
+  .verdict-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .verdict p {
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.7;
+  }
+
+  /* COMPARISON TABLE */
+  .section { padding: 60px 0; }
+  .section h2 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 32px;
+    letter-spacing: -0.3px;
+  }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--cream-border);
+    box-shadow: var(--shadow-xs);
+    margin-bottom: 48px;
+  }
+  .compare-table thead tr {
+    background: var(--navy);
+    color: var(--white);
+  }
+  .compare-table th {
+    padding: 18px 24px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .compare-table th:first-child { width: 35%; }
+  .compare-table th:not(:first-child) { width: 32.5%; text-align: center; }
+  .compare-table td {
+    padding: 16px 24px;
+    font-size: 14px;
+    border-top: 1px solid var(--cream-border);
+    color: var(--ink-muted);
+    vertical-align: middle;
+  }
+  .compare-table td:not(:first-child) { text-align: center; }
+  .compare-table td:first-child { font-weight: 500; color: var(--ink); }
+  .compare-table tbody tr:hover { background: var(--cream); }
+  .check { color: var(--sage); font-size: 18px; }
+  .cross { color: var(--rust); font-size: 18px; }
+  .partial { color: var(--amber); font-size: 14px; font-weight: 500; }
+  .compare-table .col-highlight { background: rgba(61, 90, 138, 0.04); }
+
+  /* CHOOSE SECTIONS */
+  .choose-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+  @media (max-width: 700px) { .choose-grid { grid-template-columns: 1fr; } }
+
+  .choose-card {
+    background: var(--surface);
+    border: 1px solid var(--cream-border);
+    border-radius: 10px;
+    padding: 28px;
+    box-shadow: var(--shadow-xs);
+  }
+  .choose-card h3 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--cream-border);
+  }
+  .choose-card ul {
+    list-style: none;
+    padding: 0;
+  }
+  .choose-card ul li {
+    font-size: 14px;
+    color: var(--ink-muted);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--cream-border);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+  }
+  .choose-card ul li:last-child { border-bottom: none; }
+  .choose-card ul li::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+  .choose-card.ours { border-color: rgba(61, 90, 138, 0.3); background: var(--accent-light); }
+  .choose-card.ours h3 { color: var(--accent); }
+
+  /* CTA */
+  .cta-section {
+    background: var(--navy);
+    border-radius: 12px;
+    padding: 56px 48px;
+    text-align: center;
+    margin: 0 0 80px;
+  }
+  .cta-section h2 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 34px;
+    font-weight: 400;
+    color: var(--white);
+    margin-bottom: 16px;
+    letter-spacing: -0.4px;
+  }
+  .cta-section p {
+    font-size: 16px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 32px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+  }
+  .btn-primary {
+    background: var(--white); color: var(--navy);
+    padding: 14px 32px; border-radius: 7px; text-decoration: none;
+    font-size: 15px; font-weight: 600; transition: all 0.2s;
+    display: inline-block;
+    letter-spacing: 0.1px;
+  }
+  .btn-primary:hover { background: var(--cream); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--cream-border);
+    padding: 32px 0;
+    text-align: center;
+  }
+  footer p {
+    font-size: 13px;
+    color: var(--ink-faint);
+  }
+  footer a { color: var(--ink-faint); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="/" class="logo">mcp<span>proxy</span></a>
+    <a href="https://mcpzerotrust.dev/#get-access" class="cta-nav">Get Access</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <div class="breadcrumb">
+      <a href="https://mcpzerotrust.dev/">Home</a>
+      <span>&rsaquo;</span>
+      <span>MCP Zero-Trust Proxy vs Cloudflare</span>
+    </div>
+    <h1>MCP Zero-Trust Proxy vs Cloudflare for MCP Server Security</h1>
+    <p class="updated">Updated March 2026 &mdash; Based on published documentation and pricing pages</p>
+  </div>
+
+  <div class="verdict">
+    <div class="verdict-label">Quick Verdict</div>
+    <p>Cloudflare Zero Trust is excellent for protecting web applications and has a proven, massive security network. Choose it if you&rsquo;re already deep in the Cloudflare ecosystem and don&rsquo;t need MCP-specific controls. Choose MCP Zero-Trust Proxy for self-hosted MCP-specific security with tool-level RBAC, JSON-RPC awareness, and full data residency control &mdash; no vendor lock-in.</p>
+  </div>
+
+  <div class="section">
+    <h2>Feature Comparison</h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>MCP Zero-Trust Proxy</th>
+          <th>Cloudflare Zero Trust</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MCP JSON-RPC Parsing</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Native, purpose-built</td>
+          <td><span class="cross">&#10007;</span> Not available</td>
+        </tr>
+        <tr>
+          <td>Tool-Level RBAC</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Per-tool, per-user rules</td>
+          <td><span class="cross">&#10007;</span> Not available</td>
+        </tr>
+        <tr>
+          <td>Self-Hosted</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Docker or binary</td>
+          <td><span class="cross">&#10007;</span> SaaS-only</td>
+        </tr>
+        <tr>
+          <td>Audit Logging (MCP-aware)</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> JSONL with tool context</td>
+          <td><span class="partial">Generic HTTP access logs</span></td>
+        </tr>
+        <tr>
+          <td>Rate Limiting</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Per-client token bucket</td>
+          <td><span class="check">&#10003;</span> Available (paid plans)</td>
+        </tr>
+        <tr>
+          <td>Vendor Lock-in</td>
+          <td class="col-highlight"><span class="cross">&#10007;</span> No lock-in, portable</td>
+          <td><span class="check">&#10003;</span> Cloudflare network required</td>
+        </tr>
+        <tr>
+          <td>Data Residency Control</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Full control (self-hosted)</td>
+          <td><span class="partial">Cloudflare data centers</span></td>
+        </tr>
+        <tr>
+          <td>Session Isolation</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Per-user session store</td>
+          <td><span class="cross">&#10007;</span> Not MCP-specific</td>
+        </tr>
+        <tr>
+          <td>Pricing Model</td>
+          <td class="col-highlight">Free tier &mdash; $49/mo Pro &mdash; $199/mo Enterprise</td>
+          <td>Free tier &mdash; usage-based SaaS pricing</td>
+        </tr>
+        <tr>
+          <td>WAF / DDoS Protection</td>
+          <td class="col-highlight"><span class="cross">&#10007;</span> MCP-layer only</td>
+          <td><span class="check">&#10003;</span> Extensive, proven</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>When to Choose Each</h2>
+    <div class="choose-grid">
+      <div class="choose-card">
+        <h3>Choose Cloudflare if&hellip;</h3>
+        <ul>
+          <li>You&rsquo;re already running your infrastructure through Cloudflare and want unified security</li>
+          <li>Your primary need is web application protection (WAF, DDoS, bot management)</li>
+          <li>You don&rsquo;t need MCP-specific controls &mdash; basic auth and network-level filtering are enough</li>
+          <li>You want Cloudflare&rsquo;s globally distributed network and proven track record</li>
+          <li>Data residency is not a concern for your MCP workloads</li>
+          <li>You prefer a managed SaaS model over self-hosted infrastructure</li>
+        </ul>
+      </div>
+      <div class="choose-card ours">
+        <h3>Choose MCP Zero-Trust Proxy if&hellip;</h3>
+        <ul>
+          <li>You need tool-level RBAC &mdash; controlling which users can call which MCP tools</li>
+          <li>Self-hosting is a requirement for compliance or data sovereignty reasons</li>
+          <li>You need MCP-aware audit logs that capture tool name, user identity, and parameters</li>
+          <li>You want to avoid vendor lock-in and keep your security layer portable</li>
+          <li>Your MCP servers handle sensitive data that cannot transit third-party networks</li>
+          <li>You need a 5-minute setup without routing traffic through a third-party network</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>About Cloudflare Zero Trust</h2>
+    <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.75; max-width: 720px;">
+      Cloudflare is one of the most respected security companies in the world. Their Zero Trust platform (formerly Cloudflare for Teams)
+      provides identity-aware access control, extensive WAF capabilities, DDoS protection, and a globally distributed network
+      that spans 300+ cities. For teams already running their web infrastructure through Cloudflare, it&rsquo;s a natural extension
+      that adds strong authentication and network-level protection.
+    </p>
+    <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.75; max-width: 720px; margin-top: 16px;">
+      The limitation for MCP use cases is fundamental: Cloudflare operates at the HTTP/network layer and has no understanding
+      of the JSON-RPC 2.0 protocol that MCP uses. This means Cloudflare cannot provide tool-level access control
+      (allowing &ldquo;alice&rdquo; to call &ldquo;read_database&rdquo; but not &ldquo;delete_records&rdquo;), MCP-specific audit logging,
+      or session isolation between concurrent MCP users. All MCP traffic looks like generic HTTP to Cloudflare.
+      Additionally, being SaaS-only means all MCP traffic transits Cloudflare&rsquo;s network &mdash; which creates vendor dependency
+      and potential data residency issues for sensitive workloads.
+    </p>
+  </div>
+
+  <div class="cta-section">
+    <h2>Get Started with MCP Zero-Trust Proxy</h2>
+    <p>Self-hosted, purpose-built for MCP. Tool-level RBAC, session isolation, and audit logging. No vendor lock-in.</p>
+    <a href="https://mcpzerotrust.dev/#get-access" class="btn-primary">Get Started Free</a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2026 MCP Zero-Trust Proxy &mdash; <a href="https://mcpzerotrust.dev/">mcpzerotrust.dev</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
