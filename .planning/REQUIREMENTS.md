@@ -50,6 +50,18 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 - [x] **BETA-03**: $500+ MRR from 5+ paying customers
 - [x] **BETA-04**: Show HN post and community launch
 
+### Pre-Launch Hardening (Expert Review Findings)
+
+- [ ] **PLH-01**: Fix free tier rate limit — increase from 10 req/min to 60+ req/min so AI agent workflows complete without hitting limits
+- [x] **PLH-02**: Resolve CTA confusion — remove "Get Early Access" waitlist or payment links, pick one clear path (beta or live product)
+- [ ] **PLH-03**: Fix "race-condition free" claim — replace with accurate "Tested with Go's race detector" language
+- [ ] **PLH-04**: Fix test count mismatch — reconcile "236+" in Show HN with "212" on landing page to a single accurate number
+- [x] **PLH-05**: Set up professional support email — support@mcpzerotrust.dev replacing personal Gmail in all customer-facing surfaces
+- [ ] **PLH-06**: Add source citations for threat stats — link Shodan queries, CVE databases, breach reports for "8,000+", "30+ CVEs", "Clawdbot" claims
+- [ ] **PLH-07**: Prepare platform-risk defense — document answer to "What happens when Anthropic adds native auth to MCP spec?"
+- [ ] **PLH-08**: Review and tighten copy — remove marketing buzzwords, make landing page read like developer-to-developer communication
+- [ ] **PLH-09**: Address closed-source trust gap — either open-source core proxy or prepare credible defense for private repo on security product
+
 ## v2 Requirements
 
 Deferred to after 90-day validation. Tracked but not in current roadmap.

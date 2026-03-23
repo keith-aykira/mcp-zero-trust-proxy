@@ -118,8 +118,7 @@ Plans:
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) | 3/3 | Complete   | 2026-03-21 | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
-| 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
+| 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) | 3/3 | Complete   | 2026-03-21 | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) | 1/3 | In Progress|  | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
 | 3 | Hardening | Production-readiness gaps | HARD-01 through HARD-14 | 14 (COMPLETE) |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 | 5 | Marketing & SEO | Search/AI discoverability | MKT-01 through MKT-07 | 6 (COMPLETE) |
@@ -150,7 +149,7 @@ Plans:
 **Goal:** Fix all critical issues identified by HN critic panel and YC partner panel review so the product survives public scrutiny and converts technical evaluators.
 **Requirements:** PLH-01, PLH-02, PLH-03, PLH-04, PLH-05, PLH-06, PLH-07, PLH-08, PLH-09
 **Depends on:** Phase 5
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 06-01-PLAN.md — Free tier rate limit 10→60 req/min in Go code + docs consistency (PLH-01)
