@@ -207,7 +207,20 @@ The proxy has three built-in roles: `admin`, `readonly`, and `restricted`.
 | `readonly` | List tools/resources/prompts, read resources — but cannot call tools that modify state |
 | `restricted` | Call only the tools explicitly listed in `allowed_tools` |
 
-To give a specific user a role, the OAuth token's associated email or sub claim is mapped to a role. Role assignment is done via the auth provider — typically by including the role in a custom claim or by mapping users to roles in your IdP.
+**Mapping users to roles:**
+
+Add a `user_roles` section to your config to assign roles by email address:
+
+```yaml
+user_roles:
+  mapping:
+    "alice@company.com": "admin"
+    "bob@company.com": "readonly"
+    "intern@company.com": "restricted"
+  default: "readonly"  # role for authenticated users not in the mapping
+```
+
+Any authenticated user whose OAuth email matches a key gets that role. Users not in the mapping get the `default` role (defaults to `readonly` if not specified).
 
 **Configuring the restricted role:**
 
@@ -310,6 +323,40 @@ docker run \
 
 If the license key is missing, expired, or invalid, the proxy falls back to free-tier limits and logs a warning at startup.
 
+### Upgrading from Free to Pro
+
+When you're ready for more:
+
+1. Go to [mcpzerotrust.dev](https://mcpzerotrust.dev) and choose Pro ($49/mo) or Enterprise ($199/mo)
+2. After checkout, you'll receive a license key (a signed JWT)
+3. Add it to your config:
+
+```yaml
+license:
+  key: "${LICENSE_KEY}"
+```
+
+4. Set the environment variable and restart:
+
+```bash
+# Binary
+export LICENSE_KEY=your-license-key
+mcpproxy --config ./config.yaml
+
+# Docker
+docker run -e LICENSE_KEY=your-license-key ...
+```
+
+The proxy validates the key locally (no network call) and unlocks your tier's limits immediately.
+
+**What changes with Pro:**
+
+| | Free | Pro |
+|---|---|---|
+| MCP servers | 1 | 5 |
+| Rate limit | 10 req/min | 200 req/min |
+| Audit | stdout only | file + rotation |
+
 ---
 
 ## Next steps
@@ -318,3 +365,5 @@ If the license key is missing, expired, or invalid, the proxy falls back to free
 - **Rate limiting:** Set `rate_limit.requests_per_minute` to control per-client throughput
 - **Audit log to file:** Set `audit.output: "file"` and `audit.file_path: "/var/log/mcpproxy/audit.jsonl"` for persistent logs
 - **Production TLS:** Place a TLS-terminating reverse proxy (nginx, Caddy, Cloudflare Tunnel) in front of the proxy for HTTPS
+- **Multi-client / agency setup:** [MULTI-TENANT.md](MULTI-TENANT.md) — how to run separate proxy instances per client with Docker Compose
+- **Monitoring:** The proxy exposes `/health` for uptime checks (returns `{"status":"ok"}`). For request-level metrics, parse the JSONL audit log with Filebeat, Fluentd, or Vector to feed Elasticsearch, Datadog, or Splunk. A Prometheus `/metrics` endpoint is on the roadmap.
