@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-23T03:31:00.000Z"
-last_activity: 2026-03-23 — Plan 05-02 complete (3 comparison pages: vs-sigbit, vs-kong, vs-cloudflare; MKT-05 satisfied)
+last_updated: "2026-03-23T03:38:11Z"
+last_activity: "2026-03-23 — Plan 05-03 complete (UTM tracking + registry listings; MKT-01, MKT-06, MKT-07 satisfied; Phase 5 COMPLETE)"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 19
   completed_plans: 19
 ---
@@ -15,9 +15,9 @@ progress:
 ## Current Position
 
 Phase: 5 — Marketing, SEO & Discoverability
-Plan: 05-02 (COMPLETE — 3 competitor comparison pages)
-Status: IN PROGRESS — Phase 5 plans 1 and 2 complete. FAQPage JSON-LD + sitemap (plan 1) + comparison pages vs-sigbit/vs-kong/vs-cloudflare (plan 2). Plan 05-03 remains.
-Last activity: 2026-03-23 — Plan 05-02 complete (3 comparison pages: vs-sigbit, vs-kong, vs-cloudflare; MKT-05 satisfied)
+Plan: 05-03 (COMPLETE — UTM tracking, registry listings, sitemap confirmed)
+Status: COMPLETE — All Phase 5 plans done. FAQPage JSON-LD + sitemap (plan 1) + comparison pages (plan 2) + UTM tracking + registry listings (plan 3). All launch assets ready.
+Last activity: 2026-03-23 — Plan 05-03 complete (UTM tracking + registry listings; MKT-01, MKT-06, MKT-07 satisfied; Phase 5 COMPLETE)
 
 ## Project Reference
 
@@ -136,3 +136,6 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-23 (05-01): SoftwareApplication enhanced with downloadUrl pointing to GitHub Releases — supports direct download indexing and AI citation eligibility
 - 2026-03-23 (05-02): Honest competitor framing on comparison pages — each page may direct users to competitor if better fit; builds trust with skeptical developer audience
 - 2026-03-23 (05-02): Inlined CSS only on comparison pages — fully self-contained, no external stylesheet dependency beyond Google Fonts CDN
+- 2026-03-23 (05-03): UTM link placeholders [USE UTM LINK FOR THIS CHANNEL] added to outreach templates — prevents using wrong tracked link per channel
+- 2026-03-23 (05-03): awesome-mcp-servers PR is highest priority registry submission — most-starred MCP resource list, crawled by AI search engines
+- 2026-03-23 (05-03): Registry submission order: awesome-mcp-servers -> Smithery -> Official MCP Registry (by traffic volume, then review speed)
