@@ -122,6 +122,8 @@ Plans:
 | 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
 | 3 | Hardening | Production-readiness gaps | HARD-01 through HARD-14 | 14 (COMPLETE) |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
+| 5 | Marketing & SEO | Search/AI discoverability | MKT-01 through MKT-07 | 6 (COMPLETE) |
+| 6 | Pre-Launch Hardening | Fix expert review findings | PLH-01 through PLH-09 | 8 |
 
 ### Phase 5: Marketing, SEO & Discoverability — Get the product in front of developers through search, social, AI search engines, and community
 
@@ -143,6 +145,28 @@ Plans:
 5. sitemap.xml updated with all new page URLs
 6. Show HN draft finalized with UTM link and current test count
 
+### Phase 6: Pre-Launch Hardening — Address expert review findings before HN launch
+
+**Goal:** Fix all critical issues identified by HN critic panel and YC partner panel review so the product survives public scrutiny and converts technical evaluators.
+**Requirements:** PLH-01, PLH-02, PLH-03, PLH-04, PLH-05, PLH-06, PLH-07, PLH-08, PLH-09
+**Depends on:** Phase 5
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Free tier rate limit 10→60 req/min in Go code + docs consistency (PLH-01)
+- [ ] 06-02-PLAN.md — CTA consolidation + professional email replacement (PLH-02, PLH-05)
+- [ ] 06-03-PLAN.md — Claims accuracy, citations, FAQ, copy audit, open-source decision doc (PLH-03, PLH-04, PLH-06, PLH-07, PLH-08, PLH-09)
+
+**Success Criteria:**
+1. Free tier rate limit increased to 60+ req/min (AI agent workflows complete without hitting limits)
+2. Landing page has one clear CTA path (no waitlist + payment link confusion)
+3. All technical claims are accurate (test count, race condition language)
+4. Professional email (support@mcpzerotrust.dev) used in all customer-facing surfaces
+5. Every threat stat on the landing page has a linked source
+6. Platform-risk FAQ answer documented and ready for HN comments
+7. Landing page copy reads as honest developer-to-developer, not marketing
+8. Decision made on open-source vs closed-source with clear rationale documented
+
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-22 — Phase 5 planned (3 plans in 2 waves). Phases 0-4 complete (16 plans). Phase 5 adds marketing/SEO work.*
+*Last updated: 2026-03-23 — Phase 6 plans created (3 plans, Wave 1 all parallel). Addresses all 9 PLH requirements from HN/YC expert panels.*
