@@ -2,7 +2,7 @@
 
 **HN Title (< 80 chars):** `Show HN: MCP Zero-Trust Proxy — drop-in auth for any MCP server`
 
-**URL:** https://mcpzerotrust.dev
+**URL:** https://mcpzerotrust.dev/?utm_source=hackernews&utm_medium=show-hn&utm_campaign=launch-2026
 
 ---
 
@@ -27,7 +27,7 @@ docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
 **Technical details:**
 
 - Written in Go — single binary, ~10MB, no runtime dependencies
-- 212 tests with -race flag (zero races)
+- 236+ tests with -race flag (zero races)
 - YAML config with `${ENV_VAR}` substitution
 - License keys: ECDSA P-256 signed JWTs, validated locally with zero network calls (works air-gapped)
 - MCP JSON-RPC 2.0 over HTTP+SSE (Streamable HTTP transport)
@@ -48,7 +48,7 @@ The repo is currently private while I work through the initial beta. Happy to sh
 - Feedback on pricing and the approach
 - Security researchers willing to review the auth/RBAC implementation
 
-https://mcpzerotrust.dev
+https://mcpzerotrust.dev/?utm_source=hackernews&utm_medium=show-hn&utm_campaign=launch-2026
 
 ---
 
@@ -57,12 +57,19 @@ https://mcpzerotrust.dev
 Work through these in order on launch day. Post HN first (highest leverage), then seed the communities where your buyers live.
 
 - [ ] Post to HN (weekday, 8–10am ET) — use the body above
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=hackernews&utm_medium=show-hn&utm_campaign=launch-2026`
 - [ ] Post to r/aiagents — use Version A from [OUTREACH-MESSAGES.md](./OUTREACH-MESSAGES.md) (question-led, discussion starter)
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=reddit&utm_medium=community&utm_campaign=launch-2026&utm_content=aiagents`
 - [ ] Post to r/SaaS — use the validation post from [OUTREACH-MESSAGES.md](./OUTREACH-MESSAGES.md) (building in public angle)
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=reddit&utm_medium=community&utm_campaign=launch-2026&utm_content=saas`
 - [ ] Post to MCP Discord — use Version A from [OUTREACH-MESSAGES.md](./OUTREACH-MESSAGES.md) (question-led: "how are you securing your MCP servers?")
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=discord&utm_medium=community&utm_campaign=launch-2026&utm_content=mcp-official`
 - [ ] Post to Claude Code Community Discord — same Version A template, adapted for Claude Code audience
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=discord&utm_medium=community&utm_campaign=launch-2026&utm_content=claude-code`
 - [ ] DM 10 developers who posted about MCP security — use Template A from [OUTREACH-MESSAGES.md](./OUTREACH-MESSAGES.md) ("saw your post about MCP security...")
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=dm&utm_medium=outreach&utm_campaign=launch-2026`
 - [ ] Tweet thread — lead with the breach data stats, end with the one-liner docker command and link
+  - UTM link: `https://mcpzerotrust.dev/?utm_source=twitter&utm_medium=social&utm_campaign=launch-2026`
 
 **Timing:** Post HN on a weekday between 8–10am ET for maximum front-page visibility. The other channels can follow throughout the same day.
 

@@ -6,6 +6,23 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 
 ---
 
+## UTM Link Reference
+
+Use the correct tracked link for each channel. Copy the exact URL — do not use the bare domain.
+
+| Channel | UTM Link |
+|---------|----------|
+| Hacker News (Show HN) | `https://mcpzerotrust.dev/?utm_source=hackernews&utm_medium=show-hn&utm_campaign=launch-2026` |
+| Reddit r/aiagents | `https://mcpzerotrust.dev/?utm_source=reddit&utm_medium=community&utm_campaign=launch-2026&utm_content=aiagents` |
+| Reddit r/SaaS | `https://mcpzerotrust.dev/?utm_source=reddit&utm_medium=community&utm_campaign=launch-2026&utm_content=saas` |
+| MCP Discord | `https://mcpzerotrust.dev/?utm_source=discord&utm_medium=community&utm_campaign=launch-2026&utm_content=mcp-official` |
+| Claude Code Discord | `https://mcpzerotrust.dev/?utm_source=discord&utm_medium=community&utm_campaign=launch-2026&utm_content=claude-code` |
+| Twitter/X | `https://mcpzerotrust.dev/?utm_source=twitter&utm_medium=social&utm_campaign=launch-2026` |
+| DM outreach | `https://mcpzerotrust.dev/?utm_source=dm&utm_medium=outreach&utm_campaign=launch-2026` |
+| Email follow-up | `https://mcpzerotrust.dev/?utm_source=email&utm_medium=followup&utm_campaign=launch-2026` |
+
+---
+
 ## 1. Discord / Community Post (MCP Discord, Claude Code Community)
 
 ### Version A — Question-Led (Recommended First Post)
@@ -19,6 +36,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > I've been building a drop-in auth proxy that sits in front of any MCP server — OAuth 2.1 PKCE, RBAC, session isolation, audit logging. No code changes to your server needed. Docker pull, point it at your MCP endpoint, done.
 >
 > Curious what everyone else is doing. Are you worried about this? Already have a solution? Would love to hear what's working (or not).
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ### Version B — Show HN Style (For When You Have the MVP)
 
@@ -38,6 +57,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > Free for 1 server, $49/mo Pro (5 servers), $199/mo Enterprise (unlimited + SSO).
 >
 > Looking for beta testers — especially teams running 3+ MCP servers. Happy to give free Pro access to early adopters.
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ---
 
@@ -52,6 +73,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > Quick question: how many MCP servers are you running, and how are you handling auth right now? Even if it's "not at all" — that's useful context.
 >
 > No pitch, just trying to understand the problem better.
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ### Template B — To Someone Running Exposed MCP Servers
 
@@ -60,6 +83,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > I ask because I've been researching MCP security pretty deeply — there are 8,000+ servers with zero auth out there, and even the popular mcp-remote OAuth wrapper had a CVSS 9.6 RCE bug. Figured I'd check in.
 >
 > I'm building a proxy that adds OAuth + RBAC to any MCP server with zero code changes. Would you be open to a 10-minute chat about what you'd need from something like that?
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ### Template C — To AI Agency / Team Leads
 
@@ -68,6 +93,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > The recent CVE wave (30+ in 60 days) and the Clawdbot breach have a lot of teams rethinking their approach. I'm building a zero-trust proxy specifically for MCP — drop-in auth, RBAC, session isolation, full audit trail. No server code changes needed.
 >
 > Would be great to get 10 minutes of your time to understand your setup and see if this could help. Happy to share what I've learned about the threat landscape either way.
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ---
 
@@ -89,6 +116,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > For those of you running MCP servers in production: what are you doing for auth? Nginx reverse proxy? Kong? Rolling your own OAuth? Nothing?
 >
 > I've been building a drop-in proxy for this (zero code changes to your server — just sits in front and handles auth/RBAC/logging). Curious if others see the same pain or if this is overblown.
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ### r/SaaS — Validation Post
 
@@ -105,6 +134,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > Looking for: Teams running 3+ MCP servers who'd be willing to do a 10-minute discovery call. Free Pro access for beta testers.
 >
 > What am I missing?
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ---
 
@@ -117,6 +148,8 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 > After the Clawdbot breach and the CVE wave, I started building a drop-in proxy approach: sits in front of any MCP server and enforces OAuth 2.1 PKCE, RBAC, session isolation, and audit logging without changing server code. Similar to what Microsoft recommended in their February governance blog (API gateway as single enforcement point), but lightweight enough for a solo dev to deploy in 5 minutes.
 >
 > Would be curious what approaches others have found effective. The "just use nginx" camp seems to underestimate the MCP-specific attack surface (rug pulls, tool squatting, prompt injection chains).
+>
+> [USE UTM LINK FOR THIS CHANNEL]
 
 ---
 
@@ -134,7 +167,7 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 >
 > Based on what you described, the [specific pain point] seems like the most pressing issue. I'll have the beta ready by [date]. I'd love to have you as one of our first testers — free Pro access for the first 3 months.
 >
-> Landing page with more details: [URL]
+> [USE UTM LINK FOR THIS CHANNEL]
 >
 > Happy to jump on another call when the beta's ready if you want to walk through it together.
 >
@@ -151,3 +184,4 @@ Use these templates for Day 2 outreach. Adapt tone to the channel and the person
 4. **Offer value regardless of conversion.** Share the threat landscape data. Be helpful.
 5. **Track everything.** Note who responds, their setup, their objections. This feeds Week 1 synthesis.
 6. **Don't over-message.** One DM per person. One community post per channel. Follow up only if they engage.
+7. **Always use the correct UTM link for each channel.** See the UTM Link Reference table at the top of this file.
