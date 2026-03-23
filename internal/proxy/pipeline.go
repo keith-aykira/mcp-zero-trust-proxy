@@ -394,12 +394,16 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 		// Attempt to filter the tools list.
 		filtered, err := p.filterToolsListResponse(captured.body.Bytes(), identity)
 		if err == nil {
-			// Write the filtered response.
+			// Write the filtered response with corrected Content-Length.
 			for k, vals := range captured.header {
+				if k == "Content-Length" {
+					continue // will be set to match the filtered body size
+				}
 				for _, v := range vals {
 					w.Header().Add(k, v)
 				}
 			}
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(filtered)))
 			if captured.statusCode != 0 {
 				w.WriteHeader(captured.statusCode)
 			}
