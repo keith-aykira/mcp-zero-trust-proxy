@@ -35,7 +35,7 @@ docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
 
 **Pricing:**
 
-- Free: 1 server, 10 req/min, stdout audit — no license key needed
+- Free: 1 server, 60 req/min, stdout audit — no license key needed
 - Pro: $49/mo — 5 servers, 200 req/min, file audit with rotation
 - Enterprise: $199/mo — unlimited everything, priority support
 

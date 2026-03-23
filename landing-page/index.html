@@ -926,6 +926,27 @@
   </div>
 </section>
 
+<section id="faq" style="padding: 72px 0; border-top: 1px solid var(--cream-border);">
+  <div class="container" style="max-width: 720px;">
+    <div class="section-label">FAQ</div>
+    <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-size: 40px; font-weight: 400; text-align: center; margin-bottom: 40px; letter-spacing: -0.5px; color: var(--navy);">Common questions</h2>
+    <div style="margin-top: 40px;">
+      <div style="margin-bottom: 32px;">
+        <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">What if Anthropic adds native auth to the MCP spec?</h3>
+        <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">We welcome it. Native auth solves authentication. The proxy solves what comes next: authorization (who can call which tools), audit logging, rate limiting, and session isolation. The MCP spec has no plans to standardize these — and for regulated environments, they are not optional.</p>
+      </div>
+      <div style="margin-bottom: 32px;">
+        <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Is my traffic or data sent to any cloud service?</h3>
+        <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">No. The proxy runs entirely on your own infrastructure. Your MCP traffic, tokens, and audit logs never leave your servers. The only external dependency is your OAuth provider (GitHub, Google, etc.) for the authentication flow — which your users already trust.</p>
+      </div>
+      <div>
+        <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Why is the source code private?</h3>
+        <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">The proxy is currently closed-source while we validate the product with early customers. The binary is built from a deterministic Go build (reproducible builds coming in v1.1). Security researchers can request a private review — email <a href="mailto:support@mcpzerotrust.dev" style="color: var(--sage);">support@mcpzerotrust.dev</a>. Open-sourcing the core is on the roadmap pending our v1.0 validation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="email-section" id="get-access">
   <div class="container">
     <div class="section-label">Updates</div>

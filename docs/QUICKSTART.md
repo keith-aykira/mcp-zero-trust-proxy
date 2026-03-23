@@ -292,7 +292,7 @@ MCP Zero-Trust Proxy has three tiers:
 
 | Tier | Price | MCP Servers | Rate Limit | Audit |
 |------|-------|-------------|------------|-------|
-| **Free** | $0/mo | 1 | 10 req/min | stdout only |
+| **Free** | $0/mo | 1 | 60 req/min | stdout only |
 | **Pro** | $49/mo | 5 | 200 req/min | file + rotation |
 | **Enterprise** | $199/mo | Unlimited | Unlimited | All features |
 
@@ -354,7 +354,7 @@ The proxy validates the key locally (no network call) and unlocks your tier's li
 | | Free | Pro |
 |---|---|---|
 | MCP servers | 1 | 5 |
-| Rate limit | 10 req/min | 200 req/min |
+| Rate limit | 60 req/min | 200 req/min |
 | Audit | stdout only | file + rotation |
 
 ---
