@@ -123,6 +123,26 @@ Plans:
 | 3 | Hardening | Production-readiness gaps | HARD-01 through HARD-14 | 14 (COMPLETE) |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 
+### Phase 5: Marketing, SEO & Discoverability — Get the product in front of developers through search, social, AI search engines, and community
+
+**Goal:** Maximize search and AI discoverability through structured data, comparison pages, and UTM-tracked launch assets so developers evaluating MCP security can find, compare, and buy the proxy.
+**Requirements:** MKT-01, MKT-02, MKT-03, MKT-04, MKT-05, MKT-06, MKT-07
+**Depends on:** Phase 4
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — FAQ schema + SoftwareApplication enhancement + sitemap update (MKT-02, MKT-03, MKT-04)
+- [ ] 05-02-PLAN.md — Comparison pages: vs-sigbit, vs-kong, vs-cloudflare (MKT-05)
+- [ ] 05-03-PLAN.md — UTM tracking in launch assets + registry listing drafts (MKT-01, MKT-06, MKT-07)
+
+**Success Criteria:**
+1. FAQ schema validates with no errors (Google Rich Results Test)
+2. 3 comparison pages live at /compare/vs-sigbit/, /compare/vs-kong/, /compare/vs-cloudflare/
+3. All outreach links have UTM tracking parameters
+4. Registry listing drafts ready to submit for 3+ registries
+5. sitemap.xml updated with all new page URLs
+6. Show HN draft finalized with UTM link and current test count
+
 ---
 *Roadmap created: 2026-03-19*
-*Last updated: 2026-03-21 — Phase 4 complete (all 3 plans done); all 16 plans across 5 phases complete. Manual go-live steps remain: Vercel deploy, Stripe placeholder replacement, v1.0.0 tag push, Show HN post.*
+*Last updated: 2026-03-22 — Phase 5 planned (3 plans in 2 waves). Phases 0-4 complete (16 plans). Phase 5 adds marketing/SEO work.*
