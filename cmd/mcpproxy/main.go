@@ -60,10 +60,11 @@ func main() {
 	// These caps ensure the running proxy never exceeds what the license allows.
 	switch lic.Tier {
 	case license.TierFree:
-		// Free tier: cap rate limit to 10 req/min, force audit to stdout only.
-		cfg.RateLimit.RequestsPerMinute = 10
-		if cfg.RateLimit.BurstSize > 5 {
-			cfg.RateLimit.BurstSize = 5
+		// Free tier: cap rate limit to 60 req/min, force audit to stdout only.
+		// 60 req/min allows AI agent workflows (Claude, Cursor) to complete without hitting limits.
+		cfg.RateLimit.RequestsPerMinute = 60
+		if cfg.RateLimit.BurstSize > 30 {
+			cfg.RateLimit.BurstSize = 30
 		}
 		cfg.Audit.Output = "stdout"
 		cfg.Audit.FilePath = ""
