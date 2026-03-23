@@ -629,7 +629,7 @@
 
 <section class="hero">
   <div class="container">
-    <div class="hero-badge">⚠ 8,000+ MCP servers exposed with zero auth</div>
+    <div class="hero-badge">8,000+ MCP servers publicly reachable with no authentication</div>
     <h1>Secure your MCP servers <em>in minutes</em></h1>
     <p class="sub">AI agents like Claude, Cursor, and Copilot connect to your tools via MCP — but there's no built-in security. We add authentication, access control, and audit logging without touching your server code.</p>
     <div class="code-block">
@@ -651,23 +651,27 @@
   <div class="container">
     <div class="threat-banner-inner">
       <div class="threat-banner-label">Threat landscape</div>
-      <h2>The MCP Security Crisis Is Now</h2>
+      <h2>The MCP threat landscape in 2026</h2>
       <div class="threat-stats">
         <div class="threat-stat">
           <div class="number">8,000+</div>
-          <div class="label">Exposed MCP servers<br>with zero authentication</div>
+          <div class="label">MCP servers publicly reachable<br>with no authentication</div>
+          <div style="font-size: 11px; margin-top: 6px;"><a href="https://www.shodan.io/search?query=mcp" style="color: var(--ink-faint); text-decoration: underline;" target="_blank" rel="noopener">Source: Shodan</a></div>
         </div>
         <div class="threat-stat">
           <div class="number">30+</div>
           <div class="label">CVEs in 60 days<br>(Jan–Feb 2026)</div>
+          <div style="font-size: 11px; margin-top: 6px;"><a href="https://www.cvedetails.com/vulnerability-list/?vendor_id=0&product_id=0&version_id=0&page=1&hasexp=0&opdos=0&opec=0&opov=0&opcsrf=0&opgpriv=0&opsqli=0&opxss=0&opdirt=0&opmemc=0&ophttprs=0&opbyp=0&opfileinc=0&opginf=0&cvssscoremin=0&cvssscoremax=0&year=2026&month=0&cweid=0&order=1&trc=30&sha=c6fe8b9ea4e0e33e2a0b7cf09ec28e0c4e30b4b1" style="color: var(--ink-faint); text-decoration: underline;" target="_blank" rel="noopener">Source: CVE Details</a></div>
         </div>
         <div class="threat-stat">
           <div class="number">9.6</div>
           <div class="label">CVSS score on<br>mcp-remote RCE</div>
+          <div style="font-size: 11px; margin-top: 6px;"><a href="https://nvd.nist.gov/vuln/search/results?query=mcp-remote" style="color: var(--ink-faint); text-decoration: underline;" target="_blank" rel="noopener">Source: NVD</a></div>
         </div>
         <div class="threat-stat">
           <div class="number">48hrs</div>
           <div class="label">Clawdbot to<br>infostealer targeting</div>
+          <div style="font-size: 11px; margin-top: 6px;"><a href="https://www.wiz.io/blog/clawdbot" style="color: var(--ink-faint); text-decoration: underline;" target="_blank" rel="noopener">Source: Wiz Research</a></div>
         </div>
       </div>
     </div>
@@ -757,7 +761,7 @@
   <div class="container">
     <div class="section-label">Comparison</div>
     <h2>Why not just use...?</h2>
-    <p class="subtitle">We're the only drop-in proxy with full enterprise security.</p>
+    <p class="subtitle">See how it compares to existing options.</p>
     <div class="table-wrap">
     <table>
       <thead>
@@ -837,6 +841,11 @@
         </tr>
       </tbody>
     </table>
+    <p style="font-size: 13px; color: var(--ink-muted); margin-top: 16px; text-align: left; max-width: 640px;">
+      <strong>Choose nginx</strong> if you just need basic auth and already have it configured — it works fine for simple cases.
+      <strong>Choose Kong</strong> if you're already running a Kong gateway in your infrastructure.
+      The proxy adds value when you need tool-level RBAC, audit logging, or session isolation that generic proxies don't provide for MCP.
+    </p>
     </div>
   </div>
 </section>
