@@ -281,7 +281,7 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 			auditEntry.DeniedReason = "rate limit exceeded"
 			auditEntry.Latency = time.Since(start)
 			p.logAudit(auditEntry)
-			writeJSONRPCError(w, nil, ErrCodeRateLimited, "Rate limit exceeded", http.StatusTooManyRequests)
+			writeJSONRPCError(w, nil, ErrCodeRateLimited, "Rate limit exceeded. Upgrade your plan at https://mcpzerotrust.dev for higher limits.", http.StatusTooManyRequests)
 			return
 		}
 	} else if p.rateLimiter != nil && identity == nil {
@@ -291,7 +291,7 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 			auditEntry.DeniedReason = "rate limit exceeded"
 			auditEntry.Latency = time.Since(start)
 			p.logAudit(auditEntry)
-			writeJSONRPCError(w, nil, ErrCodeRateLimited, "Rate limit exceeded", http.StatusTooManyRequests)
+			writeJSONRPCError(w, nil, ErrCodeRateLimited, "Rate limit exceeded. Upgrade your plan at https://mcpzerotrust.dev for higher limits.", http.StatusTooManyRequests)
 			return
 		}
 	}
