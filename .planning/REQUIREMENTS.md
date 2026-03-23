@@ -52,7 +52,7 @@ Requirements for initial release (90-day roadmap). Each maps to roadmap phases.
 
 ### Pre-Launch Hardening (Expert Review Findings)
 
-- [ ] **PLH-01**: Fix free tier rate limit — increase from 10 req/min to 60+ req/min so AI agent workflows complete without hitting limits
+- [x] **PLH-01**: Fix free tier rate limit — increase from 10 req/min to 60+ req/min so AI agent workflows complete without hitting limits
 - [x] **PLH-02**: Resolve CTA confusion — remove "Get Early Access" waitlist or payment links, pick one clear path (beta or live product)
 - [x] **PLH-03**: Fix "race-condition free" claim — replace with accurate "Tested with Go's race detector" language
 - [x] **PLH-04**: Fix test count mismatch — reconcile "236+" in Show HN with "212" on landing page to a single accurate number
