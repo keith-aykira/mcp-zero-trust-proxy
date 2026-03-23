@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Zero-Trust Proxy vs MCP Auth Proxy (sigbit) -- 2026 Comparison</title>
+<meta name="description" content="Honest comparison of MCP Zero-Trust Proxy vs sigbit's MCP Auth Proxy. See which MCP security tool fits your needs -- from auth-only to full RBAC and audit logging.">
+<link rel="canonical" href="https://mcpzerotrust.dev/compare/vs-sigbit/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mcpzerotrust.dev/compare/vs-sigbit/">
+<meta property="og:title" content="MCP Zero-Trust Proxy vs MCP Auth Proxy (sigbit) -- 2026 Comparison">
+<meta property="og:description" content="Honest comparison of MCP Zero-Trust Proxy vs sigbit's MCP Auth Proxy. RBAC, audit logging, rate limiting, and session isolation vs auth-only.">
+<meta property="og:site_name" content="MCP Zero-Trust Proxy">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MCP Zero-Trust Proxy vs MCP Auth Proxy (sigbit) -- 2026 Comparison">
+<meta name="twitter:description" content="Honest comparison: sigbit gives you OAuth auth free. MCP Zero-Trust Proxy adds RBAC, audit logs, rate limiting, and session isolation.">
+<meta name="robots" content="index, follow">
+<meta name="keywords" content="mcp auth proxy alternative, sigbit vs, mcp auth proxy comparison, sigbit alternative, mcp security proxy">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "MCP Zero-Trust Proxy vs MCP Auth Proxy (sigbit) -- 2026 Comparison",
+  "description": "Honest comparison of MCP Zero-Trust Proxy vs sigbit's MCP Auth Proxy for securing MCP servers.",
+  "url": "https://mcpzerotrust.dev/compare/vs-sigbit/",
+  "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://mcpzerotrust.dev/" },
+      { "@type": "ListItem", "position": 2, "name": "Comparisons", "item": "https://mcpzerotrust.dev/compare/" },
+      { "@type": "ListItem", "position": 3, "name": "vs MCP Auth Proxy", "item": "https://mcpzerotrust.dev/compare/vs-sigbit/" }
+    ]
+  }
+}
+</script>
+<style>
+  :root {
+    --cream: #faf9f6;
+    --cream-dark: #f2f0eb;
+    --cream-border: #e8e4dc;
+    --navy: #1a1f2e;
+    --navy-light: #2d3452;
+    --ink: #1a1a1a;
+    --ink-muted: #4a4a4a;
+    --ink-faint: #858585;
+    --accent: #3d5a8a;
+    --accent-hover: #2e4570;
+    --accent-light: #edf0f7;
+    --sage: #4a7c59;
+    --sage-light: #edf4ef;
+    --rust: #8b3a3a;
+    --rust-light: #f5eded;
+    --amber: #8b6914;
+    --amber-light: #faf4e6;
+    --white: #ffffff;
+    --surface: #ffffff;
+    --shadow-xs: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+
+  /* NAV */
+  nav {
+    padding: 22px 0;
+    border-bottom: 1px solid var(--cream-border);
+    position: sticky; top: 0;
+    background: rgba(250, 249, 246, 0.96);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  nav .container { display: flex; justify-content: space-between; align-items: center; }
+  .logo {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 19px;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+    color: var(--navy);
+    text-decoration: none;
+  }
+  .logo span { color: var(--accent); }
+  nav a.cta-nav {
+    background: var(--navy); color: var(--white);
+    padding: 9px 22px; border-radius: 6px; text-decoration: none;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.1px;
+    transition: background 0.2s;
+  }
+  nav a.cta-nav:hover { background: var(--navy-light); }
+
+  /* PAGE HEADER */
+  .page-header {
+    padding: 80px 0 60px;
+    text-align: center;
+    border-bottom: 1px solid var(--cream-border);
+  }
+  .breadcrumb {
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin-bottom: 24px;
+  }
+  .breadcrumb a { color: var(--ink-faint); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb span { margin: 0 8px; }
+  .page-header h1 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.8px;
+    color: var(--navy);
+    margin-bottom: 20px;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .page-header .updated {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-top: 16px;
+    font-weight: 500;
+  }
+
+  /* VERDICT BOX */
+  .verdict {
+    background: var(--accent-light);
+    border: 1px solid rgba(61, 90, 138, 0.18);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin: 48px 0;
+  }
+  .verdict-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .verdict p {
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.7;
+  }
+
+  /* COMPARISON TABLE */
+  .section { padding: 60px 0; }
+  .section h2 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 32px;
+    letter-spacing: -0.3px;
+  }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--cream-border);
+    box-shadow: var(--shadow-xs);
+    margin-bottom: 48px;
+  }
+  .compare-table thead tr {
+    background: var(--navy);
+    color: var(--white);
+  }
+  .compare-table th {
+    padding: 18px 24px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .compare-table th:first-child { width: 35%; }
+  .compare-table th:not(:first-child) { width: 32.5%; text-align: center; }
+  .compare-table td {
+    padding: 16px 24px;
+    font-size: 14px;
+    border-top: 1px solid var(--cream-border);
+    color: var(--ink-muted);
+    vertical-align: middle;
+  }
+  .compare-table td:not(:first-child) { text-align: center; }
+  .compare-table td:first-child { font-weight: 500; color: var(--ink); }
+  .compare-table tbody tr:hover { background: var(--cream); }
+  .check { color: var(--sage); font-size: 18px; }
+  .cross { color: var(--rust); font-size: 18px; }
+  .partial { color: var(--amber); font-size: 14px; font-weight: 500; }
+  .winner { background: var(--sage-light) !important; }
+  .compare-table .col-highlight { background: rgba(61, 90, 138, 0.04); }
+
+  /* CHOOSE SECTIONS */
+  .choose-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+  @media (max-width: 700px) { .choose-grid { grid-template-columns: 1fr; } }
+
+  .choose-card {
+    background: var(--surface);
+    border: 1px solid var(--cream-border);
+    border-radius: 10px;
+    padding: 28px;
+    box-shadow: var(--shadow-xs);
+  }
+  .choose-card h3 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--cream-border);
+  }
+  .choose-card ul {
+    list-style: none;
+    padding: 0;
+  }
+  .choose-card ul li {
+    font-size: 14px;
+    color: var(--ink-muted);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--cream-border);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+  }
+  .choose-card ul li:last-child { border-bottom: none; }
+  .choose-card ul li::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+  .choose-card.ours { border-color: rgba(61, 90, 138, 0.3); background: var(--accent-light); }
+  .choose-card.ours h3 { color: var(--accent); }
+
+  /* CTA */
+  .cta-section {
+    background: var(--navy);
+    border-radius: 12px;
+    padding: 56px 48px;
+    text-align: center;
+    margin: 0 0 80px;
+  }
+  .cta-section h2 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 34px;
+    font-weight: 400;
+    color: var(--white);
+    margin-bottom: 16px;
+    letter-spacing: -0.4px;
+  }
+  .cta-section p {
+    font-size: 16px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 32px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+  }
+  .btn-primary {
+    background: var(--white); color: var(--navy);
+    padding: 14px 32px; border-radius: 7px; text-decoration: none;
+    font-size: 15px; font-weight: 600; transition: all 0.2s;
+    display: inline-block;
+    letter-spacing: 0.1px;
+  }
+  .btn-primary:hover { background: var(--cream); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--cream-border);
+    padding: 32px 0;
+    text-align: center;
+  }
+  footer p {
+    font-size: 13px;
+    color: var(--ink-faint);
+  }
+  footer a { color: var(--ink-faint); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="/" class="logo">mcp<span>proxy</span></a>
+    <a href="https://mcpzerotrust.dev/#get-access" class="cta-nav">Get Access</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <div class="breadcrumb">
+      <a href="https://mcpzerotrust.dev/">Home</a>
+      <span>&rsaquo;</span>
+      <span>MCP Zero-Trust Proxy vs MCP Auth Proxy (sigbit)</span>
+    </div>
+    <h1>MCP Zero-Trust Proxy vs MCP Auth Proxy (sigbit)</h1>
+    <p class="updated">Updated March 2026 &mdash; Based on published documentation and GitHub source</p>
+  </div>
+
+  <div class="verdict">
+    <div class="verdict-label">Quick Verdict</div>
+    <p>Choose sigbit if you only need OAuth authentication and have no compliance or multi-user requirements &mdash; it&rsquo;s free and does that job well. Choose MCP Zero-Trust Proxy if you need tool-level RBAC, session isolation, audit logging, rate limiting, or multi-tenant deployments.</p>
+  </div>
+
+  <div class="section">
+    <h2>Feature Comparison</h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>MCP Zero-Trust Proxy</th>
+          <th>MCP Auth Proxy (sigbit)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>OAuth Authentication</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> GitHub, Google, OIDC</td>
+          <td><span class="check">&#10003;</span> OAuth 2.0</td>
+        </tr>
+        <tr>
+          <td>OAuth 2.1 PKCE</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Full PKCE flow</td>
+          <td><span class="cross">&#10007;</span> OAuth 2.0 only</td>
+        </tr>
+        <tr>
+          <td>Tool-Level RBAC</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Per-tool, per-user rules</td>
+          <td><span class="cross">&#10007;</span> Not available</td>
+        </tr>
+        <tr>
+          <td>Session Isolation</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Per-user session store</td>
+          <td><span class="cross">&#10007;</span> Not available</td>
+        </tr>
+        <tr>
+          <td>Audit Logging</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> JSONL, file rotation</td>
+          <td><span class="cross">&#10007;</span> Not available</td>
+        </tr>
+        <tr>
+          <td>Rate Limiting</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Per-client token bucket</td>
+          <td><span class="cross">&#10007;</span> Not available</td>
+        </tr>
+        <tr>
+          <td>Multi-Provider Auth</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> GitHub, Google, OIDC</td>
+          <td><span class="partial">Varies</span></td>
+        </tr>
+        <tr>
+          <td>Docker Deployment</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Single-command</td>
+          <td><span class="check">&#10003;</span> Available</td>
+        </tr>
+        <tr>
+          <td>Drop-in Proxy</td>
+          <td class="col-highlight"><span class="check">&#10003;</span> Zero server changes</td>
+          <td><span class="check">&#10003;</span> Zero server changes</td>
+        </tr>
+        <tr>
+          <td>Pricing</td>
+          <td class="col-highlight">Free (1 server) &mdash; $49/mo Pro &mdash; $199/mo Enterprise</td>
+          <td>Free, open-source (MIT)</td>
+        </tr>
+        <tr>
+          <td>License</td>
+          <td class="col-highlight">Commercial (Free tier available)</td>
+          <td>MIT (fully open-source)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>When to Choose Each</h2>
+    <div class="choose-grid">
+      <div class="choose-card">
+        <h3>Choose MCP Auth Proxy (sigbit) if&hellip;</h3>
+        <ul>
+          <li>You only need OAuth authentication &mdash; no RBAC or audit trail required</li>
+          <li>You have a single developer or a fully trusted team with no access differentiation</li>
+          <li>Budget is zero &mdash; it&rsquo;s free and open-source with no limits</li>
+          <li>You have no compliance requirements (SOC 2, audit, regulatory)</li>
+          <li>You want to inspect and modify the source code yourself</li>
+          <li>Your threat model is &ldquo;keep unauthenticated users out&rdquo; and nothing more</li>
+        </ul>
+      </div>
+      <div class="choose-card ours">
+        <h3>Choose MCP Zero-Trust Proxy if&hellip;</h3>
+        <ul>
+          <li>You need different users to have different tool permissions (RBAC)</li>
+          <li>You need an audit trail of every tool call for compliance or debugging</li>
+          <li>You&rsquo;re running a multi-tenant setup (one proxy, multiple clients)</li>
+          <li>You need rate limiting to protect your MCP servers from abuse</li>
+          <li>You need session isolation so users can&rsquo;t affect each other&rsquo;s state</li>
+          <li>You&rsquo;re building a production system that requires enterprise-grade security</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>About MCP Auth Proxy (sigbit)</h2>
+    <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.75; max-width: 720px;">
+      MCP Auth Proxy by theailanguage (known as sigbit in the community) is a solid, straightforward open-source project
+      that does exactly what it promises: adds OAuth authentication to MCP servers with zero server modifications.
+      It&rsquo;s a well-designed tool for developers who only need authentication and have no compliance or access-control requirements.
+      It&rsquo;s genuinely the right choice if your use case is simple &mdash; free, no lock-in, and you can read every line of the code.
+    </p>
+    <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.75; max-width: 720px; margin-top: 16px;">
+      The gap becomes relevant when teams grow past a single developer, when different users need different permissions,
+      or when any form of auditing or compliance is required. Those capabilities require additional complexity that sigbit
+      intentionally doesn&rsquo;t include in order to stay simple and focused.
+    </p>
+  </div>
+
+  <div class="cta-section">
+    <h2>Get Started with MCP Zero-Trust Proxy</h2>
+    <p>One Docker command. Full auth, RBAC, audit logging, and rate limiting. Free tier available &mdash; no credit card required.</p>
+    <a href="https://mcpzerotrust.dev/#get-access" class="btn-primary">Get Started Free</a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2026 MCP Zero-Trust Proxy &mdash; <a href="https://mcpzerotrust.dev/">mcpzerotrust.dev</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
