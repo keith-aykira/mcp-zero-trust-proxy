@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes</title>
 <meta name="description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes. Used by teams running Claude, Cursor, and Copilot agents.">
+<link rel="canonical" href="https://mcpzerotrust.dev/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mcpzerotrust.dev/">
+<meta property="og:title" content="MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes">
+<meta property="og:description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes.">
+<meta property="og:site_name" content="MCP Zero-Trust Proxy">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes">
+<meta name="twitter:description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes.">
+<meta name="robots" content="index, follow">
+<meta name="keywords" content="MCP, Model Context Protocol, security, proxy, OAuth, RBAC, audit, Claude, Cursor, Copilot, zero trust, authentication">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -537,6 +549,23 @@
     .hero h1 { letter-spacing: -0.5px; }
   }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "MCP Zero-Trust Proxy",
+  "applicationCategory": "SecurityApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "description": "A drop-in reverse proxy that adds OAuth 2.1 PKCE authentication, role-based access control, audit logging, and rate limiting to any MCP server — with zero code changes.",
+  "url": "https://mcpzerotrust.dev",
+  "offers": [
+    {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "1 MCP server, 10 req/min, stdout audit"},
+    {"@type": "Offer", "name": "Pro", "price": "49", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "5 MCP servers, 200 req/min, file audit with rotation"},
+    {"@type": "Offer", "name": "Enterprise", "price": "199", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "Unlimited MCP servers, unlimited rate, all features"}
+  ],
+  "featureList": ["OAuth 2.1 PKCE Authentication", "Role-Based Access Control (RBAC)", "Structured JSON Audit Logging", "Per-Client Rate Limiting", "Session Isolation", "Docker Single-Container Deployment"]
+}
+</script>
 </head>
 <body>
 

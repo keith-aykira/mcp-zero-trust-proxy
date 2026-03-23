@@ -1,0 +1,30 @@
+# MCP Zero-Trust Proxy
+
+## What it does
+MCP Zero-Trust Proxy is a drop-in reverse proxy that adds enterprise-grade security to any MCP (Model Context Protocol) server. It sits between MCP clients (Claude, Cursor, Copilot) and MCP servers, adding OAuth 2.1 PKCE authentication, role-based access control (RBAC), structured audit logging, per-client rate limiting, and session isolation — with zero code changes to the protected server.
+
+## Key features
+- OAuth 2.1 PKCE authentication (GitHub, Google, any OIDC provider)
+- 3 built-in RBAC roles: admin, readonly, restricted
+- Structured JSON audit logging with file rotation
+- Per-client rate limiting (token bucket)
+- Session isolation between clients
+- Single Docker container deployment
+- YAML-based configuration
+- Sub-millisecond latency overhead (p50 < 400us)
+
+## How to use it
+1. Pull the Docker image: docker pull ghcr.io/anoblescm/mcp-zero-trust-proxy:latest
+2. Create a config.yaml with your upstream MCP server URL and OAuth provider
+3. Run: docker run -p 8080:8080 -v ./config.yaml:/etc/mcpproxy/config.yaml ghcr.io/anoblescm/mcp-zero-trust-proxy
+4. Point your MCP client at localhost:8080 instead of the MCP server directly
+
+## Pricing
+- Free: 1 MCP server, 10 req/min, stdout audit
+- Pro ($49/mo): 5 MCP servers, 200 req/min, file audit with rotation
+- Enterprise ($199/mo): Unlimited servers, unlimited rate, all features
+
+## Links
+- Website: https://mcpzerotrust.dev
+- Documentation: https://github.com/AnobleSCM/mcp-zero-trust-proxy/blob/main/docs/QUICKSTART.md
+- Docker image: ghcr.io/anoblescm/mcp-zero-trust-proxy
