@@ -562,7 +562,7 @@
   "softwareVersion": "1.0.0",
   "author": {"@type": "Organization", "name": "MCP Zero-Trust Proxy", "url": "https://mcpzerotrust.dev"},
   "offers": [
-    {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "1 MCP server, 10 req/min, stdout audit"},
+    {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "1 MCP server, 60 req/min, stdout audit"},
     {"@type": "Offer", "name": "Pro", "price": "49", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "5 MCP servers, 200 req/min, file audit with rotation"},
     {"@type": "Offer", "name": "Enterprise", "price": "199", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "Unlimited MCP servers, unlimited rate, all features"}
   ],
@@ -603,7 +603,7 @@
       "name": "How much does MCP Zero-Trust Proxy cost?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "MCP Zero-Trust Proxy has three tiers: Free (1 MCP server, 10 requests/min, stdout audit logging), Pro at $49/month (5 MCP servers, 200 requests/min, file audit with rotation), and Enterprise at $199/month (unlimited MCP servers, unlimited request rate, all features including multi-tenant RBAC)."
+        "text": "MCP Zero-Trust Proxy has three tiers: Free (1 MCP server, 60 requests/min, stdout audit logging), Pro at $49/month (5 MCP servers, 200 requests/min, file audit with rotation), and Enterprise at $199/month (unlimited MCP servers, unlimited request rate, all features including multi-tenant RBAC)."
       }
     },
     {
@@ -612,6 +612,13 @@
       "acceptedAnswer": {
         "@type": "Answer",
         "text": "MCP Zero-Trust Proxy works with any MCP client that uses the HTTP+SSE transport — including Claude Desktop, Cursor, GitHub Copilot, and custom MCP clients. It is fully transport-agnostic on the client side and requires no client-side changes."
+      }
+    },{
+      "@type": "Question",
+      "name": "What happens if Anthropic or the MCP spec adds native authentication?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "We welcome it. Native auth in the MCP spec would solve the authentication layer. MCP Proxy addresses what comes after authentication: authorization (who can call which tools), audit logging (a permanent record of every call), per-client rate limiting, and session isolation. The spec has no plans to standardize these — and for regulated environments and multi-tenant deployments, they are not optional. If anything, standardized auth makes the proxy more valuable because the authentication layer becomes simpler to configure."
       }
     }
   ]
@@ -862,7 +869,7 @@
         <div class="desc">For developers getting started</div>
         <ul>
           <li>1 MCP server</li>
-          <li>10 requests/minute</li>
+          <li>60 requests/minute</li>
           <li>OAuth 2.1 PKCE</li>
           <li>Basic RBAC (3 built-in roles)</li>
           <li>Stdout audit logging</li>
@@ -934,7 +941,7 @@
 
 <footer>
   <div class="container">
-    <p>MCP Zero-Trust Proxy &copy; 2026 &nbsp;·&nbsp; <a href="mailto:andrewnoble1992@gmail.com" style="color: var(--ink-faint); text-decoration: none;">andrewnoble1992@gmail.com</a> &nbsp;·&nbsp; Built by developers, for developers who don't want to get breached.</p>
+    <p>MCP Zero-Trust Proxy &copy; 2026 &nbsp;·&nbsp; <a href="mailto:support@mcpzerotrust.dev" style="color: var(--ink-faint); text-decoration: none;">support@mcpzerotrust.dev</a> &nbsp;·&nbsp; Built by developers, for developers who don't want to get breached.</p>
   </div>
 </footer>
 
