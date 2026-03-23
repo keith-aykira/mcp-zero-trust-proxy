@@ -623,7 +623,7 @@
 <nav>
   <div class="container">
     <div class="logo"><span>mcp</span>proxy</div>
-    <a href="#get-access" class="cta-nav">Get Early Access</a>
+    <a href="#pricing" class="cta-nav">See Pricing</a>
   </div>
 </nav>
 
@@ -640,22 +640,12 @@
       <div>&nbsp;&nbsp;ghcr.io/anoblescm/mcp-zero-trust-proxy</div>
     </div>
     <div class="cta-group">
-      <a href="#get-access" class="btn-primary">Get Early Access</a>
+      <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases" class="btn-primary">Get Started Free</a>
       <a href="#how-it-works" style="color: var(--ink-muted); text-decoration: none; font-size: 14px;">See how it works ↓</a>
     </div>
   </div>
 </section>
 
-<!-- EARLY EMAIL CAPTURE -->
-<section style="padding: 48px 0; text-align: center; border-bottom: 1px solid var(--cream-border);">
-  <div class="container">
-    <p style="color: var(--ink-muted); font-size: 15px; margin-bottom: 16px;">Free Pro access for the first 50 teams</p>
-    <form class="email-form" onsubmit="handleEarlySubmit(event)" style="max-width: 420px;">
-      <input type="email" id="email-input-early" placeholder="you@company.com" required style="flex:1; min-width:220px; padding:12px 16px; border-radius:7px; border:1px solid var(--cream-border); background:var(--surface); color:var(--ink); font-size:14px; font-family:'Inter',sans-serif; outline:none;">
-      <button type="submit" class="btn-primary" id="submit-btn-early" style="padding:12px 24px; font-size:14px;">Join Waitlist</button>
-    </form>
-  </div>
-</section>
 
 <section class="threat-banner">
   <div class="container">
@@ -869,7 +859,7 @@
           <li>Stdout audit logging</li>
           <li>Community support</li>
         </ul>
-        <a href="#get-access" class="btn-ghost">Get Started</a>
+        <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases" class="btn-ghost">Download Free</a>
       </div>
       <div class="price-card featured">
         <h3>Pro</h3>
@@ -884,7 +874,7 @@
           <li>File audit log + rotation</li>
           <li>Email support</li>
         </ul>
-        <a href="https://buy.stripe.com/test_28EfZg4UdcoO5Crar66Ri00" class="btn-primary">Start Pro</a>
+        <a href="https://buy.stripe.com/7sY7sKeuZbEMgLI4ep0Ba00" class="btn-primary">Start Pro</a>
       </div>
       <div class="price-card">
         <h3>Enterprise</h3>
@@ -898,7 +888,7 @@
           <li>Priority support + SLA</li>
         </ul>
         <p style="font-size: 12px; color: var(--ink-faint); margin-bottom: 28px; padding-top: 8px; border-top: 1px solid var(--cream-border);">Roadmap: SSO/SAML, SIEM/OpenTelemetry</p>
-        <a href="https://buy.stripe.com/test_4gM14mdqJcoO9SH6aQ6Ri01" class="btn-primary">Start Enterprise</a>
+        <a href="https://buy.stripe.com/aFa28q86BeQY2US26h0Ba01" class="btn-primary">Start Enterprise</a>
       </div>
     </div>
   </div>
@@ -907,9 +897,9 @@
 <section class="proof">
   <div class="container">
     <div class="proof-logos">
-      <span>212 tests</span>
+      <span>223 tests</span>
       <span>·</span>
-      <span>Race-condition free</span>
+      <span>Tested with Go's race detector</span>
       <span>·</span>
       <span>Written in Go</span>
       <span>·</span>
@@ -922,14 +912,14 @@
 
 <section class="email-section" id="get-access">
   <div class="container">
-    <div class="section-label">Beta access</div>
-    <h2>Get early access</h2>
-    <p>Join the beta waitlist. Free Pro access for the first 50 teams.</p>
+    <div class="section-label">Updates</div>
+    <h2>Stay in the loop</h2>
+    <p>Get notified about new releases, security advisories, and Pro tier updates.</p>
     <form class="email-form" id="waitlist-form" onsubmit="handleSubmit(event)">
       <input type="email" id="email-input" placeholder="you@company.com" required>
-      <button type="submit" class="btn-primary" id="submit-btn">Join Waitlist</button>
+      <button type="submit" class="btn-primary" id="submit-btn">Notify Me</button>
     </form>
-    <p class="email-note" id="form-note">No spam. Just a launch notification and beta invite.</p>
+    <p class="email-note" id="form-note">No spam. Updates only.</p>
   </div>
 </section>
 
@@ -985,40 +975,6 @@ async function handleSubmit(e) {
   }
 }
 
-async function handleEarlySubmit(e) {
-  e.preventDefault();
-  var email = document.getElementById('email-input-early').value;
-  var btn = document.getElementById('submit-btn-early');
-  btn.textContent = 'Joining...';
-  btn.disabled = true;
-  try {
-    var res = await fetch(SUPABASE_URL + '/rest/v1/waitlist', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ email: email, source: 'landing-page-hero' })
-    });
-    if (res.ok) {
-      btn.textContent = '\u2713 You\'re in!';
-      btn.style.background = '#4a7c59';
-      document.getElementById('email-input-early').disabled = true;
-    } else if (res.status === 409) {
-      btn.textContent = 'Already signed up!';
-      btn.style.background = '#8b6914';
-      btn.disabled = false;
-    } else {
-      throw new Error('fail');
-    }
-  } catch (err) {
-    btn.textContent = 'Try again';
-    btn.style.background = '#8b3a3a';
-    btn.disabled = false;
-  }
-}
 </script>
 
 </body>

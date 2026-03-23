@@ -27,7 +27,7 @@ docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
 **Technical details:**
 
 - Written in Go — single binary, ~10MB, no runtime dependencies
-- 236+ tests with -race flag (zero races)
+- 223 tests passing (go test -race, zero data races detected)
 - YAML config with `${ENV_VAR}` substitution
 - License keys: ECDSA P-256 signed JWTs, validated locally with zero network calls (works air-gapped)
 - MCP JSON-RPC 2.0 over HTTP+SSE (Streamable HTTP transport)
