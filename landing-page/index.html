@@ -558,12 +558,63 @@
   "operatingSystem": "Linux, macOS, Windows",
   "description": "A drop-in reverse proxy that adds OAuth 2.1 PKCE authentication, role-based access control, audit logging, and rate limiting to any MCP server — with zero code changes.",
   "url": "https://mcpzerotrust.dev",
+  "downloadUrl": "https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases",
+  "softwareVersion": "1.0.0",
+  "author": {"@type": "Organization", "name": "MCP Zero-Trust Proxy", "url": "https://mcpzerotrust.dev"},
   "offers": [
     {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "1 MCP server, 10 req/min, stdout audit"},
     {"@type": "Offer", "name": "Pro", "price": "49", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "5 MCP servers, 200 req/min, file audit with rotation"},
     {"@type": "Offer", "name": "Enterprise", "price": "199", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "Unlimited MCP servers, unlimited rate, all features"}
   ],
   "featureList": ["OAuth 2.1 PKCE Authentication", "Role-Based Access Control (RBAC)", "Structured JSON Audit Logging", "Per-Client Rate Limiting", "Session Isolation", "Docker Single-Container Deployment"]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I secure my MCP server with OAuth?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run a single Docker command: docker run -e MCP_TARGET=localhost:3000 -e AUTH_PROVIDER=github -p 8443:8443 ghcr.io/anoblescm/mcp-zero-trust-proxy. MCP Zero-Trust Proxy sits in front of your existing MCP server and handles all OAuth 2.1 PKCE authentication — no code changes required on your server."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the difference between MCP Zero-Trust Proxy and MCP Auth Proxy (sigbit)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "sigbit (MCP Auth Proxy) adds OAuth-only authentication. MCP Zero-Trust Proxy adds OAuth 2.1 PKCE authentication plus role-based access control (RBAC), session isolation, structured JSON audit logging, and per-client rate limiting — making it suitable for compliance requirements and multi-tenant deployments where you need to control which users can call which tools and maintain a full audit trail."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is MCP Zero-Trust Proxy self-hosted?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. MCP Zero-Trust Proxy runs as a single Docker container or standalone Go binary on your own infrastructure. Your MCP traffic, tokens, and audit logs never leave your servers. There is no cloud dependency — the proxy works entirely within your environment."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much does MCP Zero-Trust Proxy cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MCP Zero-Trust Proxy has three tiers: Free (1 MCP server, 10 requests/min, stdout audit logging), Pro at $49/month (5 MCP servers, 200 requests/min, file audit with rotation), and Enterprise at $199/month (unlimited MCP servers, unlimited request rate, all features including multi-tenant RBAC)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What MCP clients does MCP Zero-Trust Proxy work with?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MCP Zero-Trust Proxy works with any MCP client that uses the HTTP+SSE transport — including Claude Desktop, Cursor, GitHub Copilot, and custom MCP clients. It is fully transport-agnostic on the client side and requires no client-side changes."
+      }
+    }
+  ]
 }
 </script>
 </head>
