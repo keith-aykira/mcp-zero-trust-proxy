@@ -78,13 +78,13 @@ roles:
 # ============================================================
 rate_limit:
   # Maximum sustained requests per minute per authenticated client.
-  # Default: 100
-  requests_per_minute: 100
+  # Default: 300
+  requests_per_minute: 300
 
   # Maximum burst size above the sustained rate.
   # A client can send up to burst_size requests instantly before the rate limit applies.
-  # Default: 10
-  burst_size: 10
+  # Default: 100
+  burst_size: 100
 
 # ============================================================
 # Audit Logging Configuration

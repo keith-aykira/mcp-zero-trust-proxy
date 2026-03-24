@@ -20,25 +20,17 @@ Ready-to-submit listing content for MCP registries. Copy-paste during submission
 |-------|-------|
 | **Name** | MCP Zero-Trust Proxy |
 | **Category** | Security / Infrastructure |
-| **URL** | https://mcpzerotrust.dev |
+| **URL** | https://github.com/AnobleSCM/mcp-zero-trust-proxy |
 | **Docker image** | `ghcr.io/anoblescm/mcp-zero-trust-proxy` |
-| **License** | Commercial (Free tier available) |
+| **License** | MIT |
 
-**Short description (1–2 sentences):**
+**Short description (1-2 sentences):**
 
-> Drop-in reverse proxy adding OAuth 2.1, RBAC, and audit logging to any MCP server. Zero code changes to the protected server.
+> Free, open-source reverse proxy adding OAuth 2.1, RBAC, and audit logging to any MCP server. Zero code changes to the protected server.
 
 **Long description:**
 
-> A self-hosted reverse proxy that adds enterprise-grade security to any MCP server — no code changes required. Features include: OAuth 2.1 PKCE authentication (GitHub, Google, Okta, any OIDC provider), tool-level RBAC (admin/readonly/restricted roles), per-client session isolation to prevent cross-tenant data leakage, structured JSON audit logging with file rotation, and per-client rate limiting with token bucket. Ships as a single Docker container (6.6MB) or Go binary (~10MB). Supports MCP servers using HTTP+SSE transport (JSON-RPC 2.0).
-
-**Pricing tiers:**
-
-| Tier | Price | Limits |
-|------|-------|--------|
-| Free | $0 | 1 upstream server, 10 req/min, stdout audit |
-| Pro | $49/mo | 5 upstream servers, 200 req/min, file audit with rotation |
-| Enterprise | $199/mo | Unlimited servers, unlimited req/min, priority support |
+> A self-hosted reverse proxy that adds zero-trust security to any MCP server — no code changes required. Features include: OAuth 2.1 PKCE authentication (GitHub, Google, Okta, any OIDC provider), tool-level RBAC (admin/readonly/restricted roles), per-client sessions to prevent cross-tenant data leakage, structured JSON audit logging with file rotation, and per-client rate limiting with token bucket. Ships as a single Docker container (6.6MB) or Go binary (~10MB). MIT licensed. Supports MCP servers using HTTP+SSE transport (JSON-RPC 2.0).
 
 **Note for reviewers:** This is a security infrastructure tool FOR MCP servers, not an MCP server itself. It sits in front of any existing MCP server and adds auth enforcement at the proxy layer. Recommend listing under Security or Infrastructure category.
 
@@ -54,12 +46,12 @@ Ready-to-submit listing content for MCP registries. Copy-paste during submission
 |-------|-------|
 | **Name** | MCP Zero-Trust Proxy |
 | **Category** | Security |
-| **URL** | https://mcpzerotrust.dev |
+| **URL** | https://github.com/AnobleSCM/mcp-zero-trust-proxy |
 | **Install command** | `docker pull ghcr.io/anoblescm/mcp-zero-trust-proxy` |
 
 **Short description:**
 
-> Drop-in reverse proxy adding OAuth 2.1 PKCE, tool-level RBAC, session isolation, and audit logging to any MCP server. Zero code changes required.
+> Free, open-source reverse proxy adding OAuth 2.1 PKCE, tool-level RBAC, per-client sessions, and audit logging to any MCP server. Zero code changes required.
 
 **Long description:**
 
@@ -68,11 +60,11 @@ Ready-to-submit listing content for MCP registries. Copy-paste during submission
 > Key features:
 > - **OAuth 2.1 PKCE auth** — GitHub, Google, Okta, or any OIDC-compatible provider
 > - **Tool-level RBAC** — admin, readonly, and restricted roles; restrict which tools each client can call
-> - **Session isolation** — per-client execution boundaries prevent cross-tenant data leakage
+> - **Per-client sessions** — per-client execution boundaries prevent cross-tenant data leakage
 > - **Structured audit logging** — every call logged (who, what, when, allowed/denied) in JSONL format with file rotation
-> - **Rate limiting** — per-client token bucket, configurable per tier
+> - **Rate limiting** — per-client token bucket (default: 300 req/min)
 >
-> Ships as a single Docker container (6.6MB image) or standalone Go binary (~10MB). Configuration is YAML with `${ENV_VAR}` substitution for secrets. No external dependencies.
+> Ships as a single Docker container (6.6MB image) or standalone Go binary (~10MB). Configuration is YAML with `${ENV_VAR}` substitution for secrets. MIT licensed. No external dependencies.
 
 **Quick start:**
 
@@ -84,7 +76,7 @@ docker run \
   ghcr.io/anoblescm/mcp-zero-trust-proxy
 ```
 
-**Pricing:** Free (1 server) | $49/mo Pro (5 servers) | $199/mo Enterprise (unlimited)
+**Pricing:** Free and open source (MIT license)
 
 ---
 
@@ -99,22 +91,22 @@ docker run \
 **Exact markdown line to add to README.md:**
 
 ```markdown
-- [MCP Zero-Trust Proxy](https://mcpzerotrust.dev) - Drop-in reverse proxy adding OAuth 2.1, RBAC, session isolation, and audit logging to any MCP server. Zero code changes.
+- [MCP Zero-Trust Proxy](https://github.com/AnobleSCM/mcp-zero-trust-proxy) - Open-source reverse proxy adding OAuth 2.1, RBAC, per-client sessions, and audit logging to any MCP server. Zero code changes. MIT licensed.
 ```
 
 **PR body (copy-paste):**
 
 ---
 
-**What:** MCP Zero-Trust Proxy is a self-hosted reverse proxy that adds OAuth 2.1 PKCE authentication, tool-level RBAC, per-client session isolation, and structured audit logging to any MCP server — with zero code changes to the protected server.
+**What:** MCP Zero-Trust Proxy is a free, open-source reverse proxy that adds OAuth 2.1 PKCE authentication, tool-level RBAC, per-client sessions, and structured audit logging to any MCP server — with zero code changes to the protected server.
 
 **Why it belongs here:** As MCP adoption grows, authentication is becoming a critical gap. The proxy addresses a documented pain point (8,000+ exposed servers, OWASP MCP Top 10, 30+ CVEs in 60 days) and fills the category of security infrastructure specifically for MCP deployments.
 
 **Checklist:**
-- Link points to mcpzerotrust.dev (live landing page)
+- Link points to GitHub repo (MIT licensed, open source)
 - Ships as Docker container (`ghcr.io/anoblescm/mcp-zero-trust-proxy`) and Go binary
 - Supports HTTP+SSE MCP transport (JSON-RPC 2.0)
-- Free tier available (no payment required to start)
+- 236+ tests passing (unit + integration + E2E)
 
 ---
 

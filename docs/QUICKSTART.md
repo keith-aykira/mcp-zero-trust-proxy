@@ -1,6 +1,6 @@
 # Quick-Start Guide
 
-MCP Zero-Trust Proxy is a reverse proxy that sits in front of any MCP server and adds enterprise-grade security — OAuth 2.1 PKCE authentication, role-based access control (RBAC), per-client rate limiting, and a tamper-evident audit trail — with zero code changes to the MCP server.
+MCP Zero-Trust Proxy is a free, open-source reverse proxy that sits in front of any MCP server and adds zero-trust security — OAuth 2.1 PKCE authentication, role-based access control (RBAC), per-client rate limiting, and a tamper-evident audit trail — with zero code changes to the MCP server.
 
 You configure one YAML file, run one Docker command, and every request to your MCP server is authenticated, authorized, and logged.
 
@@ -286,83 +286,38 @@ The proxy writes one JSONL line per request to stdout (by default):
 
 ---
 
-## License Key
+## Troubleshooting
 
-MCP Zero-Trust Proxy has three tiers:
+### 502 Bad Gateway / 504 Gateway Timeout
 
-| Tier | Price | MCP Servers | Rate Limit | Audit |
-|------|-------|-------------|------------|-------|
-| **Free** | $0/mo | 1 | 60 req/min | stdout only |
-| **Pro** | $49/mo | 5 | 200 req/min | file + rotation |
-| **Enterprise** | $199/mo | Unlimited | Unlimited | All features |
+If the proxy returns `502` or `504`, the upstream MCP server is unreachable or too slow:
 
-**Free tier:** No license key needed. The proxy starts in free tier automatically if no key is provided.
-
-**Pro and Enterprise tiers:** Obtain a license key at [mcpzerotrust.dev](https://mcpzerotrust.dev) after subscribing, then add it to your config:
-
-```yaml
-license:
-  key: "${LICENSE_KEY}"
-```
-
-Set the environment variable when running the proxy:
+- **502:** The upstream server refused the connection or returned an invalid response. Check that `upstream_url` in your config points to a running MCP server.
+- **504:** The upstream server didn't respond within the timeout window. The proxy uses a 120-second write timeout and 30-second read timeout. If your MCP server needs longer for expensive tool calls, place the proxy behind a load balancer with extended timeouts.
 
 ```bash
-# Binary
-export LICENSE_KEY=your-license-key-here
-mcpproxy --config ./config.yaml
-
-# Docker
-docker run \
-  -p 8080:8080 \
-  -v ./config.yaml:/etc/mcpproxy/config.yaml \
-  -e LICENSE_KEY=your-license-key-here \
-  ghcr.io/anoblescm/mcp-zero-trust-proxy:latest \
-  --config /etc/mcpproxy/config.yaml
+# Quick check: is the upstream reachable?
+curl -s http://localhost:3000/health  # replace with your upstream URL
 ```
 
-If the license key is missing, expired, or invalid, the proxy falls back to free-tier limits and logs a warning at startup.
+### SSE connection drops
 
-### Upgrading from Free to Pro
+MCP uses Server-Sent Events (SSE) for streaming. If a client disconnects (browser tab closed, network interruption), the SSE connection is terminated. The proxy does not automatically reconnect — the client must re-establish the connection. This is standard SSE behavior and matches the MCP specification.
 
-When you're ready for more:
+If you see frequent SSE drops, check for reverse proxies or load balancers between the client and the proxy that may be timing out idle connections. Set their idle timeout higher than your longest expected tool call duration.
 
-1. Go to [mcpzerotrust.dev](https://mcpzerotrust.dev) and choose Pro ($49/mo) or Enterprise ($199/mo)
-2. After checkout, you'll receive a license key (a signed JWT)
-3. Add it to your config:
+### Rate limiting behavior
 
-```yaml
-license:
-  key: "${LICENSE_KEY}"
-```
+Rate limits are enforced **per proxy instance**. If you run multiple replicas behind a load balancer, each instance maintains its own rate limit counters independently. This means a client's effective rate limit is multiplied by the number of instances.
 
-4. Set the environment variable and restart:
-
-```bash
-# Binary
-export LICENSE_KEY=your-license-key
-mcpproxy --config ./config.yaml
-
-# Docker
-docker run -e LICENSE_KEY=your-license-key ...
-```
-
-The proxy validates the key locally (no network call) and unlocks your tier's limits immediately.
-
-**What changes with Pro:**
-
-| | Free | Pro |
-|---|---|---|
-| MCP servers | 1 | 5 |
-| Rate limit | 60 req/min | 200 req/min |
-| Audit | stdout only | file + rotation |
+For most deployments (single instance or small clusters), this is the correct behavior. If you need globally coordinated rate limiting across many replicas, use an external rate limiter (e.g., Redis-backed) in front of the proxy.
 
 ---
 
 ## Next steps
 
 - **Full configuration reference:** [CONFIG-REFERENCE.md](CONFIG-REFERENCE.md) — documents every YAML field with types, defaults, and examples
-- **Rate limiting:** Set `rate_limit.requests_per_minute` to control per-client throughput
+- **Rate limiting:** Set `rate_limit.requests_per_minute` to control per-client throughput (default: 300 req/min)
 - **Audit log to file:** Set `audit.output: "file"` and `audit.file_path: "/var/log/mcpproxy/audit.jsonl"` for persistent logs
 - **Production TLS:** Place a TLS-terminating reverse proxy (nginx, Caddy, Cloudflare Tunnel) in front of the proxy for HTTPS
 - **Multi-client / agency setup:** [MULTI-TENANT.md](MULTI-TENANT.md) — how to run separate proxy instances per client with Docker Compose

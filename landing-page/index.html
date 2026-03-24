@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes</title>
-<meta name="description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes. Used by teams running Claude, Cursor, and Copilot agents.">
+<title>MCP Zero-Trust Proxy — Open-Source Security for MCP Servers</title>
+<meta name="description" content="Open-source reverse proxy that adds authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes. MIT licensed.">
 <link rel="canonical" href="https://mcpzerotrust.dev/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://mcpzerotrust.dev/">
-<meta property="og:title" content="MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes">
-<meta property="og:description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes.">
+<meta property="og:title" content="MCP Zero-Trust Proxy — Open-Source Security for MCP Servers">
+<meta property="og:description" content="Open-source reverse proxy that adds authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes. MIT licensed.">
 <meta property="og:site_name" content="MCP Zero-Trust Proxy">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="MCP Zero-Trust Proxy — Secure Your MCP Servers in Minutes">
-<meta name="twitter:description" content="Add authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes.">
+<meta name="twitter:title" content="MCP Zero-Trust Proxy — Open-Source Security for MCP Servers">
+<meta name="twitter:description" content="Open-source reverse proxy that adds authentication, access control, and audit logging to any MCP server. One Docker command, zero code changes. MIT licensed.">
 <meta name="robots" content="index, follow">
 <meta name="keywords" content="MCP, Model Context Protocol, security, proxy, OAuth, RBAC, audit, Claude, Cursor, Copilot, zero trust, authentication">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -354,100 +354,6 @@
     text-align: center; color: var(--ink-muted);
     font-size: 17px; margin-bottom: 56px;
   }
-  .pricing-badge {
-    display: inline-block;
-    background: var(--sage-light);
-    color: var(--sage);
-    border: 1px solid rgba(74, 124, 89, 0.2);
-    border-radius: 4px;
-    padding: 5px 16px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-  }
-  .pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    max-width: 960px;
-    margin: 0 auto;
-  }
-  .price-card {
-    background: var(--surface);
-    border: 1px solid var(--cream-border);
-    border-radius: 10px;
-    padding: 40px 36px;
-    text-align: left;
-    box-shadow: var(--shadow-xs);
-  }
-  .price-card.featured {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
-    position: relative;
-  }
-  .price-card.featured::before {
-    content: 'Most Popular';
-    position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
-    background: var(--accent); color: var(--white);
-    padding: 3px 14px; border-radius: 20px;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
-  }
-  .price-card h3 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: var(--ink-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-  }
-  .price-card .price {
-    font-family: 'DM Serif Display', Georgia, serif;
-    font-size: 48px;
-    font-weight: 400;
-    letter-spacing: -2px;
-    margin: 16px 0 4px;
-    color: var(--navy);
-    line-height: 1;
-  }
-  .price-card .price span {
-    font-family: 'Inter', sans-serif;
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--ink-muted);
-    letter-spacing: 0;
-  }
-  .price-card .desc {
-    font-size: 13px;
-    color: var(--ink-muted);
-    margin-bottom: 28px;
-    margin-top: 8px;
-    padding-bottom: 28px;
-    border-bottom: 1px solid var(--cream-border);
-    line-height: 1.5;
-  }
-  .price-card ul { list-style: none; text-align: left; margin-bottom: 32px; }
-  .price-card li {
-    padding: 7px 0; font-size: 14px; color: var(--ink-muted);
-    display: flex; align-items: flex-start; gap: 10px;
-    border-bottom: 1px solid var(--cream-border);
-  }
-  .price-card li:last-child { border-bottom: none; }
-  .price-card li::before {
-    content: '✓';
-    color: var(--sage);
-    font-weight: 600;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-  .price-card .btn-primary { display: block; width: 100%; text-align: center; }
-  .btn-ghost {
-    display: block; width: 100%; text-align: center;
-    background: var(--cream-dark); color: var(--ink);
-    padding: 14px 32px; border-radius: 7px; text-decoration: none;
-    font-size: 15px; font-weight: 500; border: 1px solid var(--cream-border);
-    transition: all 0.2s; cursor: pointer;
-  }
-  .btn-ghost:hover { border-color: var(--ink-muted); }
 
   /* SOCIAL PROOF */
   .proof {
@@ -561,12 +467,9 @@
   "downloadUrl": "https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases",
   "softwareVersion": "1.0.0",
   "author": {"@type": "Organization", "name": "MCP Zero-Trust Proxy", "url": "https://mcpzerotrust.dev"},
-  "offers": [
-    {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "1 MCP server, 60 req/min, stdout audit"},
-    {"@type": "Offer", "name": "Pro", "price": "49", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "5 MCP servers, 200 req/min, file audit with rotation"},
-    {"@type": "Offer", "name": "Enterprise", "price": "199", "priceCurrency": "USD", "billingIncrement": "P1M", "description": "Unlimited MCP servers, unlimited rate, all features"}
-  ],
-  "featureList": ["OAuth 2.1 PKCE Authentication", "Role-Based Access Control (RBAC)", "Structured JSON Audit Logging", "Per-Client Rate Limiting", "Session Isolation", "Docker Single-Container Deployment"]
+  "isAccessibleForFree": true,
+  "license": "https://opensource.org/licenses/MIT",
+  "featureList": ["OAuth 2.1 PKCE Authentication", "Role-Based Access Control (RBAC)", "Structured JSON Audit Logging", "Per-Client Rate Limiting", "Per-Client Sessions", "Docker Single-Container Deployment"]
 }
 </script>
 <script type="application/ld+json">
@@ -587,7 +490,7 @@
       "name": "What is the difference between MCP Zero-Trust Proxy and MCP Auth Proxy (sigbit)?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "sigbit (MCP Auth Proxy) adds OAuth-only authentication. MCP Zero-Trust Proxy adds OAuth 2.1 PKCE authentication plus role-based access control (RBAC), session isolation, structured JSON audit logging, and per-client rate limiting — making it suitable for compliance requirements and multi-tenant deployments where you need to control which users can call which tools and maintain a full audit trail."
+        "text": "sigbit (MCP Auth Proxy) adds OAuth-only authentication. MCP Zero-Trust Proxy adds OAuth 2.1 PKCE authentication plus role-based access control (RBAC), per-client sessions, structured JSON audit logging, and per-client rate limiting — making it suitable for compliance requirements and multi-tenant deployments where you need to control which users can call which tools and maintain a full audit trail."
       }
     },
     {
@@ -603,7 +506,7 @@
       "name": "How much does MCP Zero-Trust Proxy cost?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "MCP Zero-Trust Proxy has three tiers: Free (1 MCP server, 60 requests/min, stdout audit logging), Pro at $49/month (5 MCP servers, 200 requests/min, file audit with rotation), and Enterprise at $199/month (unlimited MCP servers, unlimited request rate, all features including multi-tenant RBAC)."
+        "text": "MCP Zero-Trust Proxy is completely free and open source under the MIT license. There are no paid tiers, no license keys, and no feature restrictions. All features — OAuth 2.1 PKCE, RBAC, audit logging, rate limiting, and per-client sessions — are included."
       }
     },
     {
@@ -618,7 +521,7 @@
       "name": "What happens if Anthropic or the MCP spec adds native authentication?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "We welcome it. Native auth in the MCP spec would solve the authentication layer. MCP Proxy addresses what comes after authentication: authorization (who can call which tools), audit logging (a permanent record of every call), per-client rate limiting, and session isolation. The spec has no plans to standardize these — and for regulated environments and multi-tenant deployments, they are not optional. If anything, standardized auth makes the proxy more valuable because the authentication layer becomes simpler to configure."
+        "text": "That would be great. Native auth in the MCP spec would solve the authentication layer. The proxy continues to add value for what comes after authentication: authorization (who can call which tools), audit logging (a permanent record of every call), per-client rate limiting, and per-client sessions. The spec has no plans to standardize these — and for regulated environments and multi-tenant deployments, they are not optional. If anything, standardized auth makes the proxy more valuable because the authentication layer becomes simpler to configure."
       }
     }
   ]
@@ -630,7 +533,7 @@
 <nav>
   <div class="container">
     <div class="logo"><span>mcp</span>proxy</div>
-    <a href="#pricing" class="cta-nav">See Pricing</a>
+    <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy" class="cta-nav" target="_blank">View on GitHub</a>
   </div>
 </nav>
 
@@ -647,8 +550,8 @@
       <div>&nbsp;&nbsp;ghcr.io/anoblescm/mcp-zero-trust-proxy</div>
     </div>
     <div class="cta-group">
-      <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases" class="btn-primary">Get Started Free</a>
-      <a href="#how-it-works" style="color: var(--ink-muted); text-decoration: none; font-size: 14px;">See how it works ↓</a>
+      <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy" class="btn-primary" target="_blank">View on GitHub</a>
+      <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases" class="btn-secondary" target="_blank">Download Latest</a>
     </div>
   </div>
 </section>
@@ -703,7 +606,7 @@
       </div>
       <div class="feature-card">
         <div class="feature-icon">🔒</div>
-        <h3>Session Isolation</h3>
+        <h3>Per-Client Sessions</h3>
         <p>Every user gets their own walled-off session. One client's data never leaks to another — even if they're using the same server.</p>
       </div>
       <div class="feature-card">
@@ -807,7 +710,7 @@
           <td class="us-col check">✓</td>
         </tr>
         <tr>
-          <td>Session isolation</td>
+          <td>Per-client sessions</td>
           <td class="cross">✗</td>
           <td class="cross">✗</td>
           <td class="cross">✗</td>
@@ -844,7 +747,7 @@
           <td>Free</td>
           <td>$$$</td>
           <td>Free</td>
-          <td class="us-col">From $49/mo</td>
+          <td class="us-col" style="color: var(--sage); font-weight: 600;">Free / MIT</td>
         </tr>
       </tbody>
     </table>
@@ -858,70 +761,36 @@
 </section>
 
 <section class="pricing" id="pricing">
-  <div class="container">
+  <div class="container" style="text-align: center;">
     <div class="section-label">Pricing</div>
-    <h2>Simple, transparent pricing</h2>
-    <p class="subtitle"><span class="pricing-badge">Founding member pricing — locked in for life</span></p>
-    <div class="pricing-grid">
-      <div class="price-card">
-        <h3>Free</h3>
-        <div class="price">$0<span>/mo</span></div>
-        <div class="desc">For developers getting started</div>
-        <ul>
-          <li>1 MCP server</li>
-          <li>60 requests/minute</li>
-          <li>OAuth 2.1 PKCE</li>
-          <li>Basic RBAC (3 built-in roles)</li>
-          <li>Stdout audit logging</li>
-          <li>Community support</li>
-        </ul>
-        <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases" class="btn-ghost">Download Free</a>
-      </div>
-      <div class="price-card featured">
-        <h3>Pro</h3>
-        <div class="price">$49<span>/mo</span></div>
-        <div class="desc">For teams running multiple MCP servers</div>
-        <ul>
-          <li>5 MCP servers</li>
-          <li>200 requests/minute</li>
-          <li>OAuth 2.1 PKCE</li>
-          <li>Tool-level RBAC</li>
-          <li>Session isolation</li>
-          <li>File audit log + rotation</li>
-          <li>Email support</li>
-        </ul>
-        <a href="https://buy.stripe.com/7sY7sKeuZbEMgLI4ep0Ba00" class="btn-primary">Start Pro</a>
-      </div>
-      <div class="price-card">
-        <h3>Enterprise</h3>
-        <div class="price">$199<span>/mo</span></div>
-        <div class="desc">For organizations with compliance needs</div>
-        <ul>
-          <li>Unlimited MCP servers</li>
-          <li>Unlimited request rate</li>
-          <li>All Pro features</li>
-          <li>Structured audit export</li>
-          <li>Priority support + SLA</li>
-        </ul>
-        <p style="font-size: 12px; color: var(--ink-faint); margin-bottom: 28px; padding-top: 8px; border-top: 1px solid var(--cream-border);">Roadmap: SSO/SAML, SIEM/OpenTelemetry</p>
-        <a href="https://buy.stripe.com/aFa28q86BeQY2US26h0Ba01" class="btn-primary">Start Enterprise</a>
+    <h2>Free &amp; Open Source</h2>
+    <p class="subtitle">MIT licensed. No tiers, no license keys, no limits. Run it however you want.</p>
+    <div style="max-width: 640px; margin: 0 auto 40px; padding: 40px; background: var(--surface); border: 1px solid var(--cream-border); border-radius: 10px; box-shadow: var(--shadow-xs);">
+      <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 48px; color: var(--navy); margin-bottom: 8px;">$0</div>
+      <div style="color: var(--ink-muted); font-size: 15px; margin-bottom: 24px;">Everything included. Forever.</div>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <span style="background: var(--sage-light); color: var(--sage); padding: 6px 14px; border-radius: 4px; font-size: 13px; font-weight: 500;">Unlimited MCP servers</span>
+        <span style="background: var(--sage-light); color: var(--sage); padding: 6px 14px; border-radius: 4px; font-size: 13px; font-weight: 500;">300 req/min default</span>
+        <span style="background: var(--sage-light); color: var(--sage); padding: 6px 14px; border-radius: 4px; font-size: 13px; font-weight: 500;">Full RBAC</span>
+        <span style="background: var(--sage-light); color: var(--sage); padding: 6px 14px; border-radius: 4px; font-size: 13px; font-weight: 500;">File audit logging</span>
       </div>
     </div>
+    <a href="https://github.com/AnobleSCM/mcp-zero-trust-proxy" class="btn-primary" target="_blank">View on GitHub</a>
   </div>
 </section>
 
 <section class="proof">
   <div class="container">
     <div class="proof-logos">
-      <span>223 tests</span>
-      <span>·</span>
-      <span>Tested with Go's race detector</span>
+      <span>236+ tests</span>
       <span>·</span>
       <span>Written in Go</span>
       <span>·</span>
       <span>Single binary</span>
       <span>·</span>
       <span>~10MB</span>
+      <span>·</span>
+      <span>MIT Licensed</span>
     </div>
   </div>
 </section>
@@ -933,15 +802,11 @@
     <div style="margin-top: 40px;">
       <div style="margin-bottom: 32px;">
         <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">What if Anthropic adds native auth to the MCP spec?</h3>
-        <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">We welcome it. Native auth solves authentication. The proxy solves what comes next: authorization (who can call which tools), audit logging, rate limiting, and session isolation. The MCP spec has no plans to standardize these — and for regulated environments, they are not optional.</p>
+        <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">That would be great. Native auth solves authentication. The proxy continues to add value for what comes next: authorization (who can call which tools), audit logging, rate limiting, and per-client sessions. The MCP spec has no plans to standardize these — and for regulated environments, they are not optional.</p>
       </div>
       <div style="margin-bottom: 32px;">
         <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Is my traffic or data sent to any cloud service?</h3>
         <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">No. The proxy runs entirely on your own infrastructure. Your MCP traffic, tokens, and audit logs never leave your servers. The only external dependency is your OAuth provider (GitHub, Google, etc.) for the authentication flow — which your users already trust.</p>
-      </div>
-      <div>
-        <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Why is the source code private?</h3>
-        <p style="color: var(--ink-muted); font-size: 15px; line-height: 1.6;">The proxy is currently closed-source while we validate the product with early customers. The binary is built from a deterministic Go build (reproducible builds coming in v1.1). Security researchers can request a private review — email <a href="mailto:support@mcpzerotrust.dev" style="color: var(--sage);">support@mcpzerotrust.dev</a>. Open-sourcing the core is on the roadmap pending our v1.0 validation.</p>
       </div>
     </div>
   </div>
@@ -951,7 +816,7 @@
   <div class="container">
     <div class="section-label">Updates</div>
     <h2>Stay in the loop</h2>
-    <p>Get notified about new releases, security advisories, and Pro tier updates.</p>
+    <p>Get notified about new releases and security advisories.</p>
     <form class="email-form" id="waitlist-form" onsubmit="handleSubmit(event)">
       <input type="email" id="email-input" placeholder="you@company.com" required>
       <button type="submit" class="btn-primary" id="submit-btn">Notify Me</button>

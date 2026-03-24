@@ -33,7 +33,7 @@ Use the correct tracked link for each channel. Copy the exact URL — do not use
 >
 > Turns out there are 8,000+ exposed servers out there. The popular OAuth workaround (mcp-remote) had a CVSS 9.6 RCE. Even Anthropic's own Git MCP server had prompt injection flaws that chained into RCE.
 >
-> I've been building a drop-in auth proxy that sits in front of any MCP server — OAuth 2.1 PKCE, RBAC, session isolation, audit logging. No code changes to your server needed. Docker pull, point it at your MCP endpoint, done.
+> I've been building a drop-in auth proxy that sits in front of any MCP server — OAuth 2.1 PKCE, RBAC, per-client sessions, audit logging. No code changes to your server needed. Docker pull, point it at your MCP endpoint, done.
 >
 > Curious what everyone else is doing. Are you worried about this? Already have a solution? Would love to hear what's working (or not).
 >
@@ -90,7 +90,7 @@ Use the correct tracked link for each channel. Copy the exact URL — do not use
 
 > Hey [Name] — I see your team is building with [Claude Code / MCP / AI agents]. Curious how you're handling MCP server security as you scale?
 >
-> The recent CVE wave (30+ in 60 days) and the Clawdbot breach have a lot of teams rethinking their approach. I'm building a zero-trust proxy specifically for MCP — drop-in auth, RBAC, session isolation, full audit trail. No server code changes needed.
+> The recent CVE wave (30+ in 60 days) and the Clawdbot breach have a lot of teams rethinking their approach. I'm building a zero-trust proxy specifically for MCP — drop-in auth, RBAC, per-client sessions, full audit trail. No server code changes needed.
 >
 > Would be great to get 10 minutes of your time to understand your setup and see if this could help. Happy to share what I've learned about the threat landscape either way.
 >
@@ -127,7 +127,7 @@ Use the correct tracked link for each channel. Copy the exact URL — do not use
 >
 > The thesis: MCP adoption is exploding (97M+ monthly SDK downloads) but authentication is optional in the spec. 41% of production servers have zero auth. The Clawdbot breach, 30+ CVEs in 60 days, and OWASP publishing an MCP Top 10 all validate the timing.
 >
-> Product: A drop-in reverse proxy that adds OAuth 2.1 PKCE, tool-level RBAC, session isolation, and audit logging to any MCP server. Docker pull, point at your endpoint, done. No code changes.
+> Product: A drop-in reverse proxy that adds OAuth 2.1 PKCE, tool-level RBAC, per-client sessions, and audit logging to any MCP server. Docker pull, point at your endpoint, done. No code changes.
 >
 > Pricing: $49/mo starter, $99/mo pro, $199/mo enterprise.
 >
@@ -145,7 +145,7 @@ Use the correct tracked link for each channel. Copy the exact URL — do not use
 
 > The fundamental problem is that MCP's auth is optional. The spec technically supports OAuth 2.1, but implementation is left to individual server authors — and 75% of MCP servers are built by solo developers with no security review process.
 >
-> After the Clawdbot breach and the CVE wave, I started building a drop-in proxy approach: sits in front of any MCP server and enforces OAuth 2.1 PKCE, RBAC, session isolation, and audit logging without changing server code. Similar to what Microsoft recommended in their February governance blog (API gateway as single enforcement point), but lightweight enough for a solo dev to deploy in 5 minutes.
+> After the Clawdbot breach and the CVE wave, I started building a drop-in proxy approach: sits in front of any MCP server and enforces OAuth 2.1 PKCE, RBAC, per-client sessions, and audit logging without changing server code. Similar to what Microsoft recommended in their February governance blog (API gateway as single enforcement point), but lightweight enough for a solo dev to deploy in 5 minutes.
 >
 > Would be curious what approaches others have found effective. The "just use nginx" camp seems to underestimate the MCP-specific attack surface (rug pulls, tool squatting, prompt injection chains).
 >
@@ -163,7 +163,7 @@ Use the correct tracked link for each channel. Copy the exact URL — do not use
 >
 > As promised, here's the quick summary:
 >
-> **MCP Zero-Trust Proxy** adds OAuth 2.1 PKCE, tool-level RBAC, session isolation, and audit logging to any MCP server — zero code changes, single Docker container.
+> **MCP Zero-Trust Proxy** adds OAuth 2.1 PKCE, tool-level RBAC, per-client sessions, and audit logging to any MCP server — zero code changes, single Docker container.
 >
 > Based on what you described, the [specific pain point] seems like the most pressing issue. I'll have the beta ready by [date]. I'd love to have you as one of our first testers — free Pro access for the first 3 months.
 >

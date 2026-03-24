@@ -31,11 +31,11 @@ type Limiter struct {
 func NewLimiter(cfg *config.RateLimitConfig) *Limiter {
 	rpm := cfg.RequestsPerMinute
 	if rpm <= 0 {
-		rpm = 100 // default: 100 req/min
+		rpm = 300 // default: 300 req/min
 	}
 	burst := cfg.BurstSize
 	if burst <= 0 {
-		burst = 10 // default: burst of 10
+		burst = 100 // default: burst of 100
 	}
 
 	return &Limiter{
