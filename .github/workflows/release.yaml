@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.25"
           cache: true
 
       - name: Download modules
@@ -70,7 +70,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.25"
           cache: true
 
       - name: Download modules
@@ -134,7 +134,7 @@ jobs:
 
             ### License
 
-            Free tier: no license key required. Pro and Enterprise tiers require a license key from mcpzerotrust.dev.
+            MIT — free and open-source. No license key required.
           files: dist/*
           draft: false
           prerelease: false

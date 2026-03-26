@@ -20,7 +20,7 @@ docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy
 
 - OAuth 2.1 PKCE authentication (GitHub, Google, Okta, any OIDC provider)
 - Tool-level RBAC — restrict which MCP tools each user can call, enforced at the proxy layer
-- Per-client session isolation — separate rate limit buckets and audit identity per authenticated user
+- Per-client sessions — separate rate limit buckets and audit identity per authenticated user
 - Structured audit logging — every MCP call logged as JSONL: who, what, when, allowed/denied
 - Rate limiting — per-client token bucket, configurable in YAML
 
