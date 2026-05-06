@@ -32,10 +32,11 @@ type RBACEngine interface {
 	FilterToolsList(identity *ClientIdentity, toolsList json.RawMessage) (json.RawMessage, error)
 }
 
-// AuthHandler handles OAuth flow routes (/auth/start, /auth/callback).
+// AuthHandler handles OAuth flow routes (/auth/start, /auth/callback, /auth/logout).
 type AuthHandler interface {
 	HandleAuthStart(w http.ResponseWriter, r *http.Request)
 	HandleCallback(w http.ResponseWriter, r *http.Request)
+	HandleLogout(w http.ResponseWriter, r *http.Request)
 }
 
 // CORSConfig controls Cross-Origin Resource Sharing headers applied by the pipeline.
@@ -218,6 +219,8 @@ func (p *Pipeline) handleAuthRoute(w http.ResponseWriter, r *http.Request) {
 		p.authHandler.HandleAuthStart(w, r)
 	case "/auth/callback":
 		p.authHandler.HandleCallback(w, r)
+	case "/auth/logout":
+		p.authHandler.HandleLogout(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -296,12 +299,13 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Step 2b: SSE role enforcement.
-	// SSE streams bypass per-response RBAC inspection — the upstream can emit
-	// responses for any method once the connection is open. Until per-event
-	// filtering is implemented (Option A), only the admin role may open SSE
-	// connections. Restricted/readonly clients must use the standard JSON-RPC
-	// request/response path, which is fully protected by RBAC.
+	// Step 2b: SSE role enforcement — admin only (Option A).
+	// SSE streams bypass per-request RBAC because once the connection is open,
+	// the upstream can emit responses for any method. Filtering per SSE event
+	// would require parsing and buffering every event (Option B). Until then,
+	// only admin role may open SSE connections. ReadOnly/restricted clients
+	// must use the standard JSON-RPC request/response path, which is fully
+	// protected by per-request RBAC.
 	if isSSERequest(r) {
 		role := ""
 		if identity != nil {
@@ -605,8 +609,9 @@ func writeJSONRPCError(w http.ResponseWriter, id interface{}, rpcCode int, messa
 func generateRequestID() string {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		// Fallback to timestamp-based ID if crypto/rand fails.
-		return "req-" + time.Now().Format("20060102150405")
+		// Fallback to nanosecond timestamp if crypto/rand fails — provides uniqueness
+		// even at high request rates (unlike second-precision which would collide).
+		return "req-" + fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }

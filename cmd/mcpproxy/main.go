@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -14,8 +15,8 @@ import (
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/auth"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/rbac"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/ratelimit"
+	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/rbac"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -27,6 +28,7 @@ func main() {
 	// Parse CLI flags
 	configPath := flag.String("config", "./config.yaml", "Path to YAML configuration file")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
+	testConfig := flag.Bool("test", false, "Test configuration validity and exit with status code")
 	flag.Parse()
 
 	if *versionFlag {
@@ -34,13 +36,24 @@ func main() {
 		os.Exit(0)
 	}
 
+	if *testConfig {
+		testConfiguration(*configPath)
+		return
+	}
+
 	// Configure logger (console output during startup; switches to JSON for production)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	// Load configuration
-	cfg, err := config.Load(*configPath)
+	// Resolve config path absolutely and validate against path traversal
+	absConfigPath, err := filepath.Abs(*configPath)
 	if err != nil {
-		log.Fatal().Err(err).Str("config", *configPath).Msg("Failed to load configuration")
+		log.Fatal().Err(err).Msg("Invalid config path")
+	}
+
+	// Load configuration
+	cfg, err := config.Load(absConfigPath)
+	if err != nil {
+		log.Fatal().Err(err).Str("config", absConfigPath).Msg("Failed to load configuration")
 	}
 
 	// Validate configuration
@@ -94,11 +107,17 @@ func main() {
 	rateLimiter := ratelimit.NewLimiter(&cfg.RateLimit)
 
 	// Start periodic cleanup for stale rate limiter entries (every 10 minutes)
+	rlStop := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
-		for range ticker.C {
-			rateLimiter.Cleanup(1 * time.Hour)
+		for {
+			select {
+			case <-ticker.C:
+				rateLimiter.Cleanup(1 * time.Hour)
+			case <-rlStop:
+				return
+			}
 		}
 	}()
 
@@ -186,6 +205,11 @@ func main() {
 	case sig := <-quit:
 		log.Info().Str("signal", sig.String()).Msg("Shutdown signal received")
 
+		// Stop background goroutines
+		close(rlStop)
+		authenticator.StopCleanup()
+		sessionStore.Stop()
+
 		// Graceful shutdown with 10-second timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -197,4 +221,28 @@ func main() {
 			log.Info().Msg("Server stopped gracefully")
 		}
 	}
+}
+
+// testConfiguration validates that the configuration file can be loaded and passes all validation checks.
+// Exits with status 0 if valid, non-zero if invalid. Used for CI/CD pipeline validation.
+func testConfiguration(configPath string) {
+	absConfigPath, err := filepath.Abs(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: invalid config path: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg, err := config.Load(absConfigPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to load configuration from %q: %v\n", absConfigPath, err)
+		os.Exit(1)
+	}
+
+	if err := config.Validate(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "error: invalid configuration:\n%v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("configuration valid: %s\n", absConfigPath)
+	os.Exit(0)
 }

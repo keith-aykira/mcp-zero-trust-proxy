@@ -31,10 +31,10 @@ type Session struct {
 
 // SessionStore is a thread-safe in-memory store for active sessions.
 type SessionStore struct {
-	mu      sync.RWMutex
+	mu       sync.RWMutex
 	sessions map[string]*Session
-	ttl     time.Duration
-	stop    chan struct{}
+	ttl      time.Duration
+	stop     chan struct{}
 }
 
 // NewSessionStore creates a SessionStore with the given TTL and starts a background
@@ -42,8 +42,8 @@ type SessionStore struct {
 func NewSessionStore(ttl time.Duration) *SessionStore {
 	s := &SessionStore{
 		sessions: make(map[string]*Session),
-		ttl:     ttl,
-		stop:    make(chan struct{}),
+		ttl:      ttl,
+		stop:     make(chan struct{}),
 	}
 	go s.cleanupLoop()
 	return s
@@ -109,6 +109,7 @@ func (s *SessionStore) Delete(sessionID string) {
 }
 
 // GetByClientID returns all active (non-expired) sessions for a given ClientID.
+// Returns a copy of the slice to prevent race conditions if caller modifies it.
 func (s *SessionStore) GetByClientID(clientID string) ([]*Session, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -120,7 +121,8 @@ func (s *SessionStore) GetByClientID(clientID string) ([]*Session, error) {
 			result = append(result, session)
 		}
 	}
-	return result, nil
+	// Return a copy to prevent race conditions if caller modifies the slice
+	return append([]*Session(nil), result...), nil
 }
 
 // Stop halts the background cleanup goroutine for clean shutdown.

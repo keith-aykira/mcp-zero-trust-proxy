@@ -15,6 +15,7 @@ import (
 
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/rs/zerolog/log"
 )
 
 // pkceEntry holds a PKCE code verifier and its creation time for expiry enforcement.
@@ -47,10 +48,10 @@ type Authenticator struct {
 	stopCleanup chan struct{}
 
 	// userRoles maps email -> role name for role resolution.
-	userRoles    map[string]string
-	defaultRole  string
-	claimRules   []config.ClaimRule
-	rolesMu      sync.RWMutex
+	userRoles   map[string]string
+	defaultRole string
+	claimRules  []config.ClaimRule
+	rolesMu     sync.RWMutex
 }
 
 // NewAuthenticator constructs an Authenticator from the given AuthConfig and SessionStore.
@@ -182,6 +183,8 @@ func (a *Authenticator) evaluateClaimRules(claims map[string]interface{}) string
 		}
 		claimStr, ok := claimValue.(string)
 		if !ok {
+			log.Debug().Str("claim", rule.Claim).Interface("value", claimValue).
+				Msg("Claim rule skipped: non-string claim value")
 			continue
 		}
 		matched := false
@@ -368,6 +371,53 @@ func (a *Authenticator) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandleLogout invalidates the session associated with the given Bearer token.
+// This provides a way to revoke access and log out users before their session
+// naturally expires. The token is fetched from the userinfo endpoint to identify
+// the client, and all sessions for that client are deleted.
+func (a *Authenticator) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	token, err := extractBearerToken(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Check token cache first for the client identity
+	var clientID string
+	if cached, ok := a.tokenCache.Load(token); ok {
+		entry := cached.(tokenCacheEntry)
+		if time.Now().Before(entry.expiresAt) {
+			clientID = entry.identity.ClientID
+		}
+	}
+
+	// If not in cache, fetch identity from provider (token must be valid)
+	if clientID == "" {
+		identity, err := a.fetchUserIdentity(token)
+		if err != nil {
+			http.Error(w, "authentication failed", http.StatusUnauthorized)
+			return
+		}
+		clientID = identity.ClientID
+	}
+
+	// Delete all sessions for this client
+	sessions, err := a.sessionStore.GetByClientID(clientID)
+	if err == nil {
+		for _, session := range sessions {
+			a.sessionStore.Delete(session.ID)
+		}
+	}
+
+	// Remove from token cache
+	a.tokenCache.Delete(token)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
+		"status": "logged out",
+	})
+}
+
 // exchangeCode exchanges an authorization code and PKCE verifier for an access token.
 // It includes the client_secret in the request body when configured (HARD-08).
 // Error messages are sanitized — raw provider response bodies are never returned (HARD-05).
@@ -393,14 +443,15 @@ func (a *Authenticator) exchangeCode(code, verifier string) (string, error) {
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("token exchange failed")
+		return "", fmt.Errorf("authentication error occurred")
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		// Sanitized: do NOT include raw provider response body
-		return "", fmt.Errorf("token exchange failed (HTTP %d)", resp.StatusCode)
+		// Sanitized: do NOT include raw provider response body or status code
+		// to prevent information leakage about upstream/internal state
+		return "", fmt.Errorf("authentication error occurred")
 	}
 
 	var result map[string]interface{}
@@ -427,13 +478,10 @@ func (a *Authenticator) fetchUserIdentity(token string) (*proxy.ClientIdentity, 
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("userinfo request failed: %w", err)
+		return nil, fmt.Errorf("authentication error occurred")
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, fmt.Errorf("user identity verification failed")
-	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("user identity verification failed")
 	}
