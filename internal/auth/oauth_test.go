@@ -707,6 +707,380 @@ func TestAuthenticateUsesResolvedRole(t *testing.T) {
 	}
 }
 
+// TestClaimRuleEvaluation_EqualOperator verifies equals operator matching.
+func TestClaimRuleEvaluation_EqualOperator(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	rules := []config.ClaimRule{
+		{Claim: "department", Operator: "equals", Value: "engineering", Role: "admin"},
+		{Claim: "department", Operator: "equals", Value: "sales", Role: "readonly"},
+	}
+	a.SetClaimRules(rules)
+
+	tests := []struct {
+		name   string
+		claims map[string]interface{}
+		want   string
+	}{
+		{"Engineering dept", map[string]interface{}{"department": "engineering"}, "admin"},
+		{"Sales dept", map[string]interface{}{"department": "sales"}, "readonly"},
+		{"Other dept", map[string]interface{}{"department": "marketing"}, ""},
+		{"Missing claim", map[string]interface{}{"name": "alice"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := a.evaluateClaimRules(tt.claims)
+			if got != tt.want {
+				t.Errorf("evaluateClaimRules(%v) = %q, want %q", tt.claims, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestClaimRuleEvaluation_ContainsOperator verifies contains operator matching.
+func TestClaimRuleEvaluation_ContainsOperator(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	rules := []config.ClaimRule{
+		{Claim: "groups", Operator: "contains", Value: "admins", Role: "admin"},
+		{Claim: "groups", Operator: "contains", Value: "developers", Role: "readonly"},
+	}
+	a.SetClaimRules(rules)
+
+	tests := []struct {
+		name   string
+		claims map[string]interface{}
+		want   string
+	}{
+		{"Contains admins", map[string]interface{}{"groups": "super-admins-team"}, "admin"},
+		{"Contains developers", map[string]interface{}{"groups": "backend-developers"}, "readonly"},
+		{"Neither match", map[string]interface{}{"groups": "visitors"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := a.evaluateClaimRules(tt.claims)
+			if got != tt.want {
+				t.Errorf("evaluateClaimRules(%v) = %q, want %q", tt.claims, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestClaimRuleEvaluation_StartsWithOperator verifies starts_with operator matching.
+func TestClaimRuleEvaluation_StartsWithOperator(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	rules := []config.ClaimRule{
+		{Claim: "email", Operator: "starts_with", Value: "admin@", Role: "admin"},
+		{Claim: "email", Operator: "starts_with", Value: "dev@", Role: "readonly"},
+	}
+	a.SetClaimRules(rules)
+
+	tests := []struct {
+		name   string
+		claims map[string]interface{}
+		want   string
+	}{
+		{"Admin email", map[string]interface{}{"email": "admin@company.com"}, "admin"},
+		{"Dev email", map[string]interface{}{"email": "dev@company.com"}, "readonly"},
+		{"Other email", map[string]interface{}{"email": "user@company.com"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := a.evaluateClaimRules(tt.claims)
+			if got != tt.want {
+				t.Errorf("evaluateClaimRules(%v) = %q, want %q", tt.claims, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestClaimRuleEvaluation_EndsWithOperator verifies ends_with operator matching.
+func TestClaimRuleEvaluation_EndsWithOperator(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	rules := []config.ClaimRule{
+		{Claim: "email", Operator: "ends_with", Value: ".admin.com", Role: "admin"},
+		{Claim: "email", Operator: "ends_with", Value: ".corp.com", Role: "readonly"},
+	}
+	a.SetClaimRules(rules)
+
+	tests := []struct {
+		name   string
+		claims map[string]interface{}
+		want   string
+	}{
+		{"Admin domain", map[string]interface{}{"email": "user@company.admin.com"}, "admin"},
+		{"Corp domain", map[string]interface{}{"email": "user@company.corp.com"}, "readonly"},
+		{"Other domain", map[string]interface{}{"email": "user@external.com"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := a.evaluateClaimRules(tt.claims)
+			if got != tt.want {
+				t.Errorf("evaluateClaimRules(%v) = %q, want %q", tt.claims, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestClaimRuleEvaluation_RegexOperator verifies regex operator matching.
+func TestClaimRuleEvaluation_RegexOperator(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	rules := []config.ClaimRule{
+		{Claim: "email", Operator: "regex", Value: `^svc-.*@internal\.com$`, Role: "admin"},
+		{Claim: "email", Operator: "regex", Value: `^user.*@company\.com$`, Role: "readonly"},
+	}
+	a.SetClaimRules(rules)
+
+	tests := []struct {
+		name   string
+		claims map[string]interface{}
+		want   string
+	}{
+		{"Service account", map[string]interface{}{"email": "svc-backend@internal.com"}, "admin"},
+		{"Regular user", map[string]interface{}{"email": "user123@company.com"}, "readonly"},
+		{"Non-matching", map[string]interface{}{"email": "guest@external.com"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := a.evaluateClaimRules(tt.claims)
+			if got != tt.want {
+				t.Errorf("evaluateClaimRules(%v) = %q, want %q", tt.claims, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestClaimRuleEvaluation_FirstMatchWins verifies that the first matching rule wins.
+func TestClaimRuleEvaluation_FirstMatchWins(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	rules := []config.ClaimRule{
+		{Claim: "role", Operator: "equals", Value: "power", Role: "restricted"},
+		{Claim: "role", Operator: "equals", Value: "power", Role: "admin"},
+	}
+	a.SetClaimRules(rules)
+
+	// Both rules match, but first one should win
+	claims := map[string]interface{}{"role": "power"}
+	got := a.evaluateClaimRules(claims)
+	if got != "restricted" {
+		t.Errorf("evaluateClaimRules should return first match 'restricted', got %q", got)
+	}
+}
+
+// TestAuthenticateWithClaims verifies that claims are extracted and used for role resolution.
+func TestAuthenticateWithClaims(t *testing.T) {
+	const validToken = "valid-token-claims-test"
+	const email = "alice@example.com"
+
+	userInfoSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer "+validToken {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":         "user1",
+			"login":      "alice",
+			"email":      email,
+			"department": "engineering",
+			"groups":     "admin-group",
+		})
+	}))
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Configure claim rule: department = engineering -> admin
+	rules := []config.ClaimRule{
+		{Claim: "department", Operator: "equals", Value: "engineering", Role: "admin"},
+	}
+	a.SetClaimRules(rules)
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	identity, err := a.Authenticate(req)
+	if err != nil {
+		t.Fatalf("Authenticate() error: %v", err)
+	}
+
+	if identity.Role != "admin" {
+		t.Errorf("identity.Role = %q, want %q (from claim rule)", identity.Role, "admin")
+	}
+
+	if identity.Claims == nil || identity.Claims["department"] != "engineering" {
+		t.Errorf("identity.Claims not properly set: %v", identity.Claims)
+	}
+}
+
+// TestAuthenticateClaimsFallbackToEmail verifies that when no claim rule matches,
+// email-based role mapping is used as fallback.
+func TestAuthenticateClaimsFallbackToEmail(t *testing.T) {
+	const validToken = "valid-token-fallback-test"
+	const email = "bob@example.com"
+
+	userInfoSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer "+validToken {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":    "user2",
+			"login": "bob",
+			"email": email,
+		})
+	}))
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Configure claim rule that won't match (wrong department)
+	rules := []config.ClaimRule{
+		{Claim: "department", Operator: "equals", Value: "engineering", Role: "admin"},
+	}
+	a.SetClaimRules(rules)
+
+	// Configure email mapping for fallback
+	a.SetUserRoles(map[string]string{
+		email: "readonly",
+	}, "restricted")
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	identity, err := a.Authenticate(req)
+	if err != nil {
+		t.Fatalf("Authenticate() error: %v", err)
+	}
+
+	if identity.Role != "readonly" {
+		t.Errorf("identity.Role = %q, want %q (fallback to email mapping)", identity.Role, "readonly")
+	}
+}
+
+// TestAuthenticateClaimsFallbackToDefault verifies that when no claim rule matches
+// and no email mapping exists, the default role is used.
+func TestAuthenticateClaimsFallbackToDefault(t *testing.T) {
+	const validToken = "valid-token-default-test"
+	const email = "unknown@example.com"
+
+	userInfoSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer "+validToken {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":    "user3",
+			"login": "unknown",
+			"email": email,
+		})
+	}))
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Configure claim rule that won't match (wrong department)
+	rules := []config.ClaimRule{
+		{Claim: "department", Operator: "equals", Value: "engineering", Role: "admin"},
+	}
+	a.SetClaimRules(rules)
+
+	// No email mapping for this user, only default
+	a.SetUserRoles(map[string]string{}, "restricted")
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	identity, err := a.Authenticate(req)
+	if err != nil {
+		t.Fatalf("Authenticate() error: %v", err)
+	}
+
+	if identity.Role != "restricted" {
+		t.Errorf("identity.Role = %q, want %q (fallback to default)", identity.Role, "restricted")
+	}
+}
+
 func TestHandleCallbackErrorIsSanitized(t *testing.T) {
 	// Token endpoint returns error with sensitive provider details
 	const sensitiveBody = "error=invalid_grant&error_description=secret_rotation_policy"

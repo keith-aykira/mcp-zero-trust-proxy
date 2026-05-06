@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,7 @@ type Authenticator struct {
 	// userRoles maps email -> role name for role resolution.
 	userRoles    map[string]string
 	defaultRole  string
+	claimRules   []config.ClaimRule
 	rolesMu      sync.RWMutex
 }
 
@@ -144,6 +146,15 @@ func (a *Authenticator) SetUserRoles(mapping map[string]string, defaultRole stri
 	a.defaultRole = defaultRole
 }
 
+// SetClaimRules configures claim-based role mapping rules.
+// This must be called before the first Authenticate call if claim-based role mapping is desired.
+// It is safe to call from multiple goroutines.
+func (a *Authenticator) SetClaimRules(rules []config.ClaimRule) {
+	a.rolesMu.Lock()
+	defer a.rolesMu.Unlock()
+	a.claimRules = rules
+}
+
 // resolveRole returns the RBAC role for the given email address.
 // If a mapping exists and the email is found, returns the mapped role.
 // Otherwise returns the configured default role (or "readonly" if none set).
@@ -159,6 +170,38 @@ func (a *Authenticator) resolveRole(email string) string {
 		return a.defaultRole
 	}
 	return "readonly"
+}
+
+// evaluateClaimRules checks the claim rules against the provided claims.
+// Returns the role from the first matching rule, or empty string if no rule matches.
+func (a *Authenticator) evaluateClaimRules(claims map[string]interface{}) string {
+	for _, rule := range a.claimRules {
+		claimValue, exists := claims[rule.Claim]
+		if !exists {
+			continue
+		}
+		claimStr, ok := claimValue.(string)
+		if !ok {
+			continue
+		}
+		matched := false
+		switch rule.Operator {
+		case "equals":
+			matched = claimStr == rule.Value
+		case "contains":
+			matched = strings.Contains(claimStr, rule.Value)
+		case "starts_with":
+			matched = strings.HasPrefix(claimStr, rule.Value)
+		case "ends_with":
+			matched = strings.HasSuffix(claimStr, rule.Value)
+		case "regex":
+			matched, _ = regexp.MatchString(rule.Value, claimStr)
+		}
+		if matched {
+			return rule.Role
+		}
+	}
+	return ""
 }
 
 // Authenticate validates the Bearer token in the request's Authorization header.
@@ -187,8 +230,13 @@ func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, er
 		return nil, fmt.Errorf("authentication failed")
 	}
 
-	// Apply email-to-role mapping if configured.
-	identity.Role = a.resolveRole(identity.Email)
+	// Apply role resolution: first try claim-based rules, then fall back to email mapping.
+	claimRole := a.evaluateClaimRules(identity.Claims)
+	if claimRole != "" {
+		identity.Role = claimRole
+	} else {
+		identity.Role = a.resolveRole(identity.Email)
+	}
 
 	// Create or reuse a session for this identity
 	session, err := a.sessionStore.Create(identity)
@@ -397,7 +445,13 @@ func (a *Authenticator) fetchUserIdentity(token string) (*proxy.ClientIdentity, 
 	}
 
 	identity := &proxy.ClientIdentity{
-		Role: "readonly", // default role; future: map from config
+		Role: "readonly", // default role; overridden by role resolution
+	}
+
+	// Store raw claims for claim-based role mapping
+	identity.Claims = make(map[string]interface{})
+	for k, v := range info {
+		identity.Claims[k] = v
 	}
 
 	// ClientID: prefer "id" (GitHub integer → string), fallback "sub" (OIDC), then "login"

@@ -67,6 +67,28 @@ func Validate(cfg *Config) error {
 		}
 	}
 
+	// Validate claim mapping rules
+	validOperators := map[string]bool{"equals": true, "contains": true, "starts_with": true, "ends_with": true, "regex": true}
+	for i, rule := range cfg.UserRoles.ClaimMapping {
+		ruleIndex := i + 1
+		if rule.Claim == "" {
+			errs = append(errs, fmt.Sprintf("claim_mapping[%d]: claim name is required", ruleIndex))
+		}
+		if !validOperators[rule.Operator] {
+			errs = append(errs, fmt.Sprintf("claim_mapping[%d]: unknown operator %q: valid operators are equals, contains, starts_with, ends_with, regex", ruleIndex, rule.Operator))
+		}
+		if !validRoleNames[rule.Role] {
+			errs = append(errs, fmt.Sprintf("claim_mapping[%d]: unknown role name %q: valid roles are admin, readonly, restricted", ruleIndex, rule.Role))
+		}
+		// Validate regex syntax if operator is "regex"
+		if rule.Operator == "regex" {
+			_, err := regexp.Compile(rule.Value)
+			if err != nil {
+				errs = append(errs, fmt.Sprintf("claim_mapping[%d]: invalid regex %q: %v", ruleIndex, rule.Value, err))
+			}
+		}
+	}
+
 	// Validate auth provider if set
 	if cfg.Auth.Provider != "" {
 		validProviders := map[string]bool{"github": true, "google": true, "oidc": true}

@@ -22,12 +22,29 @@ type LicenseConfig struct {
 	Key string `yaml:"key"`
 }
 
-// UserRolesConfig maps authenticated user emails to RBAC role names.
+// ClaimRule defines a rule for mapping OAuth claims to RBAC roles.
+type ClaimRule struct {
+	// Claim is the OAuth claim name to evaluate (e.g., "groups", "department").
+	Claim string `yaml:"claim"`
+	// Operator specifies how to compare the claim value.
+	// Accepted values: "equals", "contains", "starts_with", "ends_with", "regex".
+	Operator string `yaml:"operator"`
+	// Value is the value to compare against the claim.
+	Value string `yaml:"value"`
+	// Role is the RBAC role to assign if this rule matches.
+	Role string `yaml:"role"`
+}
+
+// UserRolesConfig maps authenticated user emails to RBAC role names and supports claim-based role assignment.
 type UserRolesConfig struct {
 	// Mapping maps email addresses to role names. Role names must be valid built-in roles.
 	Mapping map[string]string `yaml:"mapping"`
 	// Default is the role assigned to authenticated users not in Mapping. Default: "readonly".
 	Default string `yaml:"default"`
+	// ClaimMapping is a list of rules to match OAuth claims to roles.
+	// Rules are evaluated in order; the first matching rule determines the role.
+	// If no claim rule matches, falls back to email mapping or default.
+	ClaimMapping []ClaimRule `yaml:"claim_mapping"`
 }
 
 // CORSConfig controls Cross-Origin Resource Sharing headers.

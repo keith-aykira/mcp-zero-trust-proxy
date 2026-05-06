@@ -80,6 +80,8 @@ func main() {
 	}
 	// Wire user-to-role mapping from config
 	authenticator.SetUserRoles(cfg.UserRoles.Mapping, cfg.UserRoles.Default)
+	// Wire claim-based role mapping from config
+	authenticator.SetClaimRules(cfg.UserRoles.ClaimMapping)
 
 	// Start background goroutine for periodic cache cleanup (expired tokens/state entries)
 	authenticator.StartCleanup()
