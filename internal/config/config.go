@@ -231,11 +231,82 @@ func Validate(cfg *Config) error {
 		}
 	}
 
+	// Validate PII masking configuration
+	validatePIIMasking(cfg, &errs)
+
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration errors:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 
 	return nil
+}
+
+// validatePIIMasking validates the PII masking configuration.
+func validatePIIMasking(cfg *Config, errs *[]string) {
+	if len(cfg.PIIMasking.Patterns) == 0 && len(cfg.PIIMasking.SensitivityClasses) == 0 && len(cfg.PIIMasking.ToolClassAssignments) == 0 {
+		return
+	}
+
+	// Build a map of defined pattern names for validation
+	definedPatterns := make(map[string]bool)
+	for _, pattern := range cfg.PIIMasking.Patterns {
+		if pattern.Name == "" {
+			*errs = append(*errs, "pii_masking.patterns: pattern name is required")
+		} else {
+			if definedPatterns[pattern.Name] {
+				*errs = append(*errs, fmt.Sprintf("pii_masking.patterns: duplicate pattern name %q", pattern.Name))
+			}
+			definedPatterns[pattern.Name] = true
+		}
+
+		// Pattern regex is required
+		if strings.TrimSpace(pattern.Pattern) == "" {
+			*errs = append(*errs, fmt.Sprintf("pii_masking.patterns[%q]: pattern regex is required", pattern.Name))
+		} else {
+			// Validate regex syntax
+			if _, err := regexp.Compile(pattern.Pattern); err != nil {
+				*errs = append(*errs, fmt.Sprintf("pii_masking.patterns[%q]: invalid regex %q: %v", pattern.Name, pattern.Pattern, err))
+			}
+		}
+
+		// Validate partial_mask.filler is exactly one character if set
+		if pattern.PartialMask != nil && pattern.PartialMask.Filler != "" {
+			if len(pattern.PartialMask.Filler) != 1 {
+				*errs = append(*errs, fmt.Sprintf("pii_masking.patterns[%q]: partial_mask.filler must be exactly one character", pattern.Name))
+			}
+		}
+	}
+
+	// Build a map of defined sensitivity class names for validation
+	definedClasses := make(map[string]bool)
+	for _, class := range cfg.PIIMasking.SensitivityClasses {
+		if class.Name == "" {
+			*errs = append(*errs, "pii_masking.sensitivity_classes: class name is required")
+		} else {
+			if definedClasses[class.Name] {
+				*errs = append(*errs, fmt.Sprintf("pii_masking.sensitivity_classes: duplicate class name %q", class.Name))
+			}
+			definedClasses[class.Name] = true
+		}
+
+		// Validate all pattern references exist
+		for _, patternName := range class.PatternNames {
+			if !definedPatterns[patternName] {
+				*errs = append(*errs, fmt.Sprintf("pii_masking.sensitivity_classes[%q]: references undefined pattern %q", class.Name, patternName))
+			}
+		}
+	}
+
+	// Validate tool class assignments reference defined classes
+	for toolPattern, className := range cfg.PIIMasking.ToolClassAssignments {
+		if toolPattern == "" {
+			*errs = append(*errs, "pii_masking.tool_class_assignments: tool pattern cannot be empty")
+			continue
+		}
+		if !definedClasses[className] {
+			*errs = append(*errs, fmt.Sprintf("pii_masking.tool_class_assignments[%q]: references undefined class %q", toolPattern, className))
+		}
+	}
 }
 
 // applyDefaults fills in default values for optional configuration fields.

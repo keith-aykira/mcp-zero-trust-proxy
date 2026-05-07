@@ -134,7 +134,7 @@ func toolsListResponse(tools []string) string {
 // passes the request through to the upstream handler.
 func TestPipelineNoMiddlewarePassesThrough(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil)
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestPipelineMiddlewareOrder(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, authFn, rlFn, rbacFn, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, authFn, rlFn, rbacFn, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -252,7 +252,7 @@ func TestPipelineAuthFailureShortCircuits(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	req.Header.Set("Authorization", "Bearer bad-token")
@@ -284,7 +284,7 @@ func TestPipelineRateLimitFailureShortCircuits(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -313,7 +313,7 @@ func TestPipelineRBACDenialBlocksUpstream(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -339,7 +339,7 @@ func TestPipelineSuccessAuditAllowed(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("my_tool")))
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -381,7 +381,7 @@ func TestPipelineFailureAuditDenied(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("my_tool")))
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -411,13 +411,13 @@ func TestPipelineAuditBothAllowedAndDenied(t *testing.T) {
 	auth1 := &mockAuthenticator{identity: identity}
 	rl1 := &mockRateLimiter{allow: true}
 	rbac1 := &mockRBACEngine{}
-	p1 := proxy.NewPipelineForTest(upstream, auth1, rl1, rbac1, auditLogger)
+	p1 := proxy.NewPipelineForTest(upstream, auth1, rl1, rbac1, nil, auditLogger)
 	req1 := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("tool1")))
 	p1.ServeHTTP(httptest.NewRecorder(), req1)
 
 	// Request 2: denied (auth failure)
 	auth2 := &mockAuthenticator{err: fmt.Errorf("invalid token")}
-	p2 := proxy.NewPipelineForTest(upstream, auth2, rl1, rbac1, auditLogger)
+	p2 := proxy.NewPipelineForTest(upstream, auth2, rl1, rbac1, nil, auditLogger)
 	req2 := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("tool2")))
 	p2.ServeHTTP(httptest.NewRecorder(), req2)
 
@@ -448,7 +448,7 @@ func TestPipelineToolsListFiltering(t *testing.T) {
 	}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsListBody()))
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -474,7 +474,7 @@ func TestPipelineHealthBypassesPipeline(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
@@ -506,7 +506,7 @@ func TestPipelineAuthRoutesBypassPipeline(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/auth/start", nil)
 	w := httptest.NewRecorder()
@@ -533,7 +533,7 @@ func TestPipelineNoAuthNilSkipsAuthentication(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
 
 	// nil auth = no authentication step
-	p := proxy.NewPipelineForTest(upstream, nil, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, nil, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -552,7 +552,7 @@ func TestPipelineNoAuthNilSkipsAuthentication(t *testing.T) {
 func TestPipelineBodySizeLimit_Rejects(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
 	// MaxBodySize of 10 bytes — any real request body will exceed this
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithMaxBodySize(10))
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil, proxy.WithMaxBodySize(10))
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -571,7 +571,7 @@ func TestPipelineBodySizeLimit_Rejects(t *testing.T) {
 func TestPipelineBodySizeLimit_Allows(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
 	// MaxBodySize of 10000 bytes — enough for our test request
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithMaxBodySize(10000))
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil, proxy.WithMaxBodySize(10000))
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -589,7 +589,7 @@ func TestPipelineBodySizeLimit_Allows(t *testing.T) {
 // TestPipelineRequestID_SuccessResponse verifies X-Request-ID is in every success response.
 func TestPipelineRequestID_SuccessResponse(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil)
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -605,7 +605,7 @@ func TestPipelineRequestID_SuccessResponse(t *testing.T) {
 func TestPipelineRequestID_ErrorResponse(t *testing.T) {
 	auth := &mockAuthenticator{err: fmt.Errorf("unauthorized")}
 	upstream := &mockUpstreamHandler{}
-	p := proxy.NewPipelineForTest(upstream, auth, nil, nil, nil)
+	p := proxy.NewPipelineForTest(upstream, auth, nil, nil, nil, nil)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()
@@ -629,7 +629,7 @@ func TestPipelineCORS_OptionsPreflightHandled(t *testing.T) {
 		AllowedHeaders: []string{"Authorization", "Content-Type"},
 		MaxAge:         3600,
 	}
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithCORS(corsConfig))
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil, proxy.WithCORS(corsConfig))
 
 	req := httptest.NewRequest("OPTIONS", "/", nil)
 	req.Header.Set("Origin", "https://example.com")
@@ -655,7 +655,7 @@ func TestPipelineCORS_HeadersOnNonPreflightRequests(t *testing.T) {
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"POST"},
 	}
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, proxy.WithCORS(corsConfig))
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil, proxy.WithCORS(corsConfig))
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	req.Header.Set("Origin", "https://example.com")
@@ -671,7 +671,7 @@ func TestPipelineCORS_HeadersOnNonPreflightRequests(t *testing.T) {
 // TestPipelineCORS_NoCORSWhenNotConfigured verifies that CORS headers are absent when no config is set.
 func TestPipelineCORS_NoCORSWhenNotConfigured(t *testing.T) {
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
-	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil) // no CORS config
+	p := proxy.NewPipelineForTest(upstream, nil, nil, nil, nil, nil) // no CORS config
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	req.Header.Set("Origin", "https://malicious.example.com")
@@ -771,7 +771,7 @@ func TestBatchRBAC_MixedAllowDeny(t *testing.T) {
 	rl := &mockRateLimiter{allow: true}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbacEngine, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbacEngine, nil, auditLogger)
 
 	// 3-item batch: tools/list (allowed), tools/call execute_command (denied), tools/call read_file (allowed)
 	body := batchBody([]struct{ method, tool string }{
@@ -819,7 +819,7 @@ func TestBatchRBAC_AllAllowed(t *testing.T) {
 	rbac := &mockRBACEngine{} // no errors — all allowed
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	body := batchBody([]struct{ method, tool string }{
 		{"tools/list", ""},
@@ -857,7 +857,7 @@ func TestBatchRBAC_AllDenied(t *testing.T) {
 	rbac := &mockRBACEngine{processErr: fmt.Errorf("rbac: method denied")} // deny all
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	body := batchBody([]struct{ method, tool string }{
 		{"tools/call", "read_file"},
@@ -898,7 +898,7 @@ func TestBatchRBAC_SingleRequestUnchanged(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("read_file")))
 	w := httptest.NewRecorder()
@@ -935,7 +935,7 @@ func TestBatchRBAC_AuditPerItem(t *testing.T) {
 	rl := &mockRateLimiter{allow: true}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbacEngine, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbacEngine, nil, auditLogger)
 
 	body := batchBody([]struct{ method, tool string }{
 		{"tools/list", ""},
@@ -975,7 +975,7 @@ func TestBatchRBAC_EmptyBatch(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte("[]")))
 	w := httptest.NewRecorder()
@@ -1026,7 +1026,7 @@ func TestSSERoleEnforcement_AdminAllowed(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -1049,7 +1049,7 @@ func TestSSERoleEnforcement_ReadonlyDenied(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -1079,7 +1079,7 @@ func TestSSERoleEnforcement_RestrictedDenied(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -1104,7 +1104,7 @@ func TestSSERoleEnforcement_NoIdentityDenied(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, nil, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, nil, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -1128,7 +1128,7 @@ func TestSSERoleEnforcement_DeniedAudited(t *testing.T) {
 	rbac := &mockRBACEngine{}
 	auditLogger := &mockAuditLogger{}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("GET", "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -1161,7 +1161,7 @@ func TestPipelineLatencyTracking(t *testing.T) {
 	auditLogger := &mockAuditLogger{}
 	upstream := &mockUpstreamHandler{responseBody: `{"jsonrpc":"2.0","id":1,"result":{}}`, statusCode: 200}
 
-	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, auditLogger)
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, nil, auditLogger)
 
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("test")))
 	w := httptest.NewRecorder()

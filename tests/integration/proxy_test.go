@@ -170,7 +170,7 @@ func newPipelineWithRole(t *testing.T, upstreamURL string, role string) (*proxy.
 
 	auditLog := &testAuditLogger{}
 
-	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, auditLog)
+	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil, auditLog)
 	return pipeline, auditLog
 }
 
@@ -193,7 +193,7 @@ func newPipelineNoAuth(t *testing.T, upstreamURL string) *proxy.Pipeline {
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1000, BurstSize: 100}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
 
-	return proxy.NewPipelineForTest(handler, nil, rateLimiter, rbacEngine, nil)
+	return proxy.NewPipelineForTest(handler, nil, rateLimiter, rbacEngine, nil, nil)
 }
 
 // =============================================================================
@@ -397,7 +397,7 @@ func TestProxy_SSEStreamingServer(t *testing.T) {
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1000, BurstSize: 100}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
 
-	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil)
+	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil, nil)
 	proxyServer := httptest.NewServer(pipeline)
 	t.Cleanup(proxyServer.Close)
 
@@ -735,7 +735,7 @@ func TestProxy_OverRateLimit_Returns429(t *testing.T) {
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1, BurstSize: 1}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
 
-	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil)
+	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil, nil)
 	proxyServer := httptest.NewServer(pipeline)
 	t.Cleanup(proxyServer.Close)
 

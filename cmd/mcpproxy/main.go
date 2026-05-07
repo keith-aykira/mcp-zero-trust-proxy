@@ -14,6 +14,7 @@ import (
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/audit"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/auth"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/pii"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/ratelimit"
 	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/rbac"
@@ -132,13 +133,19 @@ func main() {
 	}
 	defer auditLogger.Close() //nolint:errcheck
 
-	// Step 6: Proxy handler
+	// Step 6: PII masker
+	piiMasker, err := pii.New(cfg.PIIMasking)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize PII masker")
+	}
+
+	// Step 7: Proxy handler
 	handler, err := proxy.NewHandler(cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize proxy handler")
 	}
 
-	// Step 7: Pipeline — wires all middleware together
+	// Step 8: Pipeline — wires all middleware together
 	corsConfig := &proxy.CORSConfig{
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
 		AllowedMethods: cfg.CORS.AllowedMethods,
@@ -150,6 +157,7 @@ func main() {
 		authenticator,
 		rateLimiter,
 		rbacEngine,
+		piiMasker,
 		auditLogger,
 		authenticator, // Authenticator also implements AuthHandler (HandleAuthStart, HandleCallback)
 		proxy.WithMaxBodySize(cfg.Server.MaxBodySize),

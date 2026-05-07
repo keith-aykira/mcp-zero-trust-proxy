@@ -12,6 +12,7 @@ type Config struct {
 	Logging          LogConfig              `yaml:"logging"`
 	CORS             CORSConfig             `yaml:"cors"`
 	License          LicenseConfig          `yaml:"license"`
+	PIIMasking       PIIMaskingConfig       `yaml:"pii_masking"`
 }
 
 // LicenseConfig holds the optional license key for enabling paid tiers.
@@ -263,4 +264,68 @@ type LogConfig struct {
 	Level string `yaml:"level"`
 	// Format controls log output format. Accepted values: "json", "text". Default: "json".
 	Format string `yaml:"format"`
+}
+
+// PIIMaskingConfig holds PII masking configuration.
+type PIIMaskingConfig struct {
+	// Enabled controls whether PII masking is globally active. Default: false.
+	// PII masking is also controlled by sensitivity class assignments per tool.
+	Enabled bool `yaml:"enabled"`
+
+	// Patterns is a list of named PII pattern definitions.
+	Patterns []PIIPatternConfig `yaml:"patterns"`
+
+	// SensitivityClasses defines PII sensitivity levels that group patterns.
+	// Tools are assigned to classes, and all patterns in that class apply.
+	SensitivityClasses []PIISensitivityClassConfig `yaml:"sensitivity_classes"`
+
+	// ToolClassAssignments maps tool names to sensitivity class names.
+	// Supports wildcards with * (e.g., "*_export" matches "data_export").
+	// If a tool is not assigned to any class, no PII masking is applied to it.
+	ToolClassAssignments map[string]string `yaml:"tool_class_assignments"`
+}
+
+// PIIPatternConfig defines a named PII pattern and its masking behavior.
+type PIIPatternConfig struct {
+	// Name is the unique identifier for this pattern (e.g., "email", "ssn").
+	Name string `yaml:"name"`
+
+	// Pattern is the regex to match PII data. Required.
+	Pattern string `yaml:"pattern"`
+
+	// Mask is the replacement string for matched PII (default: "***REDACTED***").
+	// Use ${N} to reference capture groups, e.g., "${1}***" shows first group.
+	Mask string `yaml:"mask"`
+
+	// PartialMask configures partial masking (e.g., "j***y@smith.com" for emails).
+	// If set, this takes precedence over Mask.
+	PartialMask *PartialMaskConfig `yaml:"partial_mask"`
+
+	// Description provides documentation for this pattern.
+	Description string `yaml:"description"`
+}
+
+// PartialMaskConfig configures partial masking to show some characters.
+type PartialMaskConfig struct {
+	// ShowFirst shows the first N characters from the start (default: 0).
+	ShowFirst int `yaml:"show_first"`
+
+	// ShowLast shows the last N characters from the end (default: 0).
+	ShowLast int `yaml:"show_last"`
+
+	// Filler character used for masked portion (default: "*").
+	Filler string `yaml:"filler"`
+}
+
+// PIISensitivityClassConfig groups PII patterns under a named sensitivity level.
+type PIISensitivityClassConfig struct {
+	// Name is the unique identifier for this sensitivity class (e.g., "high", "medium", "low").
+	Name string `yaml:"name"`
+
+	// PatternNames is a list of pattern names included in this class.
+	// All listed patterns must be defined in the Patterns section.
+	PatternNames []string `yaml:"pattern_names"`
+
+	// Description provides documentation for this class.
+	Description string `yaml:"description"`
 }

@@ -226,7 +226,7 @@ func newE2EPipeline(t *testing.T, upstreamURL string, opts ...proxy.PipelineOpti
 	defaultOpts := []proxy.PipelineOption{proxy.WithMaxBodySize(1048576)} // 1MB
 	allOpts := append(defaultOpts, opts...)
 
-	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, auditLog, allOpts...)
+	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil, auditLog, allOpts...)
 	server := httptest.NewServer(pipeline)
 	t.Cleanup(server.Close)
 	return server, auditLog
@@ -253,7 +253,7 @@ func newFreeTierPipeline(t *testing.T, upstreamURL string) (*httptest.Server, *m
 	auditLog := &memAuditLogger{}
 	auth := &multiTokenAuth{}
 
-	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, auditLog)
+	pipeline := proxy.NewPipelineForTest(handler, auth, rateLimiter, rbacEngine, nil, auditLog)
 	server := httptest.NewServer(pipeline)
 	t.Cleanup(server.Close)
 	return server, auditLog

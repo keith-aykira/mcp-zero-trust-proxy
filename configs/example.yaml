@@ -314,9 +314,147 @@ audit:
   #     buffer_size: 1000       # Max events to buffer before dropping (default: 1000)
   #
   #   # Filter: send only tool calls involving sensitive data
-  #   filter:
-  #     methods: ["tools/call"]
-  #     tools: ["read_file", "database*"]
+	#   filter:
+	#     methods: ["tools/call"]
+	#     tools: ["read_file", "database*"]
+
+# ============================================================
+# PII Masking Configuration
+# ============================================================
+# The PII (Personally Identifiable Information) masking feature protects sensitive
+# data by automatically masking values that match configured patterns. PII masking
+# operates at three levels:
+#   1. Patterns: Named regex patterns that match sensitive data (e.g., emails, SSNs)
+#   2. Sensitivity classes: Group patterns into named classes (e.g., "high", "medium")
+#   3. Tool assignments: Assign tools to sensitivity classes
+#
+# How it works:
+#   - Request masking: Before forwarding a tools/call request, PII patterns are
+#     applied to the arguments, masking sensitive data upstream.
+#   - Response masking: Before returning a response to the client, PII patterns
+#     are applied to the result, masking sensitive data downstream.
+#
+# Masking modes:
+#   - Full masking: Replace matched data with "***REDACTED***"
+#   - Partial masking: Show first N and last N characters (e.g., "j***y@smith.com")
+#   - Custom mask: Use capture groups to preserve part of the data (e.g., "***-**-${2}")
+
+pii_masking:
+  # Global enable/disable for PII masking.
+  # Default: false
+  # Note: Tools must also be assigned to a sensitivity class for masking to apply.
+  enabled: true
+
+  # ============================================================
+  # PII Patterns
+  # ============================================================
+  # Define named patterns for matching sensitive data. Each pattern can use:
+  #   - mask: Full replacement string (use ${N} for capture groups)
+  #   - partial_mask: Partial masking config (takes precedence over mask)
+  patterns:
+    # Email addresses — standard full masking
+    - name: "email"
+      pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+      mask: "***REDACTED***"
+      description: "Standard email addresses"
+
+    # Email addresses — partial masking (shows some context)
+    - name: "email_partial"
+      pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+      partial_mask:
+        show_first: 2    # Show first 2 chars (e.g., "jo" from "john.doe@example.com")
+        show_last: 3     # Show last 3 chars (e.g., "com" from "john.doe@example.com")
+        filler: "*"      # Character used for masked portion
+      description: "Partial email masking for traceability"
+
+    # US Social Security Numbers — custom mask preserves birth year digits
+    - name: "ssn"
+      pattern: "(\\d{3})-(\\d{2})-(\\d{4})"
+      mask: "***-**-${2}"  # Shows only middle two digits: "***-**-45"
+      description: "US SSN with partial preservation"
+
+    # Credit card numbers — partial masking showing last 4 digits
+    - name: "credit_card"
+      pattern: "\\b(\\d{4})-(\\d{4})-(\\d{4})-(\\d{4})\\b"
+      mask: "••••-••••-••••-${4}"  # Last 4 digits only
+      description: "Credit card with last 4 visible"
+
+    # Phone numbers — standard masking
+    - name: "phone"
+      pattern: "\\(\\d{3}\\) \\d{3}-\\d{4}"
+      mask: "***-***-****"
+      description: "US phone numbers"
+
+    # API keys and tokens — full masking
+    - name: "api_key"
+      pattern: "sk_live_[A-Za-z0-9]{24,}"
+      mask: "sk_live_***REDACTED***"
+      description: "Stripe-like API keys"
+
+    # URLs with query parameters — mask the query string
+    - name: "url_with_params"
+      pattern: "(https?://[^?]+)\\?.*"
+      mask: "${1}***PARAMETERS_REMOVED***"
+      description: "URLs with masked query parameters"
+
+  # ============================================================
+  # Sensitivity Classes
+  # ============================================================
+  # Group patterns into named sensitivity classes. This allows you to assign
+  # multiple patterns to a tool with a single class assignment.
+  sensitivity_classes:
+    # Low sensitivity: basic contact info masking
+    - name: "low"
+      pattern_names:
+        - "phone"
+      description: "Basic contact information"
+
+    # Medium sensitivity: PII that should be masked but is not highly sensitive
+    - name: "medium"
+      pattern_names:
+        - "email"
+        - "phone"
+      description: "Standard PII masking"
+
+    # High sensitivity: financial and identity data
+    - name: "high"
+      pattern_names:
+        - "ssn"
+        - "credit_card"
+        - "api_key"
+      description: "Financial and identity data"
+
+    # Custom: use partial masking for traceability
+    - name: "traceable"
+      pattern_names:
+        - "email_partial"
+      description: "Partial masking for debugging/traceability"
+
+  # ============================================================
+  # Tool Class Assignments
+  # ============================================================
+  # Assign tools to sensitivity classes. This is how you control which tools
+  # have PII masking applied. Supports wildcard patterns with *.
+  #
+  # If a tool is not assigned to any class, no PII masking is applied.
+  tool_class_assignments:
+    # Exact match: "user_management" tool gets "medium" sensitivity masking
+    "user_management": "medium"
+
+    # Wildcard: All tools starting with "data_" get "high" sensitivity
+    "data_*": "high"
+
+    # Wildcard: All export tools get "medium" sensitivity
+    "*_export": "medium"
+
+    # Specific tool with custom sensitivity
+    "payment_process": "high"
+
+    # Contact tools with low sensitivity
+    "contact_list": "low"
+
+    # Debug tools with traceable (partial) masking
+    "debug_user": "traceable"
 
 # ============================================================
 # Operational Logging Configuration

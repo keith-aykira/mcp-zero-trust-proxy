@@ -32,6 +32,16 @@ type RBACEngine interface {
 	FilterToolsList(identity *ClientIdentity, toolsList json.RawMessage) (json.RawMessage, error)
 }
 
+// PIIMasker applies PII (Personally Identifiable Information) masking to requests and responses.
+type PIIMasker interface {
+	// ShouldMaskTool returns true if PII masking should be applied to the given tool.
+	ShouldMaskTool(toolName string) bool
+	// MaskRequest applies PII masking to request parameters.
+	MaskRequest(req *MCPRequest) (*MCPRequest, error)
+	// MaskResponse applies PII masking to responses.
+	MaskResponse(method string, response json.RawMessage) (json.RawMessage, error)
+}
+
 // AuthHandler handles OAuth flow routes (/auth/start, /auth/callback, /auth/logout).
 type AuthHandler interface {
 	HandleAuthStart(w http.ResponseWriter, r *http.Request)
@@ -74,10 +84,12 @@ func WithCORS(cfg *CORSConfig) PipelineOption {
 //  3. Authenticate — validate Bearer token, extract ClientIdentity
 //  4. Rate limit — check per-client token bucket
 //  5. Parse request — decode JSON-RPC body (single parse, shared with upstream)
-//  6. RBAC — enforce method/tool-level policy
-//  7. Proxy — forward to upstream MCP server
-//  8. Post-proxy — filter tools/list responses through RBAC
-//  9. Audit — log outcome (allowed or denied) with latency
+//  6. PII request masking — mask sensitive data before forwarding (fail-open)
+//  7. RBAC — enforce method/tool-level policy
+//  8. Proxy — forward to upstream MCP server
+//  9. PII response masking — mask sensitive data in responses (fail-open)
+//  10. Post-proxy — filter tools/list responses through RBAC
+//  11. Audit — log outcome (allowed or denied) with latency
 //
 // Special routes that bypass the pipeline:
 //   - GET /health → returns {"status":"ok"}
@@ -88,6 +100,7 @@ type Pipeline struct {
 	auth        Authenticator
 	rateLimiter RateLimiter
 	rbac        RBACEngine
+	piiMasker   PIIMasker
 	auditLogger AuditLogger
 	authHandler AuthHandler
 	maxBodySize int64
@@ -101,6 +114,7 @@ func NewPipeline(
 	auth Authenticator,
 	rl RateLimiter,
 	rbac RBACEngine,
+	piiMasker PIIMasker,
 	auditLogger AuditLogger,
 	authHandler AuthHandler,
 	opts ...PipelineOption,
@@ -110,6 +124,7 @@ func NewPipeline(
 		auth:        auth,
 		rateLimiter: rl,
 		rbac:        rbac,
+		piiMasker:   piiMasker,
 		auditLogger: auditLogger,
 		authHandler: authHandler,
 	}
@@ -127,6 +142,7 @@ func NewPipelineForTest(
 	auth Authenticator,
 	rl RateLimiter,
 	rbac RBACEngine,
+	piiMasker PIIMasker,
 	auditLogger AuditLogger,
 	opts ...PipelineOption,
 ) *Pipeline {
@@ -135,6 +151,7 @@ func NewPipelineForTest(
 		auth:        auth,
 		rateLimiter: rl,
 		rbac:        rbac,
+		piiMasker:   piiMasker,
 		auditLogger: auditLogger,
 	}
 	for _, opt := range opts {
@@ -372,7 +389,21 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	r.ContentLength = int64(len(bodyBytes))
 
-	// Step 4: RBAC enforcement.
+	// Step 4a: PII request masking (fail-open — continue even on error).
+	if p.piiMasker != nil && mcpReq != nil && mcpReq.Method == MethodToolsCall {
+		maskedReq, err := p.piiMasker.MaskRequest(mcpReq)
+		if err == nil && maskedReq != nil {
+			mcpReq = maskedReq
+			r = r.WithContext(context.WithValue(r.Context(), MCPRequestKey, mcpReq))
+			if len(bodyBytes) > 0 {
+				bodyBytes, _ = json.Marshal(mcpReq)
+				r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+				r.ContentLength = int64(len(bodyBytes))
+			}
+		}
+	}
+
+	// Step 4b: RBAC enforcement.
 	if p.rbac != nil && mcpReq != nil {
 		if identity == nil {
 			identity = &ClientIdentity{ClientID: "anonymous", Role: "readonly"}

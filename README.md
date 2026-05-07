@@ -105,14 +105,59 @@ All config is in a single YAML file. See [`configs/example.yaml`](configs/exampl
 **RBAC with custom roles:**
 
 ```yaml
-  audit:
+roles:
+  # Admin: full access except database deletion
+  - name: "admin"
+    allowed_tools: []
+    deny_tools:
+      - "delete_database"
+
+  # Readonly: view only
+  - name: "readonly"
+    allowed_tools:
+      - "tools/list"
+      - "resources/list"
+      - "resources/read"
+
+  # DevOps: full tool access except destructive operations
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
+      - "resources/read"
+    deny_tools:
+      - "delete_resource"
+      - "delete_file"
+
+user_roles:
+  default: "readonly"
+  mapping:
+    "alice@company.com": "admin"
+    "bob@company.com": "devops"
+  claim_mapping:
+    # Engineering team gets devops role
+    - claim: "department"
+      operator: "equals"
+      value: "engineering"
+      role: "devops"
+    # Admins group gets admin role
+    - claim: "groups"
+      operator: "contains"
+      value: "administrators"
+      role: "admin"
+```
+
+**Audit logging with external sinks:**
+
+```yaml
+audit:
   enabled: true
   output: "stdout"
   file_path: "/var/log/mcpproxy/audit.jsonl"
   rotation:
     max_size_mb: 100
     max_age_hours: 168
-  
+
   # External sinks: fan out to multiple destinations
   sinks:
     # Azure Sentinel (OCSF) — for security monitoring
@@ -124,7 +169,7 @@ All config is in a single YAML file. See [`configs/example.yaml`](configs/exampl
         batch_size: 100
       filter:
         results: ["denied"]  # Only denied events
-    
+
     # SIEM (CEF over TCP-TLS) — for compliance
     - type: cef
       enabled: true
