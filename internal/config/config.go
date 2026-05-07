@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"os"
 	"regexp"
@@ -231,6 +232,44 @@ func Validate(cfg *Config) error {
 		}
 	}
 
+	// Validate HTTP minimum version
+	if cfg.Server.MinHTTPVersion != "" {
+		validHTTPVersions := map[string]bool{"1.0": true, "1.1": true, "2.0": true}
+		if !validHTTPVersions[cfg.Server.MinHTTPVersion] {
+			errs = append(errs, fmt.Sprintf("invalid min_http_version %q: valid values are 1.0, 1.1, 2.0", cfg.Server.MinHTTPVersion))
+		}
+	}
+
+	// Validate TLS minimum version
+	if cfg.Server.TLS.MinVersion != "" {
+		validTLSVersions := map[string]bool{"1.0": true, "1.1": true, "1.2": true, "1.3": true}
+		if !validTLSVersions[cfg.Server.TLS.MinVersion] {
+			errs = append(errs, fmt.Sprintf("invalid tls.min_version %q: valid values are 1.0, 1.1, 1.2, 1.3", cfg.Server.TLS.MinVersion))
+		}
+	}
+
+	// Validate outbound min TLS version
+	if cfg.Outbound.MinTLSVersion != "" {
+		validTLSVersions := map[string]bool{"1.0": true, "1.1": true, "1.2": true, "1.3": true}
+		if !validTLSVersions[cfg.Outbound.MinTLSVersion] {
+			errs = append(errs, fmt.Sprintf("invalid outbound.min_tls_version %q: valid values are 1.0, 1.1, 1.2, 1.3", cfg.Outbound.MinTLSVersion))
+		}
+	}
+
+	// Validate TLS cipher suites if provided
+	for _, cipherName := range cfg.Server.TLS.CipherSuites {
+		found := false
+		for _, cs := range tls.CipherSuites() {
+			if cs.Name == cipherName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			errs = append(errs, fmt.Sprintf("invalid tls cipher suite %q", cipherName))
+		}
+	}
+
 	// Validate PII masking configuration
 	validatePIIMasking(cfg, &errs)
 
@@ -317,6 +356,15 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Server.MaxBodySize == 0 {
 		cfg.Server.MaxBodySize = 1048576 // 1MB
+	}
+	if cfg.Server.MinHTTPVersion == "" {
+		cfg.Server.MinHTTPVersion = "1.1"
+	}
+	if cfg.Server.TLS.MinVersion == "" {
+		cfg.Server.TLS.MinVersion = "1.2"
+	}
+	if cfg.Outbound.MinTLSVersion == "" {
+		cfg.Outbound.MinTLSVersion = "1.2"
 	}
 
 	// UserRoles defaults

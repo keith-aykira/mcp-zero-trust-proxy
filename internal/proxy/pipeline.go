@@ -39,7 +39,8 @@ type PIIMasker interface {
 	// MaskRequest applies PII masking to request parameters.
 	MaskRequest(req *MCPRequest) (*MCPRequest, error)
 	// MaskResponse applies PII masking to responses.
-	MaskResponse(method string, response json.RawMessage) (json.RawMessage, error)
+	// toolOrResource is the tool name for tools/call, or the resource URI for resources/read.
+	MaskResponse(method string, toolOrResource string, response json.RawMessage) (json.RawMessage, error)
 }
 
 // AuthHandler handles OAuth flow routes (/auth/start, /auth/callback, /auth/logout).
@@ -158,6 +159,14 @@ func NewPipelineForTest(
 		opt(p)
 	}
 	return p
+}
+
+// effectiveIdentity returns the given identity, or an anonymous identity if nil.
+func effectiveIdentity(identity *ClientIdentity) *ClientIdentity {
+	if identity == nil {
+		return &ClientIdentity{ClientID: "anonymous", Role: "readonly"}
+	}
+	return identity
 }
 
 // ServeHTTP is the main entry point for all incoming HTTP requests.
@@ -317,7 +326,7 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 2b: SSE role enforcement — admin only (Option A).
-	// SSE streams bypass per-request RBAC because once the connection is open,
+	// SSE streams bypass per-request RBAC because once the connection is opened,
 	// the upstream can emit responses for any method. Filtering per SSE event
 	// would require parsing and buffering every event (Option B). Until then,
 	// only admin role may open SSE connections. ReadOnly/restricted clients
@@ -339,7 +348,6 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 3: Parse request body (needed for RBAC and tools/list filtering).
-	// Step 3: Parse request body — single parse, shared with upstream via context.
 	// Buffer the body so we can both parse it and forward it to upstream.
 	var bodyBytes []byte
 	var mcpReq *MCPRequest
@@ -405,10 +413,8 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 
 	// Step 4b: RBAC enforcement.
 	if p.rbac != nil && mcpReq != nil {
-		if identity == nil {
-			identity = &ClientIdentity{ClientID: "anonymous", Role: "readonly"}
-		}
-		_, err := p.rbac.Process(r.Context(), mcpReq, identity)
+		effectiveID := effectiveIdentity(identity)
+		_, err := p.rbac.Process(r.Context(), mcpReq, effectiveID)
 		if err != nil {
 			auditEntry.Allowed = false
 			auditEntry.DeniedReason = "rbac: " + err.Error()
@@ -419,42 +425,66 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Step 5 & 6: Proxy to upstream and post-process tools/list responses.
-	// For tools/list, we need to intercept the response to apply RBAC filtering.
-	if mcpReq != nil && mcpReq.Method == MethodToolsList && p.rbac != nil && identity != nil {
-		// Capture the response for filtering.
+	// Step 5: Proxy to upstream.
+	// Capture response for post-processing (RBAC filtering for tools/list, PII masking for tools/call).
+	// We need to capture the response when:
+	// - tools/list + RBAC enabled + identity present: need to filter tools
+	// - tools/call + PII masker enabled: need to mask response
+	needCapture := false
+	if mcpReq != nil {
+		if mcpReq.Method == MethodToolsList && p.rbac != nil && identity != nil {
+			needCapture = true
+		}
+		if (mcpReq.Method == MethodToolsCall || mcpReq.Method == MethodResourcesRead) && p.piiMasker != nil {
+			needCapture = true
+		}
+	}
+
+	if needCapture {
 		captured := &responseCapture{header: make(http.Header)}
 		p.upstream.ServeHTTP(captured, r)
 
-		// Attempt to filter the tools list.
-		filtered, err := p.filterToolsListResponse(captured.body.Bytes(), identity)
-		if err == nil {
-			// Write the filtered response with corrected Content-Length.
-			for k, vals := range captured.header {
-				if k == "Content-Length" {
-					continue // will be set to match the filtered body size
-				}
-				for _, v := range vals {
-					w.Header().Add(k, v)
-				}
+		responseBody := captured.body.Bytes()
+
+		// Step 6a: Apply PII response masking for tools/call.
+		if mcpReq != nil && p.piiMasker != nil {
+			var toolOrResource string
+			if mcpReq.Method == MethodToolsCall {
+				toolOrResource = ExtractToolName(mcpReq)
+			} else if mcpReq.Method == MethodResourcesRead {
+				toolOrResource = ExtractResourceURI(mcpReq)
 			}
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(filtered)))
-			if captured.statusCode != 0 {
-				w.WriteHeader(captured.statusCode)
-			}
-			w.Write(filtered) //nolint:errcheck
-		} else {
-			// On filter error, pass through original response.
-			for k, vals := range captured.header {
-				for _, v := range vals {
-					w.Header().Add(k, v)
+
+			if toolOrResource != "" {
+				masked, err := p.piiMasker.MaskResponse(mcpReq.Method, toolOrResource, responseBody)
+				if err == nil && masked != nil {
+					responseBody = masked
 				}
 			}
-			if captured.statusCode != 0 {
-				w.WriteHeader(captured.statusCode)
-			}
-			w.Write(captured.body.Bytes()) //nolint:errcheck
 		}
+
+		// Step 6b: Apply RBAC filtering for tools/list.
+		if mcpReq != nil && mcpReq.Method == MethodToolsList && p.rbac != nil && identity != nil {
+			filtered, err := p.filterToolsListResponse(responseBody, identity)
+			if err == nil {
+				responseBody = filtered
+			}
+		}
+
+		// Write the response.
+		for k, vals := range captured.header {
+			if k == "Content-Length" {
+				continue
+			}
+			for _, v := range vals {
+				w.Header().Add(k, v)
+			}
+		}
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(responseBody)))
+		if captured.statusCode != 0 {
+			w.WriteHeader(captured.statusCode)
+		}
+		w.Write(responseBody) //nolint:errcheck
 	} else {
 		// Standard proxy — forward directly.
 		p.upstream.ServeHTTP(w, r)
@@ -485,8 +515,8 @@ func (p *Pipeline) processBatch(w http.ResponseWriter, r *http.Request, reqs []*
 	ctx := r.Context()
 
 	// If no identity from auth, use anonymous for RBAC checks.
-	if identity == nil && p.rbac != nil {
-		identity = &ClientIdentity{ClientID: "anonymous", Role: "readonly"}
+	if p.rbac != nil {
+		identity = effectiveIdentity(identity)
 	}
 
 	responses := make([]json.RawMessage, len(reqs))
@@ -556,17 +586,33 @@ func (p *Pipeline) processBatch(w http.ResponseWriter, r *http.Request, reqs []*
 		captured := &responseCapture{header: make(http.Header)}
 		p.upstream.ServeHTTP(captured, itemReq)
 
+		responseBody := captured.body.Bytes()
+
+		// Apply PII response masking for tools/call and resources/read.
+		if p.piiMasker != nil && (req.Method == MethodToolsCall || req.Method == MethodResourcesRead) {
+			var toolOrResource string
+			if req.Method == MethodToolsCall {
+				toolOrResource = ExtractToolName(req)
+			} else if req.Method == MethodResourcesRead {
+				toolOrResource = ExtractResourceURI(req)
+			}
+			if toolOrResource != "" {
+				masked, err := p.piiMasker.MaskResponse(req.Method, toolOrResource, responseBody)
+				if err == nil && masked != nil {
+					responseBody = masked
+				}
+			}
+		}
+
 		// If the method is tools/list, apply RBAC filtering on the response.
 		if req.Method == MethodToolsList && p.rbac != nil && identity != nil {
-			filtered, filterErr := p.filterToolsListResponse(captured.body.Bytes(), identity)
+			filtered, filterErr := p.filterToolsListResponse(responseBody, identity)
 			if filterErr == nil {
-				responses[i] = filtered
-			} else {
-				responses[i] = captured.body.Bytes()
+				responseBody = filtered
 			}
-		} else {
-			responses[i] = captured.body.Bytes()
 		}
+
+		responses[i] = responseBody
 
 		// Trim trailing newline from JSON encoder output if present.
 		responses[i] = bytes.TrimRight(responses[i], "\n")
