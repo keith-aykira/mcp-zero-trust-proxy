@@ -42,15 +42,17 @@ type ClientIdentity struct {
 // Defined here (not in the middleware package) because it contains proxy-level types
 // and is needed by the pipeline, which lives in this package.
 type AuditEntry struct {
-	Timestamp    time.Time     `json:"timestamp"`
-	ClientID     string        `json:"client_id"`
-	SessionID    string        `json:"session_id"`
-	Method       string        `json:"method"`
-	ToolName     string        `json:"tool_name,omitempty"`
-	Allowed      bool          `json:"allowed"`
-	DeniedReason string        `json:"denied_reason,omitempty"`
-	Latency      time.Duration `json:"latency_ms"`
-	RequestID    string        `json:"request_id"`
+	Timestamp    time.Time    `json:"timestamp"`
+	ClientID     string       `json:"client_id"`
+	SessionID    string       `json:"session_id"`
+	Method       string       `json:"method"`
+	ToolName     string       `json:"tool_name,omitempty"`
+	Allowed      bool         `json:"allowed"`
+	DeniedReason string       `json:"denied_reason"`
+	LatencyMs    int64        `json:"latency_ms"`
+	RequestID    string       `json:"request_id"`
+	// Deprecated: use LatencyMs instead
+	Latency time.Duration `json:"-"`
 }
 
 // AuditLogger writes immutable audit entries to the configured output destination.

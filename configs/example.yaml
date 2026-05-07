@@ -198,11 +198,125 @@ audit:
   #   "stdout" — write to standard output (default, works well with Docker/log aggregators)
   #   "file"   — write to a file (requires file_path)
   #   "both"   — write to both stdout and a file
+  #   "off"    — disable stdout/file output (use external sinks only)
   output: "stdout"
 
   # Path to the audit log file.
   # Required when output = "file" or "both".
   # file_path: "/var/log/mcpproxy/audit.jsonl"
+
+  # Rotation controls audit log file rotation.
+  # rotation:
+  #   max_size_mb: 100    # Rotate when file reaches 100MB
+  #   max_age_hours: 168  # Delete files older than 168 hours (7 days)
+
+  # ============================================================
+  # Pluggable Audit Sinks (Advanced)
+  # ============================================================
+  # Configure external audit sinks to forward audit events to SIEMs,
+  # log aggregators, or custom endpoints. All sinks run asynchronously
+  # and support event filtering.
+  #
+  # Available sink types:
+  # - "ocsf":  Open Cybersecurity Schema Framework (Azure Sentinel, etc.)
+  # - "cef":   Common Event Format (syslog/SIEM systems)
+  # - "json_http": Raw JSON over HTTPS (custom webhooks)
+  #
+  # Example configurations below; uncomment and customize as needed.
+  # sinks:
+  #
+  # ===== Example 1: Azure Sentinel (OCSF) =====
+  # Send structured security events to Azure Log Analytics using OCSF schema
+  #
+  # - type: ocsf
+  #   enabled: true
+  #   name: "azure-sentinel"
+  #   ocsf:
+  #     # Azure Log Analytics workspace ID (32-character hex string)
+  #     workspace_id: "{YOUR_WORKSPACE_ID}"
+  #
+  #     # Primary key for the workspace (use env var for security)
+  #     api_key: "${AZURE_SENTINEL_API_KEY}"
+  #
+  #     # Batching configuration
+  #     batch_size: 100         # Max events per batch (default: 100)
+  #     flush_interval: 5       # Flush pending events every N seconds (default: 5)
+  #
+  #     # Performance tuning
+  #     timeout: 30             # HTTP request timeout in seconds (default: 30)
+  #     buffer_size: 1000       # Max events to buffer before dropping (default: 1000)
+  #
+  #   # Optional: filter events sent to this sink
+  #   filter:
+  #     methods:  ["tools/call", "initialize"]  # Only specific methods
+  #     tools:   ["*delete*", "*destructive*"]  # Wildcard matching
+  #     results: ["denied"]                    # Only denied requests
+  #     client_ids: ["admin@company.com"]      # Specific clients
+  #
+  # ===== Example 2: SIEM via CEF (TCP-TLS) =====
+  # Send Common Event Format logs to a syslog/SIEM server
+  #
+  # - type: cef
+  #   enabled: true
+  #   name: "siem-cef"
+  #   cef:
+  #     # Transport protocol: "udp", "tcp", "tcp_tls", "https"
+  #     transport: "tcp_tls"
+  #
+  #     # Syslog server address
+  #     host: "siem.company.com"
+  #     port: 6514              # Standard port for TCP-TLS syslog
+  #
+  #     # Syslog facility (local0-local7)
+  #     facility: "local0"
+  #
+  #     # Performance tuning
+  #     timeout: 5              # Connection timeout in seconds (default: 5)
+  #     buffer_size: 1000       # Max events to buffer before dropping (default: 1000)
+  #
+  #     # HTTPS batching (only when transport = "https")
+  #     batch_size: 10
+  #     flush_interval: 1
+  #
+  #   # Filter: only send denied events for security monitoring
+  #   filter:
+  #     methods: ["tools/call"]
+  #     results: ["denied"]
+  #
+  # ===== Example 3: Custom Webhook (JSON over HTTPS) =====
+  # Send raw JSON audit events to a custom endpoint
+  #
+  # - type: json_http
+  #   enabled: true
+  #   name: "custom-webhook"
+  #   json_http:
+  #     # HTTPS endpoint URL
+  #     endpoint: "https://audit-webhook.company.com/api/audit"
+  #
+  #     # Custom HTTP headers
+  #     headers:
+  #       X-Tenant-ID: "tenant-123"
+  #       X-Environment: "production"
+  #
+  #     # Authentication (choose one)
+  #     basic_auth:
+  #       username: "audit-user"
+  #       password: "${WEBHOOK_PASSWORD}"
+  #
+  #     # OR: bearer_token: "${WEBHOOK_BEARER_TOKEN}"
+  #
+  #     # Batching configuration
+  #     batch_size: 50          # Max events per batch (default: 50)
+  #     flush_interval: 10      # Flush interval in seconds (default: 10)
+  #
+  #     # Performance tuning
+  #     timeout: 15             # HTTP request timeout in seconds (default: 15)
+  #     buffer_size: 1000       # Max events to buffer before dropping (default: 1000)
+  #
+  #   # Filter: send only tool calls involving sensitive data
+  #   filter:
+  #     methods: ["tools/call"]
+  #     tools: ["read_file", "database*"]
 
 # ============================================================
 # Operational Logging Configuration

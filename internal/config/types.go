@@ -151,6 +151,9 @@ type AuditConfig struct {
 	FilePath string `yaml:"file_path"`
 	// Rotation controls log file rotation settings.
 	Rotation AuditRotationConfig `yaml:"rotation"`
+	// Sinks is a list of external audit sinks (OCSF, CEF, JSON-HTTP).
+	// Each sink operates independently and asynchronously.
+	Sinks []AuditSinkConfig `yaml:"sinks"`
 }
 
 // AuditRotationConfig controls audit log file rotation.
@@ -159,6 +162,99 @@ type AuditRotationConfig struct {
 	MaxSizeMB int `yaml:"max_size_mb"`
 	// MaxAgeHours is the maximum age of audit log files in hours before deletion.
 	MaxAgeHours int `yaml:"max_age_hours"`
+}
+
+// AuditSinkConfig defines an external audit sink configuration.
+type AuditSinkConfig struct {
+	// Type is the sink type. Accepted values: "ocsf", "cef", "json_http".
+	Type string `yaml:"type"`
+	// Enabled controls whether this sink is active. Default: true.
+	Enabled bool `yaml:"enabled"`
+	// Name is an optional label for the sink (defaults to type).
+	Name string `yaml:"name"`
+	// OCSF holds OCSF-specific configuration (when type = "ocsf").
+	OCSF *OCSFSinkConfig `yaml:"ocsf,omitempty"`
+	// CEF holds CEF-specific configuration (when type = "cef").
+	CEF *CEFSinkConfig `yaml:"cef,omitempty"`
+	// JSONHTTP holds JSON-HTTP-specific configuration (when type = "json_http").
+	JSONHTTP *JSONHTTPSinkConfig `yaml:"json_http,omitempty"`
+	// Filter controls which events are sent to this sink.
+	Filter *SinkFilterConfig `yaml:"filter,omitempty"`
+}
+
+// OCSFSinkConfig holds configuration for the OCSF sink (Azure Log Analytics / Sentinel).
+type OCSFSinkConfig struct {
+	// WorkspaceID is the Azure Log Analytics workspace ID.
+	WorkspaceID string `yaml:"workspace_id"`
+	// APIKey is the workspace primary key (supports ${ENV_VAR} syntax).
+	APIKey string `yaml:"api_key"`
+	// BatchSize is the maximum number of events to batch before sending. Default: 100.
+	BatchSize int `yaml:"batch_size"`
+	// FlushInterval is the maximum seconds to wait before flushing batch. Default: 5.
+	FlushInterval int `yaml:"flush_interval"`
+	// Timeout is the HTTP request timeout in seconds. Default: 30.
+	Timeout int `yaml:"timeout"`
+	// BufferSize is the maximum events to buffer before dropping. Default: 1000.
+	BufferSize int `yaml:"buffer_size"`
+}
+
+// CEFSinkConfig holds configuration for the CEF sink (syslog/SIEM).
+type CEFSinkConfig struct {
+	// Transport is the protocol. Accepted values: "udp", "tcp", "tcp_tls", "https". Default: "udp".
+	Transport string `yaml:"transport"`
+	// Host is the syslog server hostname or IP.
+	Host string `yaml:"host"`
+	// Port is the port number (514 for UDP, 6514 for TCP-TLS). Default: 514.
+	Port int `yaml:"port"`
+	// Facility is the syslog facility. Default: "local0".
+	Facility string `yaml:"facility"`
+	// BatchSize is for HTTPS transport only. Default: 10.
+	BatchSize int `yaml:"batch_size"`
+	// FlushInterval is for HTTPS transport only. Default: 1.
+	FlushInterval int `yaml:"flush_interval"`
+	// Timeout is the connection timeout in seconds. Default: 5.
+	Timeout int `yaml:"timeout"`
+	// BufferSize is the maximum events to buffer before dropping. Default: 1000.
+	BufferSize int `yaml:"buffer_size"`
+}
+
+// JSONHTTPSinkConfig holds configuration for the JSON-HTTP sink.
+type JSONHTTPSinkConfig struct {
+	// Endpoint is the HTTPS URL to send events to.
+	Endpoint string `yaml:"endpoint"`
+	// Headers are custom HTTP headers to include with each request.
+	Headers map[string]string `yaml:"headers"`
+	// BatchSize is the maximum number of events to batch before sending. Default: 50.
+	BatchSize int `yaml:"batch_size"`
+	// FlushInterval is the maximum seconds to wait before flushing batch. Default: 10.
+	FlushInterval int `yaml:"flush_interval"`
+	// Timeout is the HTTP request timeout in seconds. Default: 15.
+	Timeout int `yaml:"timeout"`
+	// BasicAuth holds basic authentication credentials.
+	BasicAuth *BasicAuthConfig `yaml:"basic_auth,omitempty"`
+	// BearerToken is the bearer token for authentication (supports ${ENV_VAR} syntax).
+	BearerToken string `yaml:"bearer_token,omitempty"`
+	// BufferSize is the maximum events to buffer before dropping. Default: 1000.
+	BufferSize int `yaml:"buffer_size"`
+}
+
+// BasicAuthConfig holds basic authentication credentials.
+type BasicAuthConfig struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"` // Supports ${ENV_VAR} syntax
+}
+
+// SinkFilterConfig controls which events are sent to a sink.
+// If a field is empty/zero, no filtering is applied on that field.
+type SinkFilterConfig struct {
+	// Methods is a list of MCP methods to include (e.g., ["tools/call"]). Empty = all.
+	Methods []string `yaml:"methods"`
+	// Tools is a list of tool names to include (supports wildcards with *). Empty = all.
+	Tools []string `yaml:"tools"`
+	// Results is a list of outcomes: "allowed", "denied". Empty = both.
+	Results []string `yaml:"results"`
+	// ClientIDs is a list of client IDs to include. Empty = all.
+	ClientIDs []string `yaml:"client_ids"`
 }
 
 // LogConfig controls the proxy's operational log output.

@@ -615,12 +615,12 @@ rate_limit:
 
 ## audit
 
-Controls the immutable audit trail. Every request (allowed and denied) is logged as a JSONL record.
+Controls the immutable audit trail. Every request (allowed and denied) is logged as a JSONL record. Supports both local output (stdout/file) and external sinks (Azure Sentinel, SIEMs, custom webhooks).
 
 ### audit.enabled
 
 | | |
-|---|---|
+||---|-
 | **Type** | boolean |
 | **Required** | no |
 | **Default** | `true` |
@@ -632,6 +632,338 @@ audit:
   enabled: true   # (default)
   # enabled: false  # disable only in development
 ```
+
+### audit.output
+
+| | |
+||---|-
+| **Type** | string |
+| **Required** | no |
+| **Default** | `"stdout"` |
+| **Values** | `"stdout"`, `"file"`, `"both"`, `"off"` |
+
+Where audit log entries are written.
+
+- `"stdout"` — standard output; works well with Docker and log aggregators (Splunk, Datadog, CloudWatch)
+- `"file"` — writes to `audit.file_path`; requires `file_path` to be set
+- `"both"` — writes to both stdout and file
+- `"off"` — disable stdout/file output (use external sinks only)
+
+```yaml
+audit:
+  output: "stdout"  # (default)
+  # output: "file"
+  # output: "both"
+  # output: "off"  # Use external sinks only
+```
+
+### audit.file_path
+
+| | |
+||---|-
+| **Type** | string |
+| **Required** | yes when `output: "file"` or `output: "both"` |
+| **Default** | `""` |
+
+Path to the audit log file.
+
+```yaml
+audit:
+  output: "file"
+  file_path: "/var/log/mcpproxy/audit.jsonl"
+```
+
+### audit.rotation
+
+Controls audit log file rotation for file output.
+
+| Field | Type | Default | Description |
+|-|------|-------|-|-|------|
+| `max_size_mb` | integer | 0 (disabled) | Rotate file when it reaches this size in MB |
+| `max_age_hours` | integer | 0 (disabled) | Delete rotated files older than this many hours |
+
+```yaml
+audit:
+  rotation:
+    max_size_mb: 100    # Rotate when file reaches 100MB
+    max_age_hours: 168  # Delete files older than 168 hours (7 days)
+```
+
+---
+
+## audit.sinks (Pluggable Audit Sinks)
+
+The audit framework supports multiple external sinks that fan out events asynchronously. Each sink operates independently and supports event filtering.
+
+**Available sink types:**
+- **`ocsf`** — Open Cybersecurity Schema Framework (OCFS 12.0.0) for Azure Sentinel and OCSF-compatible SIEMs
+- **`cef`** — Common Event Format for syslog/SIEM systems (supports UDP, TCP, TCP-TLS, HTTPS)
+- **`json_http`** — Raw JSON over HTTPS for custom webhooks and endpoints
+
+### Sink Configuration Structure
+
+Each sink has the following structure:
+
+```yaml
+sinks:
+  - type: {sink_type}
+    enabled: true        # Whether this sink is active (default: true)
+    name: "{name}"       # Optional: human-readable name for the sink
+    {sink_type}:         # Sink-specific configuration
+      ...
+    filter:              # Optional: event filtering criteria
+      methods: [...]
+      tools: [...]
+      results: [...]
+      client_ids: [...]
+```
+
+### Event Filtering
+
+All sinks support filtering via the `filter` field:
+
+| Field | Type | Description |
+|-|------|-|-|-|-|
+| `methods` | []string | MCP methods to include (e.g., `["tools/call"]`). Empty = all methods |
+| `tools` | []string | Tool names to include (supports `*` wildcards). Empty = all tools |
+| `results` | []string | Outcomes: `["allowed"]`, `["denied"]`, or both. Empty = both |
+| `client_ids` | []string | Client IDs to include. Empty = all clients |
+
+**Filter combinations are AND — all conditions must match.**
+
+---
+
+### OCSF Sink (Azure Sentinel)
+
+Sends audit events transformed to [OCSF 12.0.0](https://schema-registry.osso Standard) format to Azure Log Analytics via the Logs Ingestion API.
+
+**Use case:** Enterprise security monitoring with Azure Sentinel, Microsoft Defender for Cloud, or other OCSF-compatible platforms.
+
+| Field | Type | Default | Description |
+|-|------|-------|-|-|-|-|
+| `workspace_id` | string | required | Azure Log Analytics workspace ID (32-character hex string) |
+| `api_key` | string | required | Workspace primary key (use `${ENV_VAR}` for security) |
+| `batch_size` | integer | 100 | Maximum events per batch before sending |
+| `flush_interval` | integer | 5 | Seconds to wait before flushing pending batch |
+| `timeout` | integer | 30 | HTTP request timeout in seconds |
+| `buffer_size` | integer | 1000 | Maximum events to buffer before dropping |
+
+**Example:**
+```yaml
+audit:
+  sinks:
+    - type: ocsf
+      enabled: true
+      name: "azure-sentinel"
+      ocsf:
+        workspace_id: "{YOUR_WORKSPACE_ID}"
+        api_key: "${AZURE_SENTINEL_API_KEY}"
+        batch_size: 100
+        flush_interval: 5
+        timeout: 30
+        buffer_size: 1000
+      
+      filter:
+        methods: ["tools/call"]
+        results: ["denied"]
+```
+
+**Events transformed to OCSF fields:**
+- `event_category`: `"access"`
+- `event_subtype`: `"access_success"` or `"access_denied"`
+- `result`: `"success"` or `"denied"`
+- `device.id`: MCP proxy identifier
+- `user.id`: Client ID
+- `target.name`: MCP method name
+- `detail.latency_ms`: Request latency
+
+---
+
+### CEF Sink (Syslog/SIEM)
+
+Sends audit events in [Common Event Format](https://docs.logr.io/logr/cef/) to syslog servers, SIEMs, or log collectors.
+
+**Use case:** Integration with enterprise SIEMs (Splunk, QRadar, ArcSight, LogRhythm) or syslog infrastructure.
+
+#### Transport Options
+
+| Transport | Description | Default Port |
+|-|-------|-|-|
+| `udp` | UDP syslog (fire-and-forget, may drop packets) | 514 |
+| `tcp` | Reliable TCP delivery | 514 |
+| `tcp_tls` | Encrypted TCP with TLS (recommended for production) | 6514 |
+| `https` | REST API over HTTPS (batched delivery) | 443 |
+
+| Field | Type | Default | Description |
+|-|------|-------|-|-|-|-|
+| `transport` | string | `"udp"` | Transport protocol (`udp`, `tcp`, `tcp_tls`, `https`) |
+| `host` | string | required | Syslog server hostname or IP address |
+| `port` | integer | transport-specific | Port number (514 for UDP/TCP, 6514 for TCP-TLS, 443 for HTTPS) |
+| `facility` | string | `"local0"` | Syslog facility (`local0`–`local7`, `daemon`, `auth`, etc.) |
+| `timeout` | integer | 5 | Connection timeout in seconds |
+| `buffer_size` | integer | 1000 | Maximum events to buffer before dropping |
+| `batch_size` | integer | 10 | Batch size (HTTPS only) |
+| `flush_interval` | integer | 1 | Flush interval in seconds (HTTPS only) |
+
+**Example — TCP-TLS to SIEM:**
+```yaml
+audit:
+  sinks:
+    - type: cef
+      enabled: true
+      name: "enterprise-siem"
+      cef:
+        transport: "tcp_tls"
+        host: "siem.company.com"
+        port: 6514
+        facility: "local0"
+        timeout: 5
+        buffer_size: 2000
+      
+      filter:
+        methods: ["tools/call", "resources/read"]
+        tools: ["*data*", "*database*"]
+```
+
+**Example — HTTPS batched delivery:**
+```yaml
+audit:
+  sinks:
+    - type: cef
+      enabled: true
+      name: "rest-siem"
+      cef:
+        transport: "https"
+        host: "logs.company.com"
+        port: 443
+        batch_size: 50
+        flush_interval: 2
+```
+
+**CEF format:**
+```
+CEF:0|MCPZeroTrust|Proxy|1.0||AUTH:Authorization|AUTH::AccessDenied|8|src=0.0.0.0 dstPort=8080 user=user123 action=deny method=tools/call tool=read_secrets request_id=req-xyz reason=rbac-tool-not-allowed
+```
+
+---
+
+### JSON-HTTP Sink (Custom Webhook)
+
+Sends raw JSON audit events to a custom HTTPS endpoint.
+
+**Use case:** Custom log aggregators, internal audit systems, webhook-based integrations, or forwarding to other services.
+
+| Field | Type | Default | Description |
+|-|------|-------|-|-|-|-|
+| `endpoint` | string | required | HTTPS URL to send events to |
+| `headers` | map[string]string | `{}` | Custom HTTP headers to include |
+| `batch_size` | integer | 50 | Maximum events per batch |
+| `flush_interval` | integer | 10 | Seconds to wait before flushing batch |
+| `timeout` | integer | 15 | HTTP request timeout in seconds |
+| `buffer_size` | integer | 1000 | Maximum events to buffer before dropping |
+| `basic_auth.username` | string | `""` | Basic auth username (optional) |
+| `basic_auth.password` | string | `""` | Basic auth password (use `${ENV_VAR}`) |
+| `bearer_token` | string | `""` | Bearer token for auth (use `${ENV_VAR}`) |
+
+**Example — Basic Auth webhook:**
+```yaml
+audit:
+  sinks:
+    - type: json_http
+      enabled: true
+      name: "internal-audit-system"
+      json_http:
+        endpoint: "https://audit.internal.company.com/api/v1/events"
+        headers:
+          X-Tenant-ID: "tenant-123"
+          X-Environment: "production"
+        batch_size: 50
+        flush_interval: 10
+        timeout: 15
+        buffer_size: 1000
+        basic_auth:
+          username: "audit-service"
+          password: "${AUDIT_WEBHOOK_PASSWORD}"
+      
+      filter:
+        methods: ["tools/call"]
+        results: ["denied"]
+```
+
+**Example — Bearer token:**
+```yaml
+audit:
+  sinks:
+    - type: json_http
+      enabled: true
+      name: "datadog-webhook"
+      json_http:
+        endpoint: "https://http-intake.logs.datad0g.com/api/v2/logs"
+        headers:
+          DD-Source: "mcp-proxy"
+          DD-Service: "mcp-zero-trust"
+        bearer_token: "${DATADOG_API_KEY}"
+        batch_size: 100
+        flush_interval: 5
+```
+
+---
+
+### Complete Example — Multiple Sinks with Filtering
+
+```yaml
+audit:
+  enabled: true
+  output: "both"
+  file_path: "/var/log/mcpproxy/audit.jsonl"
+  rotation:
+    max_size_mb: 100
+    max_age_hours: 168
+  
+  sinks:
+    # Send all denied events to Azure Sentinel
+    - type: ocsf
+      enabled: true
+      name: "azure-sentinel"
+      ocsf:
+        workspace_id: "{WORKSPACE_ID}"
+        api_key: "${AZURE_API_KEY}"
+        batch_size: 100
+        flush_interval: 5
+      filter:
+        results: ["denied"]
+    
+    # Send all tool calls to SIEM for compliance monitoring
+    - type: cef
+      enabled: true
+      name: "siem-compliance"
+      cef:
+        transport: "tcp_tls"
+        host: "siem.company.com"
+        port: 6514
+        facility: "local0"
+      filter:
+        methods: ["tools/call"]
+        tools: ["*data*", "*database*", "*secret*"]
+    
+    # Send admin actions to internal audit system
+    - type: json_http
+      enabled: true
+      name: "internal-audit"
+      json_http:
+        endpoint: "https://audit.internal/api/events"
+        bearer_token: "${AUDIT_API_KEY}"
+        batch_size: 50
+        flush_interval: 10
+      filter:
+        client_ids: ["admin@company.com", "security@company.com"]
+```
+
+**Notes:**
+- All sinks run asynchronously — sink failures don't block request processing
+- Events may be dropped if buffer is full (configurable via `buffer_size`)
+- Each sink independently applies its filter — the same event can go to multiple sinks
+- Use `${ENV_VAR}` for all secrets (API keys, passwords, tokens)
 
 ### audit.output
 

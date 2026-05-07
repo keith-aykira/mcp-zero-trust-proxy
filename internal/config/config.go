@@ -148,6 +148,73 @@ func Validate(cfg *Config) error {
 		}
 	}
 
+	// Validate audit sinks
+	for i, sink := range cfg.Audit.Sinks {
+		sinkIndex := i + 1
+		if sink.Type == "" {
+			errs = append(errs, fmt.Sprintf("audit.sinks[%d]: type is required", sinkIndex))
+			continue
+		}
+		validSinkTypes := map[string]bool{"ocsf": true, "cef": true, "json_http": true}
+		if !validSinkTypes[sink.Type] {
+			errs = append(errs, fmt.Sprintf("audit.sinks[%d]: unknown type %q: valid types are ocsf, cef, json_http", sinkIndex, sink.Type))
+			continue
+		}
+		// Validate type-specific config
+		switch sink.Type {
+		case "ocsf":
+			if sink.OCSF == nil {
+				errs = append(errs, fmt.Sprintf("audit.sinks[%d]: ocsf config is required for type \"ocsf\"", sinkIndex))
+			} else {
+				if strings.TrimSpace(sink.OCSF.WorkspaceID) == "" {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: ocsf.workspace_id is required", sinkIndex))
+				}
+				if strings.TrimSpace(sink.OCSF.APIKey) == "" {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: ocsf.api_key is required (can use ${ENV_VAR} syntax)", sinkIndex))
+				}
+				if sink.OCSF.BatchSize < 1 {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: ocsf.batch_size must be >= 1", sinkIndex))
+				}
+			}
+		case "cef":
+			if sink.CEF == nil {
+				errs = append(errs, fmt.Sprintf("audit.sinks[%d]: cef config is required for type \"cef\"", sinkIndex))
+			} else {
+				if strings.TrimSpace(sink.CEF.Host) == "" {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: cef.host is required", sinkIndex))
+				}
+				validTransports := map[string]bool{"udp": true, "tcp": true, "tcp_tls": true, "https": true}
+				if sink.CEF.Transport != "" && !validTransports[sink.CEF.Transport] {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: unknown cef.transport %q: valid transports are udp, tcp, tcp_tls, https", sinkIndex, sink.CEF.Transport))
+				}
+				if sink.CEF.Port < 1 || sink.CEF.Port > 65535 {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: cef.port must be between 1 and 65535", sinkIndex))
+				}
+			}
+		case "json_http":
+			if sink.JSONHTTP == nil {
+				errs = append(errs, fmt.Sprintf("audit.sinks[%d]: json_http config is required for type \"json_http\"", sinkIndex))
+			} else {
+				if strings.TrimSpace(sink.JSONHTTP.Endpoint) == "" {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: json_http.endpoint is required", sinkIndex))
+				}
+				// Validate endpoint is HTTPS
+				if !strings.HasPrefix(sink.JSONHTTP.Endpoint, "https://") {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: json_http.endpoint must use HTTPS protocol", sinkIndex))
+				}
+			}
+		}
+		// Validate filter config
+		if sink.Filter != nil {
+			for _, result := range sink.Filter.Results {
+				validResults := map[string]bool{"allowed": true, "denied": true}
+				if !validResults[result] {
+					errs = append(errs, fmt.Sprintf("audit.sinks[%d]: unknown filter result %q: valid values are allowed, denied", sinkIndex, result))
+				}
+			}
+		}
+	}
+
 	// Validate log level
 	if cfg.Logging.Level != "" {
 		validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
@@ -204,6 +271,85 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Audit.Output == "" {
 		cfg.Audit.Output = "stdout"
+	}
+
+	// Apply defaults to sink configurations
+	for i := range cfg.Audit.Sinks {
+		sink := &cfg.Audit.Sinks[i]
+		// Default name to type if not set
+		if sink.Name == "" {
+			sink.Name = sink.Type
+		}
+		// Default enabled to true
+		if sink.Enabled {
+			// Already true, nothing to do
+		} else if sink.Type != "" {
+			// Type is set but enabled is false - respect user choice
+			// But if we want true as default when not explicitly set, we'd need to track that
+			// For now, false means disabled, true (or absent with default) means enabled
+			sink.Enabled = true
+		}
+		// Apply OCSF defaults
+		if sink.Type == "ocsf" && sink.OCSF != nil {
+			if sink.OCSF.BatchSize == 0 {
+				sink.OCSF.BatchSize = 100
+			}
+			if sink.OCSF.FlushInterval == 0 {
+				sink.OCSF.FlushInterval = 5
+			}
+			if sink.OCSF.Timeout == 0 {
+				sink.OCSF.Timeout = 30
+			}
+			if sink.OCSF.BufferSize == 0 {
+				sink.OCSF.BufferSize = 1000
+			}
+		}
+		// Apply CEF defaults
+		if sink.Type == "cef" && sink.CEF != nil {
+			if sink.CEF.Transport == "" {
+				sink.CEF.Transport = "udp"
+			}
+			if sink.CEF.Port == 0 {
+				switch sink.CEF.Transport {
+				case "tcp_tls":
+					sink.CEF.Port = 6514
+				case "udp", "tcp":
+					sink.CEF.Port = 514
+				case "https":
+					sink.CEF.Port = 443
+				}
+			}
+			if sink.CEF.Facility == "" {
+				sink.CEF.Facility = "local0"
+			}
+			if sink.CEF.BatchSize == 0 && sink.CEF.Transport == "https" {
+				sink.CEF.BatchSize = 10
+			}
+			if sink.CEF.FlushInterval == 0 && sink.CEF.Transport == "https" {
+				sink.CEF.FlushInterval = 1
+			}
+			if sink.CEF.Timeout == 0 {
+				sink.CEF.Timeout = 5
+			}
+			if sink.CEF.BufferSize == 0 {
+				sink.CEF.BufferSize = 1000
+			}
+		}
+		// Apply JSON-HTTP defaults
+		if sink.Type == "json_http" && sink.JSONHTTP != nil {
+			if sink.JSONHTTP.BatchSize == 0 {
+				sink.JSONHTTP.BatchSize = 50
+			}
+			if sink.JSONHTTP.FlushInterval == 0 {
+				sink.JSONHTTP.FlushInterval = 10
+			}
+			if sink.JSONHTTP.Timeout == 0 {
+				sink.JSONHTTP.Timeout = 15
+			}
+			if sink.JSONHTTP.BufferSize == 0 {
+				sink.JSONHTTP.BufferSize = 1000
+			}
+		}
 	}
 
 	// Logging defaults

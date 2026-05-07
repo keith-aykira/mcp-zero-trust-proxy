@@ -15,7 +15,7 @@ MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Curso
 - **Tool-level RBAC** — Control which tools each user can call with built-in roles (admin/readonly/restricted) and unlimited custom roles
 - **Claim-based role mapping** — Automatic role assignment from OAuth claims (e.g., assign "devops" role to Engineering department)
 - **Per-client sessions** — Each user gets their own session boundary
-- **Audit logging** — Every request logged: who, what, when, allowed/denied (structured JSONL)
+- **Pluggable audit sinks** — Forward events to Azure Sentinel (OCSF), SIEMs (CEF/syslog), or custom webhooks (JSON over HTTPS)
 - **Rate limiting** — Per-client token bucket (default: 60 req/min free tier, configurable)
 
 ## Why
@@ -105,51 +105,35 @@ All config is in a single YAML file. See [`configs/example.yaml`](configs/exampl
 **RBAC with custom roles:**
 
 ```yaml
-roles:
-  # Built-in roles can be overridden
-  - name: "admin"
-    allowed_tools: []
-    deny_tools:
-      - "delete_database"  # Admin cannot delete databases
+  audit:
+  enabled: true
+  output: "stdout"
+  file_path: "/var/log/mcpproxy/audit.jsonl"
+  rotation:
+    max_size_mb: 100
+    max_age_hours: 168
   
-  # Custom roles for your teams
-  - name: "devops"
-    allowed_tools:
-      - "tools/list"
-      - "tools/call"
-      - "resources/read"
-    deny_tools:
-      - "delete_resource"
-      
-  - name: "analyst"
-    allowed_tools:
-      - "read_file"
-      - "query_database"
-      - "generate_report"
-    deny_tools: []
-
-user_roles:
-  default: "readonly"
-  
-  # Automatic role assignment from OAuth claims
-  claim_mapping:
-    - claim: "groups"
-      operator: "contains"
-      value: "administrators"
-      role: "admin"
-    - claim: "department"
-      operator: "equals"
-      value: "engineering"
-      role: "devops"
-    - claim: "department"
-      operator: "equals"
-      value: "business-intelligence"
-      role: "analyst"
-  
-  # Explicit email mappings override claims
-  mapping:
-    "alice@company.com": "admin"
-    "bob@company.com": "devops"
+  # External sinks: fan out to multiple destinations
+  sinks:
+    # Azure Sentinel (OCSF) — for security monitoring
+    - type: ocsf
+      enabled: true
+      ocsf:
+        workspace_id: "{WORKSPACE_ID}"
+        api_key: "${AZURE_API_KEY}"
+        batch_size: 100
+      filter:
+        results: ["denied"]  # Only denied events
+    
+    # SIEM (CEF over TCP-TLS) — for compliance
+    - type: cef
+      enabled: true
+      cef:
+        transport: "tcp_tls"
+        host: "siem.company.com"
+        port: 6514
+      filter:
+        methods: ["tools/call"]
 ```
 
 ## Performance
