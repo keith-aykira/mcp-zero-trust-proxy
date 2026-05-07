@@ -41,10 +41,10 @@ docker run -p 8080:8080 -v ./config.yaml:/etc/mcpproxy/config.yaml mcpzerotrust/
 ```
 cmd/mcpproxy/main.go  — Entry point, wires auth/rbac/proxy/ratelimit/audit
 internal/
-  auth/    — OAuth 2.1 PKCE (providers: github, google, oidc), session management
+  auth/    — OAuth 2.1 PKCE (providers: github, google, oidc), session management, claim-based role mapping
   proxy/   — HTTP handler, SSE, JSON-RPC pipeline, CORS
   rbac/    — Role engine (admin/readonly/restricted), tool filtering middleware
-  ratelimit/ — Token bucket limiter (per-client, default: 300 RPM, burst 100)
+  ratelimit/ — Token bucket limiter (per-client, default: 60 RPM, burst 10)
   audit/   — JSONL logger with rotation
   config/  — YAML loader with ${ENV_VAR} substitution
 tests/

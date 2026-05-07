@@ -17,7 +17,18 @@ auth:
   client_secret: "${OAUTH_CLIENT_SECRET}"
   redirect_url: "http://localhost:8080/auth/callback"
 
+user_roles:
+  default: "readonly"
+  mapping:
+    "alice@company.com": "admin"
+  claim_mapping:
+    - claim: "groups"
+      operator: "contains"
+      value: "administrators"
+      role: "admin"
+
 roles:
+  # Built-in roles are always present — you can override their permissions
   - name: "admin"
     allowed_tools: []
     deny_tools: []
@@ -26,6 +37,24 @@ roles:
     deny_tools: []
   - name: "restricted"
     allowed_tools: ["read_file", "search"]
+    deny_tools: []
+  
+  # Custom roles: extend beyond the built-in three
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
+      - "resources/read"
+      - "resources/list"
+    deny_tools:
+      - "delete_resource"
+      
+  - name: "analyst"
+    allowed_tools:
+      - "tools/list"
+      - "resources/read"
+      - "prompts/list"
+      - "prompts/get"
     deny_tools: []
 
 rate_limit:
@@ -57,7 +86,7 @@ With only this, the proxy:
 - Listens on `:8080`
 - Has no authentication (all requests pass through)
 - Uses the three built-in roles with default permissions
-- Rate-limits to 100 req/min with burst of 10
+- Rate-limits to 60 req/min with burst of 10 (free tier defaults)
 - Writes audit logs to stdout
 - Logs at INFO level in JSON format
 
@@ -111,10 +140,126 @@ The TCP address the proxy HTTP server listens on. Standard Go net/http address f
 
 ```yaml
 server:
-  listen_addr: ":8080"          # all interfaces, port 8080 (default)
-  # listen_addr: "127.0.0.1:8080"  # localhost only
-  # listen_addr: ":9000"            # custom port
+  listen_addr: ":9000"            # custom port
 ```
+
+---
+
+## user_roles
+
+Maps authenticated users to RBAC roles via email matching or OAuth claim evaluation.
+
+**Role resolution order:**
+1. **Claim mapping** (`claim_mapping`) — evaluated first, first match wins
+2. **Email mapping** (`mapping`) — evaluated if no claim rule matches
+3. **Default role** (`default`) — fallback when neither claim nor email matches
+
+### user_roles.mapping
+
+| | |
+|---|---|
+| **Type** | map[string]string |
+| **Required** | no |
+| **Default** | `{}` |
+
+Maps user email addresses to role names. Supports both built-in roles (`admin`, `readonly`, `restricted`) and custom roles you define in `roles`.
+
+```yaml
+user_roles:
+  mapping:
+    "alice@company.com": "admin"
+    "bob@company.com": "readonly"
+    "dev-team@company.com": "devops"  # custom role
+```
+
+### user_roles.default
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | no |
+| **Default** | `"readonly"` |
+
+The role assigned to authenticated users who don't match any email in `mapping` and don't match any claim rule in `claim_mapping`. Can be a built-in role or a custom role.
+
+```yaml
+user_roles:
+  default: "readonly"  # (default)
+  # default: "devops"  # custom role as default
+```
+
+### user_roles.claim_mapping
+
+| | |
+|---|---|
+| **Type** | []ClaimRule |
+| **Required** | no |
+| **Default** | `[]` |
+
+A list of rules to automatically assign roles based on OAuth claims. This is ideal for enterprise deployments where you want roles to be managed in your identity provider rather than hardcoded in the config.
+
+**How it works:**
+1. Each rule specifies an OAuth claim name, an operator, a value, and a role
+2. When a user authenticates, their claims are checked against each rule in order
+3. The first matching rule determines the user's role
+4. If no claim rule matches, falls back to email mapping (`mapping`) or default (`default`)
+
+**Enterprise example with claims and custom roles:**
+
+```yaml
+user_roles:
+  default: "readonly"
+  claim_mapping:
+    # Assign "admin" role to users in the "administrators" group
+    - claim: "groups"
+      operator: "contains"
+      value: "administrators"
+      role: "admin"
+    
+    # Assign "devops" custom role to Engineering team with SRE access
+    - claim: "department"
+      operator: "equals"
+      value: "engineering"
+      role: "devops"
+    
+    # Assign "analyst" custom role to Business Intelligence team
+    - claim: "department"
+      operator: "equals"
+      value: "business-intelligence"
+      role: "analyst"
+    
+    # Match security level using regex for restricted access
+    - claim: "security_clearance"
+      operator: "regex"
+      value: "^L[12].*"
+      role: "restricted"
+```
+
+**Available operators:**
+
+| Operator | Description | Example |
+|----------|-------------|-|-|-|-|
+| `equals` | Exact match | `department: "engineering"` matches `"engineering"` |
+| `contains` | Check if claim contains the value | `groups: "administrators"` matches `"sales,administrators,auditors"` |
+| `starts_with` | Check if claim starts with the value | `role: "admin"` matches `"admin_user"` |
+| `ends_with` | Check if claim ends with the value | `role: "_admin"` matches `"super_admin"` |
+| `regex` | Match claim against a regular expression | `security_clearance: "^L[34].*"` matches `"L3_CONFIDENTIAL"` |
+
+**Common OAuth claims to use:**
+
+- **GitHub:** `email`, `login`, `organization` (from token scopes like `read:org`)
+- **Google:** `email`, `name`, `groups`, `domain`
+- **Okta:** `email`, `groups`, `department`, `manager`, custom claims from profiles
+- **Auth0:** `email`, `name`, `roles`, `permissions`, custom claims from rules
+- **Azure AD:** `email`, `oids`, `roles`, `groups`, `department`
+
+**Note:** The claim names depend on what your OAuth provider includes in the token. Check your provider's documentation for available claims. You may need to configure custom claims or token scopes to get the data you need.
+
+---
+
+## roles
+
+Defines the RBAC permissions for each role. Three roles are always available: `admin`, `readonly`, `restricted`. If this section is omitted, default permissions are applied.
 
 ---
 
@@ -214,17 +359,35 @@ The proxy serves this callback at `/auth/callback` automatically.
 
 ## roles
 
-Defines the RBAC permissions for each role. Three roles are always available: `admin`, `readonly`, `restricted`. If this section is omitted, default permissions are applied.
+Defines the RBAC permissions for each role. Three built-in roles (`admin`, `readonly`, `restricted`) are always present. You can override their permissions or add unlimited custom roles for fine-grained access control.
+
+### Built-in vs. Custom Roles
+
+The proxy always provides three built-in roles:
+- **admin**: Full access to all MCP methods and tools
+- **readonly**: Can list and read resources, but cannot call tools
+- **restricted**: Limited to explicitly allowed tools
+
+You can extend these with custom roles to model your organization's access patterns.
 
 ### Role definitions
 
 Each entry in the `roles` list has:
 
 | Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Role name. Must be one of: `"admin"`, `"readonly"`, `"restricted"` |
+|------|------|------------|
+| `name` | string | Role name. Can be a built-in role name (to override) or any custom name |
 | `allowed_tools` | []string | Tool names this role may call via `tools/call`. Empty list = all tools allowed (admin). |
 | `deny_tools` | []string | Tool names explicitly denied. Deny rules take precedence over allow rules. |
+
+### How role merging works
+
+When you define roles in the config:
+- Built-in roles with your custom permissions override the defaults
+- Custom roles are added alongside the built-in three
+- You can reference any defined role in `user_roles.mapping`, `user_roles.default`, or `user_roles.claim_mapping`
+
+**Example:** If you only define a `devops` role, the final configuration includes four roles: `admin`, `readonly`, `restricted` (with default permissions) + `devops` (with your custom permissions).
 
 ### Default role behavior
 
@@ -243,30 +406,75 @@ Each entry in the `roles` list has:
 - `tools/list` response is filtered to only show the allowed tools
 - If `allowed_tools` is empty, no tools can be called
 
+**Custom roles:**
+- Behave like `restricted` — you must explicitly define `allowed_tools`
+- Can use any tool names available in your MCP server
+- Can define `deny_tools` to block specific tools even if they match `allowed_tools`
+
 ### Example role configurations
+
+**Basic — override built-in roles only:**
 
 ```yaml
 roles:
-  # Admin: full access (default behavior with empty allowed_tools)
   - name: "admin"
     allowed_tools: []
-    deny_tools: []
+    deny_tools:
+      - "delete_database"  # Admin cannot delete databases
 
-  # Readonly: list and read, no tool execution
   - name: "readonly"
     allowed_tools: []
     deny_tools: []
 
-  # Restricted: read-only filesystem access
   - name: "restricted"
     allowed_tools:
       - "read_file"
-      - "list_directory"
       - "search_files"
     deny_tools: []
 ```
 
-**Denying specific tools for admin:**
+**Extended — add custom roles for teams:**
+
+```yaml
+roles:
+  # Override admin to block dangerous operations
+  - name: "admin"
+    allowed_tools: []
+    deny_tools:
+      - "delete_table"
+      - "drop_database"
+
+  # DevOps team: full tool access minus destructive operations
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
+      - "resources/read"
+      - "resources/list"
+      - "prompts/list"
+    deny_tools:
+      - "delete_resource"
+      - "delete_file"
+
+  # Data analysts: read-only access to data tools
+  - name: "analyst"
+    allowed_tools:
+      - "read_file"
+      - "search_files"
+      - "query_database"
+      - "generate_report"
+    deny_tools: []
+
+  # Interns: extremely limited access
+  - name: "intern"
+    allowed_tools:
+      - "read_file"
+      - "search_files"
+    deny_tools:
+      - "read_password_file"
+```
+
+**Denying specific tools:**
 
 ```yaml
 roles:
@@ -279,6 +487,74 @@ roles:
 
 `deny_tools` takes precedence over `allowed_tools`. An admin with `deny_tools: ["dangerous_tool"]` cannot call `dangerous_tool` even though `allowed_tools` is empty (all allowed).
 
+### Using custom roles with claim mapping
+
+**Complete enterprise example:**
+
+```yaml
+# Define custom roles for your organization
+roles:
+  - name: "admin"
+    allowed_tools: []
+    deny_tools:
+      - "delete_database"
+
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
+      - "resources/read"
+    deny_tools:
+      - "delete_resource"
+
+  - name: "analyst"
+    allowed_tools:
+      - "read_file"
+      - "query_database"
+      - "generate_report"
+    deny_tools: []
+
+  - name: "intern"
+    allowed_tools:
+      - "read_file"
+      - "search_files"
+    deny_tools: []
+
+# Assign roles automatically based on OAuth claims
+user_roles:
+  default: "readonly"
+  claim_mapping:
+    # Users in "administrators" group get admin role
+    - claim: "groups"
+      operator: "contains"
+      value: "administrators"
+      role: "admin"
+    
+    # Engineering department gets devops role
+    - claim: "department"
+      operator: "equals"
+      value: "engineering"
+      role: "devops"
+    
+    # Business Intelligence gets analyst role  
+    - claim: "department"
+      operator: "equals"
+      value: "business-intelligence"
+      role: "analyst"
+    
+    # Interns identified by email prefix
+    - claim: "email"
+      operator: "starts_with"
+      value: "intern."
+      role: "intern"
+
+# Explicit email mappings override claim-based assignment
+user_roles:
+  mapping:
+    "alice@company.com": "admin"  # Alice is always admin regardless of claims
+    "bob@company.com": "devops"
+```
+
 ---
 
 ## rate_limit
@@ -286,6 +562,23 @@ roles:
 Per-client request rate limiting using a token bucket algorithm. Limits apply per authenticated client ID.
 
 ### rate_limit.requests_per_minute
+
+| | |
+|---|---|
+| **Type** | integer |
+| **Required** | no |
+| **Default** | `60` |
+
+Sustained request rate per client, in requests per minute. The token bucket refills at this rate. The default of 60 req/min matches the free tier limits, but you can raise this for your internal deployments.
+
+```yaml
+rate_limit:
+  requests_per_minute: 60    # 1 req/second (free tier default)
+  # requests_per_minute: 300 # 5 req/second (internal use)
+  # requests_per_minute: 600 # 10 req/second
+```
+
+### rate_limit.burst_size
 
 | | |
 |---|---|
@@ -314,7 +607,7 @@ Maximum burst of requests a client may send above the sustained rate. The token 
 
 ```yaml
 rate_limit:
-  burst_size: 10   # can send 10 requests instantly, then 100/min sustained (default)
+  burst_size: 10   # can send 10 requests instantly, then 60/min sustained (default)
   # burst_size: 50  # larger burst for clients with bursty patterns
 ```
 

@@ -95,6 +95,10 @@ func main() {
 	authenticator.SetUserRoles(cfg.UserRoles.Mapping, cfg.UserRoles.Default)
 	// Wire claim-based role mapping from config
 	authenticator.SetClaimRules(cfg.UserRoles.ClaimMapping)
+	// Wire user restrictions from config
+	if err := authenticator.SetUserRestrictions(cfg.UserRestrictions.AllowRegex, cfg.UserRestrictions.DenyRegex); err != nil {
+		log.Fatal().Err(err).Msg("Failed to set user restrictions")
+	}
 
 	// Start background goroutine for periodic cache cleanup (expired tokens/state entries)
 	authenticator.StartCleanup()

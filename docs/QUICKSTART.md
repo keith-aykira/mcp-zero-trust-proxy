@@ -218,6 +218,35 @@ user_roles:
     "bob@company.com": "readonly"
     "intern@company.com": "restricted"
   default: "readonly"  # role for authenticated users not in the mapping
+
+**Claim-based role mapping (recommended for enterprise deployments):**
+
+Instead of manually mapping each user's email, you can use OAuth claims to automatically assign roles:
+
+```yaml
+user_roles:
+  default: "readonly"
+  claim_mapping:
+    # Assign "admin" role to users in the "administrators" group
+    - claim: "groups"
+      operator: "contains"
+      value: "administrators"
+      role: "admin"
+    # Assign "readonly" role to users in the "engineering" department
+    - claim: "department"
+      operator: "equals"
+      value: "engineering"
+      role: "readonly"
+```
+
+Claims are evaluated in order — the first matching rule determines the role. If no claim rule matches, the proxy falls back to email mapping (if configured) or the default role.
+
+**Available operators for claim matching:**
+- `equals` — Exact match (e.g., `department: "engineering"`)
+- `contains` — Check if claim contains the value (e.g., `groups` contains `"administrators"`)
+- `starts_with` — Check if claim starts with the value (e.g., `role` starts with `"admin"`)
+- `ends_with` — Check if claim ends with the value
+- `regex` — Match claim against a regular expression
 ```
 
 Any authenticated user whose OAuth email matches a key gets that role. Users not in the mapping get the `default` role (defaults to `readonly` if not specified).

@@ -47,15 +47,19 @@ auth:
 # RBAC Role Configuration
 # ============================================================
 # Three built-in roles are always available: admin, readonly, restricted.
-# You can customize their tool permissions here.
+# You can customize their tool permissions here OR add unlimited custom roles.
 # If omitted, the default role permissions (below) are used.
+#
+# Role merging: Built-in roles with custom permissions override defaults.
+# Custom roles are added alongside the built-in three.
 roles:
   # Admin role: full access to all MCP tools and resources.
   - name: "admin"
     # Empty allowed_tools means all tools are permitted.
     allowed_tools: []
     # Explicitly denied tools (deny rules take precedence over allow rules).
-    deny_tools: []
+    deny_tools:
+      - "delete_database"  # Example: prevent database deletion even for admins
 
   # Readonly role: can list and read resources, but cannot call tools that modify state.
   - name: "readonly"
@@ -73,18 +77,113 @@ roles:
       - "tools/list"
     deny_tools: []
 
+  # ============================================================
+  # Custom Roles: Add unlimited custom roles for fine-grained access
+  # ============================================================
+  # Uncomment and customize as needed:
+  
+  # DevOps team: full tool access minus destructive operations
+  # - name: "devops"
+  #   allowed_tools:
+  #     - "tools/list"
+  #     - "tools/call"
+  #     - "resources/read"
+  #     - "resources/list"
+  #     - "prompts/list"
+  #   deny_tools:
+  #     - "delete_resource"
+  #     - "delete_file"
+  #     - "delete_database"
+
+  # Data analysts: read-only data access with query tools
+  # - name: "analyst"
+  #   allowed_tools:
+  #     - "read_file"
+  #     - "search_files"
+  #     - "query_database"
+  #     - "generate_report"
+  #   deny_tools: []
+
+  # Interns: extremely limited access for security
+  # - name: "intern"
+  #   allowed_tools:
+  #     - "read_file"
+  #     - "search_files"
+  #   deny_tools:
+  #     - "read_password_file"
+  #     - "read_secrets"
+
+# ===============================================================
+# User-Role Mapping Configuration
+# ===============================================================
+user_roles:
+  # Optional. Default role for authenticated users not in the mapping
+  # below and not matching any claim rule. Default: "readonly"
+  # Can be a built-in role or any custom role you define.
+  default: "readonly"
+
+  # Optional. Map specific email addresses to roles.
+  # This is useful for small teams or when you need explicit control
+  # over individual user roles. Supports built-in and custom roles.
+  # mapping:
+  #   "alice@company.com": "admin"
+  #   "bob@company.com": "readonly"
+  #   "dev-team@company.com": "devops"  # custom role
+
+  # Optional. Claim-based role mapping rules. These are evaluated in
+  # order; the first matching rule determines the user's role.
+  # If no claim rule matches, falls back to email mapping or default.
+  # This is ideal for enterprise deployments where roles are managed
+  # in the identity provider (e.g., Okta, Auth0, Azure AD).
+  #
+  # Supports custom roles — assign users to "devops", "analyst", etc.
+  # based on their OAuth claims from the identity provider.
+  # claim_mapping:
+  #   # Admin role for users in "administrators" group
+  #   - claim: "groups"
+  #     operator: "contains"
+  #     value: "administrators"
+  #     role: "admin"
+  #   # DevOps role for Engineering department
+  #   - claim: "department"
+  #     operator: "equals"
+  #     value: "engineering"
+  #     role: "devops"
+  #   # Analyst role for Business Intelligence team
+  #   - claim: "department"
+  #     operator: "equals"
+  #     value: "business-intelligence"
+  #     role: "analyst"
+  #   # Intern role for intern email addresses
+  #   - claim: "email"
+  #     operator: "starts_with"
+  #     value: "intern."
+  #     role: "intern"
+  #   # Restricted role for users with low security clearance
+  #   - claim: "security_clearance"
+  #     operator: "regex"
+  #     value: "^L[12].*"
+  #     role: "restricted"
+
+  # ============================================================
+  # Role Resolution Order
+  # ============================================================
+  # Claims are checked first (claim_mapping), then email mapping,
+  # then default. This allows identity provider to manage roles
+  # while still supporting explicit overrides via email mapping.
+
 # ============================================================
 # Rate Limiting Configuration (per-client, token bucket)
 # ============================================================
 rate_limit:
   # Maximum sustained requests per minute per authenticated client.
-  # Default: 300
-  requests_per_minute: 300
+  # Default: 60 (free tier), customizable for internal deployments
+  requests_per_minute: 60
 
   # Maximum burst size above the sustained rate.
   # A client can send up to burst_size requests instantly before the rate limit applies.
-  # Default: 100
-  burst_size: 100
+  # Default: 10
+  burst_size: 10
 
 # ============================================================
 # Audit Logging Configuration

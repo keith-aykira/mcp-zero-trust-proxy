@@ -61,8 +61,34 @@ logging:
 	if cfg.Auth.Provider != "github" {
 		t.Errorf("expected auth provider %q, got %q", "github", cfg.Auth.Provider)
 	}
-	if len(cfg.Roles) != 2 {
-		t.Errorf("expected 2 roles, got %d", len(cfg.Roles))
+	// Built-in roles (admin, readonly, restricted) are always present
+	// User-defined roles override built-in configs but don't add duplicates
+	if len(cfg.Roles) != 3 {
+		t.Errorf("expected 3 roles (admin, readonly, restricted with built-in restricted), got %d", len(cfg.Roles))
+	}
+	// Verify user-defined roles are correctly merged
+	foundAdmin := false
+	foundReadOnly := false
+	foundRestricted := false
+	for _, role := range cfg.Roles {
+		if role.Name == "admin" {
+			foundAdmin = true
+			if len(role.AllowedTools) != 0 {
+				t.Errorf("admin role should have empty allowed_tools, got %v", role.AllowedTools)
+			}
+		}
+		if role.Name == "readonly" {
+			foundReadOnly = true
+			if len(role.AllowedTools) != 2 || role.AllowedTools[0] != "tools/list" || role.AllowedTools[1] != "resources/read" {
+				t.Errorf("readonly role should have allowed_tools ['tools/list', 'resources/read'], got %v", role.AllowedTools)
+			}
+		}
+		if role.Name == "restricted" {
+			foundRestricted = true
+		}
+	}
+	if !foundAdmin || !foundReadOnly || !foundRestricted {
+		t.Errorf("expected all 3 built-in roles to be present, got admin=%v readonly=%v restricted=%v", foundAdmin, foundReadOnly, foundRestricted)
 	}
 	if cfg.RateLimit.RequestsPerMinute != 200 {
 		t.Errorf("expected 200 req/min, got %d", cfg.RateLimit.RequestsPerMinute)
@@ -183,15 +209,18 @@ roles:
 	}
 }
 
-// TestValidate_UnknownRoleName verifies that unknown role names return a descriptive error.
-func TestValidate_UnknownRoleName(t *testing.T) {
+// TestValidate_CustomRoleNameAllowed verifies that custom role names are now allowed.
+func TestValidate_CustomRoleNameAllowed(t *testing.T) {
 	yaml := `
 server:
   upstream_url: "http://localhost:3000"
 auth:
   provider: "github"
 roles:
-  - name: "superuser"
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
 `
 	path := writeTempYAML(t, yaml)
 	cfg, err := Load(path)
@@ -200,11 +229,26 @@ roles:
 	}
 
 	err = Validate(cfg)
-	if err == nil {
-		t.Fatal("expected validation error for unknown role name, got nil")
+	if err != nil {
+		t.Errorf("expected custom role names to be allowed, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "superuser") {
-		t.Errorf("error should mention the invalid role name 'superuser', got: %v", err)
+
+	// Verify custom role is in the final config along with built-in roles
+	foundDevOps := false
+	builtinCount := 0
+	for _, role := range cfg.Roles {
+		if role.Name == "devops" {
+			foundDevOps = true
+		}
+		if builtInRoleNames[role.Name] {
+			builtinCount++
+		}
+	}
+	if !foundDevOps {
+		t.Error("custom role 'devops' not found in merged roles")
+	}
+	if builtinCount != 3 {
+		t.Errorf("expected 3 built-in roles, got %d", builtinCount)
 	}
 }
 
@@ -461,7 +505,7 @@ server:
 	}
 }
 
-// TestValidate_UserRolesUnknownRole verifies Validate rejects user_roles with unknown role names.
+// TestValidate_UserRolesUnknownRole verifies Validate rejects user_roles with undefined custom role names.
 func TestValidate_UserRolesUnknownRole(t *testing.T) {
 	yaml := `
 server:
@@ -479,14 +523,14 @@ user_roles:
 
 	err = Validate(cfg)
 	if err == nil {
-		t.Fatal("expected validation error for unknown role name in user_roles.default, got nil")
+		t.Fatal("expected validation error for undefined custom role in user_roles.default, got nil")
 	}
 	if !strings.Contains(err.Error(), "superuser") {
-		t.Errorf("error should mention invalid role 'superuser', got: %v", err)
+		t.Errorf("error should mention undefined role 'superuser', got: %v", err)
 	}
 }
 
-// TestValidate_UserRolesMappingUnknownRole verifies Validate rejects mapping with unknown role name.
+// TestValidate_UserRolesMappingUnknownRole verifies Validate rejects mapping with undefined custom role name.
 func TestValidate_UserRolesMappingUnknownRole(t *testing.T) {
 	yaml := `
 server:
@@ -504,10 +548,44 @@ user_roles:
 
 	err = Validate(cfg)
 	if err == nil {
-		t.Fatal("expected validation error for unknown role in user_roles.mapping, got nil")
+		t.Fatal("expected validation error for undefined custom role in user_roles.mapping, got nil")
 	}
 	if !strings.Contains(err.Error(), "superadmin") {
-		t.Errorf("error should mention invalid role 'superadmin', got: %v", err)
+		t.Errorf("error should mention undefined role 'superadmin', got: %v", err)
+	}
+}
+
+// TestValidate_UserRolesCustomRoleDefined verifies that custom roles can be used when defined.
+func TestValidate_UserRolesCustomRoleDefined(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+roles:
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
+user_roles:
+  default: "devops"
+  mapping:
+    "alice@example.com": "admin"
+    "bob@example.com": "devops"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config: %v", err)
+	}
+
+	err = Validate(cfg)
+	if err != nil {
+		t.Errorf("expected custom roles to be allowed when defined, got: %v", err)
+	}
+	if cfg.UserRoles.Default != "devops" {
+		t.Errorf("expected default role 'devops', got %q", cfg.UserRoles.Default)
+	}
+	if cfg.UserRoles.Mapping["bob@example.com"] != "devops" {
+		t.Errorf("expected bob to have 'devops' role, got %q", cfg.UserRoles.Mapping["bob@example.com"])
 	}
 }
 
@@ -565,5 +643,96 @@ license:
 
 	if cfg.License.Key != "env.jwt.token" {
 		t.Errorf("expected license.key from env var %q, got %q", "env.jwt.token", cfg.License.Key)
+	}
+}
+
+// TestLoad_UserRestrictions verifies that user_restrictions block loads allow_regex and deny_regex correctly.
+func TestLoad_UserRestrictions(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_restrictions:
+  allow_regex: '@company\\.com$'
+  deny_regex: '@contractor\\.com$'
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with user_restrictions: %v", err)
+	}
+
+	// YAML preserves the backslash, so we get the raw string
+	if cfg.UserRestrictions.AllowRegex != "@company\\\\.com$" {
+		t.Errorf("expected allow_regex %q, got %q", "@company\\\\.com$", cfg.UserRestrictions.AllowRegex)
+	}
+	if cfg.UserRestrictions.DenyRegex != "@contractor\\\\.com$" {
+		t.Errorf("expected deny_regex %q, got %q", "@contractor\\\\.com$", cfg.UserRestrictions.DenyRegex)
+	}
+}
+
+// TestValidate_UserRestrictionsInvalidAllowRegex verifies Validate rejects malformed allow_regex.
+func TestValidate_UserRestrictionsInvalidAllowRegex(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_restrictions:
+  allow_regex: "[invalid(regex"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config: %v", err)
+	}
+
+	err = Validate(cfg)
+	if err == nil {
+		t.Fatal("expected validation error for invalid allow_regex, got nil")
+	}
+	if !strings.Contains(err.Error(), "allow_regex") {
+		t.Errorf("error should mention 'allow_regex', got: %v", err)
+	}
+}
+
+// TestValidate_UserRestrictionsInvalidDenyRegex verifies Validate rejects malformed deny_regex.
+func TestValidate_UserRestrictionsInvalidDenyRegex(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_restrictions:
+  deny_regex: "[invalid(regex"
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config: %v", err)
+	}
+
+	err = Validate(cfg)
+	if err == nil {
+		t.Fatal("expected validation error for invalid deny_regex, got nil")
+	}
+	if !strings.Contains(err.Error(), "deny_regex") {
+		t.Errorf("error should mention 'deny_regex', got: %v", err)
+	}
+}
+
+// TestLoad_UserRestrictionsEmpty verifies that empty user_restrictions are allowed (disabled).
+func TestLoad_UserRestrictionsEmpty(t *testing.T) {
+	yaml := `
+server:
+  upstream_url: "http://localhost:3000"
+user_restrictions: {}
+`
+	path := writeTempYAML(t, yaml)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading config with empty user_restrictions: %v", err)
+	}
+
+	if cfg.UserRestrictions.AllowRegex != "" {
+		t.Errorf("expected empty allow_regex, got %q", cfg.UserRestrictions.AllowRegex)
+	}
+	if cfg.UserRestrictions.DenyRegex != "" {
+		t.Errorf("expected empty deny_regex, got %q", cfg.UserRestrictions.DenyRegex)
 	}
 }

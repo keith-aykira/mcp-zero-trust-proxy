@@ -9,15 +9,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// validRoleNames is the set of accepted RBAC role names.
-var validRoleNames = map[string]bool{
+// envVarPattern matches ${ENV_VAR} syntax for secret injection.
+var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+// builtInRoleNames is the set of built-in RBAC role names that are always present.
+var builtInRoleNames = map[string]bool{
 	"admin":      true,
 	"readonly":   true,
 	"restricted": true,
 }
-
-// envVarPattern matches ${ENV_VAR} syntax for secret injection.
-var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
 // Load reads the YAML configuration file at path, applies defaults, and returns a validated Config.
 // Environment variables referenced with ${VAR} syntax are substituted before parsing.
@@ -50,20 +50,44 @@ func Validate(cfg *Config) error {
 		errs = append(errs, "server.upstream_url is required")
 	}
 
-	// Validate role names
+	// Validate role names and collect all role names from config
+	allRoleNames := make(map[string]bool)
 	for _, role := range cfg.Roles {
-		if !validRoleNames[role.Name] {
-			errs = append(errs, fmt.Sprintf("unknown role name %q: valid roles are admin, readonly, restricted", role.Name))
+		if role.Name == "" {
+			errs = append(errs, "role.name is required")
+		} else {
+			allRoleNames[role.Name] = true
 		}
 	}
 
-	// Validate user_roles default and mapping values
-	if cfg.UserRoles.Default != "" && !validRoleNames[cfg.UserRoles.Default] {
-		errs = append(errs, fmt.Sprintf("unknown role name %q in user_roles.default: valid roles are admin, readonly, restricted", cfg.UserRoles.Default))
+	// Add user_roles roles to the set
+	if cfg.UserRoles.Default != "" {
+		allRoleNames[cfg.UserRoles.Default] = true
 	}
-	for email, role := range cfg.UserRoles.Mapping {
-		if !validRoleNames[role] {
-			errs = append(errs, fmt.Sprintf("unknown role name %q in user_roles.mapping for %q: valid roles are admin, readonly, restricted", role, email))
+	for _, role := range cfg.UserRoles.Mapping {
+		if role != "" {
+			allRoleNames[role] = true
+		}
+	}
+	for _, rule := range cfg.UserRoles.ClaimMapping {
+		if rule.Role != "" {
+			allRoleNames[rule.Role] = true
+		}
+	}
+
+	// Validate that all referenced roles are defined in roles section
+	for roleName := range allRoleNames {
+		if !builtInRoleNames[roleName] {
+			found := false
+			for _, role := range cfg.Roles {
+				if role.Name == roleName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				errs = append(errs, fmt.Sprintf("role %q referenced in user_roles but not defined in roles section", roleName))
+			}
 		}
 	}
 
@@ -76,9 +100,6 @@ func Validate(cfg *Config) error {
 		}
 		if !validOperators[rule.Operator] {
 			errs = append(errs, fmt.Sprintf("claim_mapping[%d]: unknown operator %q: valid operators are equals, contains, starts_with, ends_with, regex", ruleIndex, rule.Operator))
-		}
-		if !validRoleNames[rule.Role] {
-			errs = append(errs, fmt.Sprintf("claim_mapping[%d]: unknown role name %q: valid roles are admin, readonly, restricted", ruleIndex, rule.Role))
 		}
 		// Validate regex syntax if operator is "regex"
 		if rule.Operator == "regex" {
@@ -98,6 +119,20 @@ func Validate(cfg *Config) error {
 		// OIDC requires an issuer URL
 		if cfg.Auth.Provider == "oidc" && strings.TrimSpace(cfg.Auth.IssuerURL) == "" {
 			errs = append(errs, "auth.issuer_url is required when provider is \"oidc\"")
+		}
+	}
+
+	// Validate user restrictions regex patterns
+	if cfg.UserRestrictions.AllowRegex != "" {
+		_, err := regexp.Compile(cfg.UserRestrictions.AllowRegex)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("user_restrictions.allow_regex is invalid: %v", err))
+		}
+	}
+	if cfg.UserRestrictions.DenyRegex != "" {
+		_, err := regexp.Compile(cfg.UserRestrictions.DenyRegex)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("user_restrictions.deny_regex is invalid: %v", err))
 		}
 	}
 
@@ -179,10 +214,41 @@ func applyDefaults(cfg *Config) {
 		cfg.Logging.Format = "json"
 	}
 
-	// Default roles: if no roles are configured, add the 3 built-in roles
-	if len(cfg.Roles) == 0 {
-		cfg.Roles = defaultRoles()
+	// Merge built-in roles with user-defined roles
+	mergeRoles(cfg)
+}
+
+// mergeRoles ensures built-in roles are always present, merging with user-defined roles.
+// User-defined roles with built-in names override the built-in defaults.
+// Custom roles are appended to preserve user configuration order.
+func mergeRoles(cfg *Config) {
+	// Create a map of user-defined roles for quick lookup
+	userRoles := make(map[string]RoleConfig)
+	for _, role := range cfg.Roles {
+		userRoles[role.Name] = role
 	}
+
+	// Start with built-in roles
+	defaultRoles := defaultRoles()
+	result := make([]RoleConfig, 0, len(defaultRoles)+len(userRoles))
+
+	// Add built-in roles, allowing user overrides
+	for _, builtin := range defaultRoles {
+		if userRole, ok := userRoles[builtin.Name]; ok {
+			result = append(result, userRole)
+		} else {
+			result = append(result, builtin)
+		}
+	}
+
+	// Append custom roles (user-defined roles with non-built-in names)
+	for _, role := range cfg.Roles {
+		if !builtInRoleNames[role.Name] {
+			result = append(result, role)
+		}
+	}
+
+	cfg.Roles = result
 }
 
 // defaultRoles returns the 3 built-in RBAC role configurations.

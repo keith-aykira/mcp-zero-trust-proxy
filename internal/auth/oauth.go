@@ -52,6 +52,11 @@ type Authenticator struct {
 	defaultRole string
 	claimRules  []config.ClaimRule
 	rolesMu     sync.RWMutex
+
+	// user restrictions: allow/deny regex patterns
+	allowRegex *regexp.Regexp
+	denyRegex  *regexp.Regexp
+	restrictMu sync.RWMutex
 }
 
 // NewAuthenticator constructs an Authenticator from the given AuthConfig and SessionStore.
@@ -156,6 +161,56 @@ func (a *Authenticator) SetClaimRules(rules []config.ClaimRule) {
 	a.claimRules = rules
 }
 
+// SetUserRestrictions configures the allow/deny regex patterns for user access control.
+// This must be called before the first Authenticate call if user restrictions are desired.
+// It is safe to call from multiple goroutines.
+func (a *Authenticator) SetUserRestrictions(allowRegex, denyRegex string) error {
+	a.restrictMu.Lock()
+	defer a.restrictMu.Unlock()
+
+	if allowRegex != "" {
+		regex, err := regexp.Compile(allowRegex)
+		if err != nil {
+			return fmt.Errorf("compiling allow regex %q: %w", allowRegex, err)
+		}
+		a.allowRegex = regex
+	} else {
+		a.allowRegex = nil
+	}
+
+	if denyRegex != "" {
+		regex, err := regexp.Compile(denyRegex)
+		if err != nil {
+			return fmt.Errorf("compiling deny regex %q: %w", denyRegex, err)
+		}
+		a.denyRegex = regex
+	} else {
+		a.denyRegex = nil
+	}
+
+	return nil
+}
+
+// isDenied returns true if the email matches the deny regex (user is explicitly blocked).
+func (a *Authenticator) isDenied(email string) bool {
+	a.restrictMu.RLock()
+	defer a.restrictMu.RUnlock()
+	if a.denyRegex != nil {
+		return a.denyRegex.MatchString(email)
+	}
+	return false
+}
+
+// isAllowed returns true if the allow regex is not set or the email matches it.
+func (a *Authenticator) isAllowed(email string) bool {
+	a.restrictMu.RLock()
+	defer a.restrictMu.RUnlock()
+	if a.allowRegex == nil {
+		return true // no allow restriction means everyone is allowed
+	}
+	return a.allowRegex.MatchString(email)
+}
+
 // resolveRole returns the RBAC role for the given email address.
 // If a mapping exists and the email is found, returns the mapped role.
 // Otherwise returns the configured default role (or "readonly" if none set).
@@ -231,6 +286,14 @@ func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, er
 	identity, err := a.fetchUserIdentity(token)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
+	}
+
+	// Check user restrictions: deny-list first (takes precedence), then allow-list
+	if a.isDenied(identity.Email) {
+		return nil, fmt.Errorf("access denied: user is restricted")
+	}
+	if !a.isAllowed(identity.Email) {
+		return nil, fmt.Errorf("user not allowed")
 	}
 
 	// Apply role resolution: first try claim-based rules, then fall back to email mapping.

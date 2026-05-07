@@ -12,10 +12,11 @@ docker run -e MCP_TARGET=localhost:3000 -e AUTH_PROVIDER=github -p 8080:8080 \
 MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Cursor, Copilot all use it. But authentication is optional in the spec. This proxy sits between your MCP clients and servers to enforce security:
 
 - **OAuth 2.1 PKCE** — Require login via GitHub, Google, Okta, or any OIDC provider
-- **Tool-level RBAC** — Control which tools each user can call (admin/readonly/restricted roles)
+- **Tool-level RBAC** — Control which tools each user can call with built-in roles (admin/readonly/restricted) and unlimited custom roles
+- **Claim-based role mapping** — Automatic role assignment from OAuth claims (e.g., assign "devops" role to Engineering department)
 - **Per-client sessions** — Each user gets their own session boundary
 - **Audit logging** — Every request logged: who, what, when, allowed/denied (structured JSONL)
-- **Rate limiting** — Per-client token bucket (default: 300 req/min, configurable)
+- **Rate limiting** — Per-client token bucket (default: 60 req/min free tier, configurable)
 
 ## Why
 
@@ -101,23 +102,54 @@ AI Client (Claude, Cursor, Copilot)
 
 All config is in a single YAML file. See [`configs/example.yaml`](configs/example.yaml) for the full reference.
 
-**RBAC example:**
+**RBAC with custom roles:**
 
 ```yaml
 roles:
+  # Built-in roles can be overridden
   - name: "admin"
-    allowed_tools: []          # empty = all tools
-  - name: "readonly"
-    allowed_tools: ["tools/list", "resources/read"]
-  - name: "restricted"
-    allowed_tools: ["read_file", "search_files"]
-    deny_tools: ["delete_file"]
+    allowed_tools: []
+    deny_tools:
+      - "delete_database"  # Admin cannot delete databases
+  
+  # Custom roles for your teams
+  - name: "devops"
+    allowed_tools:
+      - "tools/list"
+      - "tools/call"
+      - "resources/read"
+    deny_tools:
+      - "delete_resource"
+      
+  - name: "analyst"
+    allowed_tools:
+      - "read_file"
+      - "query_database"
+      - "generate_report"
+    deny_tools: []
 
 user_roles:
+  default: "readonly"
+  
+  # Automatic role assignment from OAuth claims
+  claim_mapping:
+    - claim: "groups"
+      operator: "contains"
+      value: "administrators"
+      role: "admin"
+    - claim: "department"
+      operator: "equals"
+      value: "engineering"
+      role: "devops"
+    - claim: "department"
+      operator: "equals"
+      value: "business-intelligence"
+      role: "analyst"
+  
+  # Explicit email mappings override claims
   mapping:
     "alice@company.com": "admin"
-    "bob@company.com": "readonly"
-  default: "readonly"
+    "bob@company.com": "devops"
 ```
 
 ## Performance
@@ -160,5 +192,7 @@ PRs welcome. The codebase is standard Go — no frameworks, minimal dependencies
 Found a vulnerability? See [SECURITY.md](SECURITY.md) for responsible disclosure.
 
 ## License
+
+MIT — completely free and open-source. No tiers, no limits, no hidden fees.
 
 [MIT](LICENSE)

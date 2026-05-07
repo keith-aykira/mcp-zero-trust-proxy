@@ -1210,3 +1210,383 @@ func TestHandleCallbackCSRFProtection(t *testing.T) {
 		}
 	})
 }
+
+// ==============
+// User Restrictions Tests
+// ==============
+
+// TestSetUserRestrictions_Valid verifies that valid regex patterns are compiled successfully.
+func TestSetUserRestrictions_Valid(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	err = a.SetUserRestrictions("@company\\.com$", "@contractor\\.com$")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() returned unexpected error: %v", err)
+	}
+}
+
+// TestSetUserRestrictions_Empty verifies that empty strings disable the restrictions.
+func TestSetUserRestrictions_Empty(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	err = a.SetUserRestrictions("", "")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() with empty strings returned error: %v", err)
+	}
+}
+
+// TestSetUserRestrictions_InvalidAllowRegex verifies that invalid regex patterns return an error.
+func TestSetUserRestrictions_InvalidAllowRegex(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	err = a.SetUserRestrictions("[invalid(regex", "")
+	if err == nil {
+		t.Fatal("SetUserRestrictions() should return error for invalid allow_regex")
+	}
+	if !strings.Contains(err.Error(), "allow regex") {
+		t.Errorf("error should mention 'allow regex', got: %v", err)
+	}
+}
+
+// TestSetUserRestrictions_InvalidDenyRegex verifies that invalid regex patterns return an error.
+func TestSetUserRestrictions_InvalidDenyRegex(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	err = a.SetUserRestrictions("", "[invalid(regex")
+	if err == nil {
+		t.Fatal("SetUserRestrictions() should return error for invalid deny_regex")
+	}
+	if !strings.Contains(err.Error(), "deny regex") {
+		t.Errorf("error should mention 'deny regex', got: %v", err)
+	}
+}
+
+// TestAuthenticate_UserDenied verifies that a user matching deny_regex is rejected.
+func TestAuthenticate_UserDenied(t *testing.T) {
+	const validToken = "valid-token-deny-test"
+	const deniedEmail = "contractor@contractor.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user99", deniedEmail)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Set deny regex that matches the email
+	err = a.SetUserRestrictions("", "@contractor\\.com$")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	_, authErr := a.Authenticate(req)
+	if authErr == nil {
+		t.Fatal("Authenticate() should return error for denied user")
+	}
+	if !strings.Contains(authErr.Error(), "access denied") {
+		t.Errorf("error should mention 'access denied', got: %v", authErr)
+	}
+}
+
+// TestAuthenticate_UserNotAllowed verifies that a user not matching allow_regex is rejected.
+func TestAuthenticate_UserNotAllowed(t *testing.T) {
+	const validToken = "valid-token-allow-test"
+	const blockedEmail = "external@example.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user100", blockedEmail)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Set allow regex that does NOT match the email
+	err = a.SetUserRestrictions("@company\\.com$", "")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	_, authErr := a.Authenticate(req)
+	if authErr == nil {
+		t.Fatal("Authenticate() should return error for user not allowed")
+	}
+	if !strings.Contains(authErr.Error(), "user not allowed") {
+		t.Errorf("error should mention 'user not allowed', got: %v", authErr)
+	}
+}
+
+// TestAuthenticate_UserAllowed verifies that a user matching allow_regex is authenticated successfully.
+func TestAuthenticate_UserAllowed(t *testing.T) {
+	const validToken = "valid-token-allowed-test"
+	const allowedEmail = "employee@company.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user101", allowedEmail)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Set allow regex that matches the email
+	err = a.SetUserRestrictions("@company\\.com$", "")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	identity, authErr := a.Authenticate(req)
+	if authErr != nil {
+		t.Fatalf("Authenticate() returned unexpected error for allowed user: %v", authErr)
+	}
+	if identity.Email != allowedEmail {
+		t.Errorf("identity.Email = %q, want %q", identity.Email, allowedEmail)
+	}
+}
+
+// TestAuthenticate_DenyTakesPrecedence verifies that deny regex takes precedence over allow regex.
+// A user matching BOTH allow and deny should be denied.
+func TestAuthenticate_DenyTakesPrecedence(t *testing.T) {
+	const validToken = "valid-token-precedence-test"
+	const emailInBoth = "svc-contractor@contractor.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user102", emailInBoth)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Both allow and deny match this email, but deny should win
+	err = a.SetUserRestrictions(`.*@contractor\.com$`, `svc-.*@contractor\.com$`)
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	_, authErr := a.Authenticate(req)
+	if authErr == nil {
+		t.Fatal("Authenticate() should return error when user matches deny regex (even if allow matches)")
+	}
+	if !strings.Contains(authErr.Error(), "access denied") {
+		t.Errorf("error should mention 'access denied', got: %v", authErr)
+	}
+}
+
+// TestAuthenticate_AllowThenDeny verifies the order of evaluation:
+// deny is checked first, then allow. A user not in allow (but not in deny) gets "user not allowed".
+func TestAuthenticate_AllowThenDeny(t *testing.T) {
+	const validToken = "valid-token-order-test"
+	const emailNotInAllow = "random@external.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user103", emailNotInAllow)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Set allow regex (doesn't match) and deny regex (doesn't match)
+	// User should be rejected for not being in allow-list, not for being denied
+	err = a.SetUserRestrictions("@company\\.com$", "@bad\\.com$")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	_, authErr := a.Authenticate(req)
+	if authErr == nil {
+		t.Fatal("Authenticate() should return error for user not in allow-list")
+	}
+	if !strings.Contains(authErr.Error(), "user not allowed") {
+		t.Errorf("error should mention 'user not allowed' (not 'access denied'), got: %v", authErr)
+	}
+}
+
+// TestAuthenticate_NoRestrictions allows all authenticated users through.
+func TestAuthenticate_NoRestrictions(t *testing.T) {
+	const validToken = "valid-token-no-restrictions"
+	const anyEmail = "anyone@anywhere.com"
+
+	userInfoSrv := mockUserInfoServer(validToken, "user104", anyEmail)
+	defer userInfoSrv.Close()
+
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+	a.provider.UserInfoURL = userInfoSrv.URL
+
+	// Set no restrictions (empty strings)
+	err = a.SetUserRestrictions("", "")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Authorization", "Bearer "+validToken)
+
+	identity, authErr := a.Authenticate(req)
+	if authErr != nil {
+		t.Fatalf("Authenticate() should allow user when no restrictions are set: %v", authErr)
+	}
+	if identity.Email != anyEmail {
+		t.Errorf("identity.Email = %q, want %q", identity.Email, anyEmail)
+	}
+}
+
+// TestIsDenied verifies the isDenied helper directly.
+func TestIsDenied(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	// No deny regex set
+	if a.isDenied("anyone@example.com") {
+		t.Error("isDenied should return false when no deny regex is set")
+	}
+
+	// Set deny regex
+	err = a.SetUserRestrictions("", "@evil\\.com$")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	tests := []struct {
+		email string
+		want  bool
+	}{
+		{"bad@evil.com", true},
+		{"good@good.com", false},
+		{"user@evil.com.org", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.email, func(t *testing.T) {
+			got := a.isDenied(tt.email)
+			if got != tt.want {
+				t.Errorf("isDenied(%q) = %v, want %v", tt.email, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestIsAllowed verifies the isAllowed helper directly.
+func TestIsAllowed(t *testing.T) {
+	store := NewSessionStore(1 * time.Hour)
+	defer store.Stop()
+
+	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
+	a, err := NewAuthenticator(cfg, store)
+	if err != nil {
+		t.Fatalf("NewAuthenticator() error: %v", err)
+	}
+
+	// No allow regex set — everyone is allowed
+	if !a.isAllowed("anyone@example.com") {
+		t.Error("isAllowed should return true when no allow regex is set")
+	}
+
+	// Set allow regex
+	err = a.SetUserRestrictions("@company\\.com$", "")
+	if err != nil {
+		t.Fatalf("SetUserRestrictions() error: %v", err)
+	}
+
+	tests := []struct {
+		email string
+		want  bool
+	}{
+		{"user@company.com", true},
+		{"admin@company.com", true},
+		{"external@example.com", false},
+		{"user@company.com.org", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.email, func(t *testing.T) {
+			got := a.isAllowed(tt.email)
+			if got != tt.want {
+				t.Errorf("isAllowed(%q) = %v, want %v", tt.email, got, tt.want)
+			}
+		})
+	}
+}

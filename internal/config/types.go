@@ -2,15 +2,16 @@ package config
 
 // Config is the root configuration struct for the MCP Zero-Trust Proxy.
 type Config struct {
-	Server    ServerConfig    `yaml:"server"`
-	Auth      AuthConfig      `yaml:"auth"`
-	UserRoles UserRolesConfig `yaml:"user_roles"`
-	Roles     []RoleConfig    `yaml:"roles"`
-	RateLimit RateLimitConfig `yaml:"rate_limit"`
-	Audit     AuditConfig     `yaml:"audit"`
-	Logging   LogConfig       `yaml:"logging"`
-	CORS      CORSConfig      `yaml:"cors"`
-	License   LicenseConfig   `yaml:"license"`
+	Server           ServerConfig           `yaml:"server"`
+	Auth             AuthConfig             `yaml:"auth"`
+	UserRoles        UserRolesConfig        `yaml:"user_roles"`
+	UserRestrictions UserRestrictionsConfig `yaml:"user_restrictions"`
+	Roles            []RoleConfig           `yaml:"roles"`
+	RateLimit        RateLimitConfig        `yaml:"rate_limit"`
+	Audit            AuditConfig            `yaml:"audit"`
+	Logging          LogConfig              `yaml:"logging"`
+	CORS             CORSConfig             `yaml:"cors"`
+	License          LicenseConfig          `yaml:"license"`
 }
 
 // LicenseConfig holds the optional license key for enabling paid tiers.
@@ -45,6 +46,17 @@ type UserRolesConfig struct {
 	// Rules are evaluated in order; the first matching rule determines the role.
 	// If no claim rule matches, falls back to email mapping or default.
 	ClaimMapping []ClaimRule `yaml:"claim_mapping"`
+}
+
+// UserRestrictionsConfig controls access based on email regex patterns.
+type UserRestrictionsConfig struct {
+	// AllowRegex, if set, restricts access to users whose email matches this regex.
+	// All other authenticated users receive a 403 error.
+	// Default: "" (disabled — all authenticated users are allowed)
+	AllowRegex string `yaml:"allow_regex"`
+	// DenyRegex, if set, denies access to users whose email matches this regex.
+	// Deny takes precedence over allow. Default: "" (disabled)
+	DenyRegex string `yaml:"deny_regex"`
 }
 
 // CORSConfig controls Cross-Origin Resource Sharing headers.
