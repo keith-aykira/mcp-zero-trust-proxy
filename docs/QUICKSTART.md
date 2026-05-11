@@ -16,13 +16,21 @@ You configure one YAML file, run one Docker command, and every request to your M
 
 ## Option A: Docker (recommended)
 
-### 1. Pull the image
+### 1. Get the image
+
+**Pull from registry (pre-built):**
 
 ```bash
 docker pull ghcr.io/anoblescm/mcp-zero-trust-proxy:latest
 ```
 
-Or build from source:
+**Build directly from the repo (recommended for quick testing):**
+
+```bash
+docker build -t mcp-zero-trust-proxy https://github.com/keith-aykira/mcp-zero-trust-proxy.git#main
+```
+
+This builds the Docker image directly from the GitHub repository without cloning. You can also build from a local clone:
 
 ```bash
 git clone https://github.com/keith-aykira/mcp-zero-trust-proxy.git
