@@ -106,11 +106,11 @@ Docker HEALTHCHECK configuration:
 ### Binary
 
 ```bash
-go install github.com/AnobleSCM/mcp-zero-trust-proxy/cmd/mcpproxy@latest
+go install github.com/keith-aykira/mcp-zero-trust-proxy/cmd/mcpproxy@latest
 mcpproxy --config ./config.yaml
 ```
 
-Or download a release binary from the [releases page](https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases).
+Or download a release binary from the [releases page](https://github.com/keith-aykira/mcp-zero-trust-proxy/releases).
 
 ## How it works
 

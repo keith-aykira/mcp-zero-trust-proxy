@@ -121,7 +121,7 @@ jobs:
             docker run -e MCP_TARGET=localhost:3000 ghcr.io/anoblescm/mcp-zero-trust-proxy:${{ steps.tag.outputs.TAG }}
             ```
 
-            See [QUICKSTART.md](https://github.com/AnobleSCM/mcp-zero-trust-proxy/blob/main/docs/QUICKSTART.md) for full setup instructions.
+            See [QUICKSTART.md](https://github.com/keith-aykira/mcp-zero-trust-proxy/blob/main/docs/QUICKSTART.md) for full setup instructions.
 
             ### Downloads
 

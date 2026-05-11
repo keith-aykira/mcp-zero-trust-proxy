@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/audit"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/middleware"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/audit"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/middleware"
 )
 
 // makeEntry creates a test audit entry with all fields populated.

@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 const defaultFullMask = "***REDACTED***"
@@ -233,21 +233,24 @@ func (m *Masker) MaskRequest(req *proxy.MCPRequest) (*proxy.MCPRequest, error) {
 
 // MaskResponse applies PII masking to upstream responses before sending downstream.
 // Masks result fields for tools assigned to a sensitivity class.
-func (m *Masker) MaskResponse(method string, response json.RawMessage) (json.RawMessage, error) {
+// toolOrResource is the tool name for tools/call, or the resource URI for resources/read.
+func (m *Masker) MaskResponse(method string, toolOrResource string, response json.RawMessage) (json.RawMessage, error) {
 	if m == nil {
 		return response, nil
 	}
 
 	switch method {
 	case proxy.MethodToolsCall:
-		return m.maskToolsCallResponse(response)
+		return m.maskToolsCallResponse(toolOrResource, response)
+	case proxy.MethodResourcesRead:
+		return m.maskResourceSReadResponse(toolOrResource, response)
 	}
 
 	return response, nil
 }
 
 // maskToolsCallResponse applies PII masking to a tools/call response.
-func (m *Masker) maskToolsCallResponse(response json.RawMessage) (json.RawMessage, error) {
+func (m *Masker) maskToolsCallResponse(toolName string, response json.RawMessage) (json.RawMessage, error) {
 	var fullResp struct {
 		JSONRPC string          `json:"jsonrpc"`
 		ID      interface{}     `json:"id"`
@@ -269,7 +272,7 @@ func (m *Masker) maskToolsCallResponse(response json.RawMessage) (json.RawMessag
 		return response, nil
 	}
 
-	sensitiveFields := m.GetSensitiveFields("unknown")
+	sensitiveFields := m.GetSensitiveFields(toolName)
 
 	if len(sensitiveFields) == 0 {
 		return response, nil
@@ -291,6 +294,66 @@ func (m *Masker) maskToolsCallResponse(response json.RawMessage) (json.RawMessag
 							}
 						}
 					}
+				}
+			}
+		}
+	}
+
+	maskedResult, err := json.Marshal(result)
+
+	if err != nil {
+		return response, nil
+	}
+
+	fullResp.Result = maskedResult
+
+	return json.Marshal(fullResp)
+}
+
+// maskResourceSReadResponse applies PII masking to a resources/read response.
+func (m *Masker) maskResourceSReadResponse(resourceURI string, response json.RawMessage) (json.RawMessage, error) {
+	var fullResp struct {
+		JSONRPC string          `json:"jsonrpc"`
+		ID      interface{}     `json:"id"`
+		Result  json.RawMessage `json:"result,omitempty"`
+		Error   *proxy.RPCError `json:"error,omitempty"`
+	}
+
+	if err := json.Unmarshal(response, &fullResp); err != nil {
+		return response, nil
+	}
+
+	if fullResp.Result == nil || fullResp.Error != nil {
+		return response, nil
+	}
+
+	var result map[string]interface{}
+
+	if err := json.Unmarshal(fullResp.Result, &result); err != nil {
+		return response, nil
+	}
+
+	// Extract sensitivity class from resource URI (strip scheme and host, keep path)
+	// e.g., "file:///home/user/documents/passwd" -> "/documents/passwd"
+	// Then use as key to look up assigned sensitivity class.
+	sensitiveFields := m.GetSensitiveFields(resourceURI)
+
+	if len(sensitiveFields) == 0 {
+		return response, nil
+	}
+
+	// Apply masking to the resource content.
+	if content, ok := result["contents"].([]interface{}); ok {
+		for i := range content {
+			if contentItem, ok := content[i].(map[string]interface{}); ok {
+				if text, ok := contentItem["text"].(string); ok {
+					maskedText := m.applyPatterns(text, sensitiveFields)
+					contentItem["text"] = maskedText
+				}
+
+				if blob, ok := contentItem["blob"].(string); ok {
+					maskedBlob := m.applyPatterns(blob, sensitiveFields)
+					contentItem["blob"] = maskedBlob
 				}
 			}
 		}

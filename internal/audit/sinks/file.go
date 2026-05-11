@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // FileSink writes audit entries to stdout, a file, or both.

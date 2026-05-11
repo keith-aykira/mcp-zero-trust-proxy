@@ -13,8 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/httputil"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 	"github.com/rs/zerolog/log"
 )
 
@@ -84,7 +85,7 @@ func NewAuthenticator(cfg *config.AuthConfig, sessionStore *SessionStore) (*Auth
 		cfg:          cfg,
 		provider:     provider,
 		sessionStore: sessionStore,
-		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		httpClient:   httputil.NewClient(nil, 10*time.Second), // Uses default outbound config
 		stopCleanup:  make(chan struct{}),
 	}, nil
 }

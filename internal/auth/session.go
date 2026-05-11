@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // Session holds the authenticated state for a single connected client.

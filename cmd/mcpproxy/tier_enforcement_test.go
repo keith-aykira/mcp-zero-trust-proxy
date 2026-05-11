@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/license"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/license"
 )
 
 // applyTierOverrides applies tier-based config overrides, matching the logic in main().

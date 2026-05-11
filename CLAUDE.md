@@ -39,7 +39,7 @@ cd landing-page && vercel --prod --yes
 
 ## Current State
 
-- **GitHub**: AnobleSCM/mcp-zero-trust-proxy (making public for launch)
+- **GitHub**: keith-aykira/mcp-zero-trust-proxy (making public for launch)
 - **License**: MIT — fully open source, no paid tiers
 - **Supabase**: project ref `dwumoznjyckebuirghne` — waitlist table
 - **Landing page**: Live at mcpzerotrust.dev (Vercel), Mercury-style design, SEO optimized

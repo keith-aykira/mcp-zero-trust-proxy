@@ -344,7 +344,7 @@ https://mcpzerotrust.dev/?utm_source=producthunt&utm_medium=launch&utm_campaign=
     }
   ],
   "url": "https://mcpzerotrust.dev",
-  "downloadUrl": "https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases"
+  "downloadUrl": "https://github.com/keith-aykira/mcp-zero-trust-proxy/releases"
 }
 ```
 

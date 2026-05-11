@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 type HealthResponse struct {

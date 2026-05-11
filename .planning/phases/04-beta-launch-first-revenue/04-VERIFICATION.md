@@ -126,7 +126,7 @@ No TODO/FIXME/HACK/PLACEHOLDER comments found in any Go or TypeScript implementa
 
 #### 3. GitHub Actions Release Workflow Execution
 
-**Test:** Push a v1.0.0 tag: `git tag v1.0.0 && git push origin v1.0.0`. Monitor GitHub Actions on the AnobleSCM/mcp-zero-trust-proxy repo.
+**Test:** Push a v1.0.0 tag: `git tag v1.0.0 && git push origin v1.0.0`. Monitor GitHub Actions on the keith-aykira/mcp-zero-trust-proxy repo.
 **Expected:** Three jobs complete: test passes, Docker image pushed to ghcr.io/anoblescm/mcp-zero-trust-proxy:v1.0.0 and :latest, GitHub Release created with 4 binary attachments.
 **Why human:** Workflow execution requires pushing to GitHub — cannot run locally. Workflow YAML syntax and logic have been verified correct.
 

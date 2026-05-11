@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // Middleware processes an MCP request through the security pipeline.

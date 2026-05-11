@@ -2,7 +2,7 @@
 
 **HN Title (< 80 chars):** `Show HN: Open-source zero-trust proxy for MCP servers (Go)`
 
-**URL:** https://github.com/AnobleSCM/mcp-zero-trust-proxy
+**URL:** https://github.com/keith-aykira/mcp-zero-trust-proxy
 
 ---
 
@@ -43,7 +43,7 @@ MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Curso
 - Security researchers willing to review the auth and RBAC implementation
 - Feedback on the architecture and approach
 
-GitHub: https://github.com/AnobleSCM/mcp-zero-trust-proxy
+GitHub: https://github.com/keith-aykira/mcp-zero-trust-proxy
 
 ---
 

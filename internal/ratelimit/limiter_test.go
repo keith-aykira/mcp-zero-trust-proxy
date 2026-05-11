@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/ratelimit"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/ratelimit"
 )
 
 // makeLimiter creates a rate limiter from config.

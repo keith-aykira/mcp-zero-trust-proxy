@@ -25,7 +25,7 @@ docker pull ghcr.io/anoblescm/mcp-zero-trust-proxy:latest
 Or build from source:
 
 ```bash
-git clone https://github.com/AnobleSCM/mcp-zero-trust-proxy.git
+git clone https://github.com/keith-aykira/mcp-zero-trust-proxy.git
 cd mcp-zero-trust-proxy
 docker build -t mcp-zero-trust-proxy .
 ```
@@ -93,10 +93,10 @@ curl http://localhost:8080/health
 **Using `go install`:**
 
 ```bash
-go install github.com/AnobleSCM/mcp-zero-trust-proxy/cmd/mcpproxy@latest
+go install github.com/keith-aykira/mcp-zero-trust-proxy/cmd/mcpproxy@latest
 ```
 
-**Or download a release binary** from the [GitHub releases page](https://github.com/AnobleSCM/mcp-zero-trust-proxy/releases) and place it on your PATH.
+**Or download a release binary** from the [GitHub releases page](https://github.com/keith-aykira/mcp-zero-trust-proxy/releases) and place it on your PATH.
 
 ### 2. Create config.yaml
 

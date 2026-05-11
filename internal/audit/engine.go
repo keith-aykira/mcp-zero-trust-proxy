@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/audit/sinks"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/audit/sinks"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // Engine orchestrates multiple audit sinks, fan-out ing events to all configured sinks.

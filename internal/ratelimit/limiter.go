@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 )
 
 // clientState holds the rate.Limiter for a single client and a last-accessed time

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/license"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/license"
 )
 
 // generateTestKey produces a fresh ECDSA P-256 key pair for testing.

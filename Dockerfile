@@ -3,7 +3,7 @@ FROM golang:1.24-alpine AS builder
 
 LABEL org.opencontainers.image.title="MCP Zero Trust Proxy"
 LABEL org.opencontainers.image.version="1.0.0"
-LABEL org.opencontainers.image.vendor="AnobleSCM"
+LABEL org.opencontainers.image.vendor="keith-aykira"
 
 RUN apk add --no-cache git ca-certificates tzdata
 ENV GOTRACEBACK=crash
@@ -35,7 +35,7 @@ FROM alpine:3.19
 # Add labels
 LABEL org.opencontainers.image.title="MCP Zero Trust Proxy"
 LABEL org.opencontainers.image.version="1.0.0"
-LABEL org.opencontainers.image.vendor="AnobleSCM"
+LABEL org.opencontainers.image.vendor="keith-aykira"
 
 RUN apk add --no-cache ca-certificates tzdata
 

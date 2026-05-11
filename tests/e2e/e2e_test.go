@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/license"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/rbac"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/ratelimit"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/license"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/rbac"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/ratelimit"
 )
 
 // --- Persona token constants ---

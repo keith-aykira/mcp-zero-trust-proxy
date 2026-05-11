@@ -1,6 +1,6 @@
 package rbac
 
-import "github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+import "github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 
 // Built-in role name constants.
 const (

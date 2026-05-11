@@ -1,7 +1,7 @@
 package sinks
 
 import (
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // AuditSink is the interface implemented by all audit sink types.

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 )
 
 // makeTestConfig returns a minimal config pointing at the given upstream URL.

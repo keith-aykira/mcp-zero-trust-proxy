@@ -14,7 +14,7 @@ go vet ./...
 go test ./... -race -count=1
 go build -o bin/mcpproxy ./cmd/mcpproxy
 
-# Test (all 9 packages, 236+ tests)
+# Test (all 13 packages, 276+ tests)
 go test ./... -v -race -count=1
 
 # Test single package
@@ -48,7 +48,7 @@ internal/
   audit/   — JSONL logger with rotation
   config/  — YAML loader with ${ENV_VAR} substitution
 tests/
-  integration/ — 20+ tests with 5 mock server types
+  integration/ — 21+ tests with 5 mock server types
   e2e/       — 24 persona tests (validates full pipeline scenarios)
 ```
 

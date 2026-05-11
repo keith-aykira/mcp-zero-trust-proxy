@@ -45,7 +45,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 - Supabase project ref: dwumoznjyckebuirghne
 - Supabase URL: https://dwumoznjyckebuirghne.supabase.co
-- GitHub repo: AnobleSCM/mcp-zero-trust-proxy (private)
+- GitHub repo: keith-aykira/mcp-zero-trust-proxy (private)
 - Domain: mcpzerotrust.dev (purchased via Vercel, not yet connected)
 - Waitlist form: wired to Supabase, verified working (test insert successful)
 - RLS: anon can insert, only authenticated can read
@@ -57,7 +57,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - Research files: docs/research/ (PAIN-SIGNALS, COMPETITIVE-ANALYSIS, MCP-ECOSYSTEM-PULSE, BUYER-BEHAVIOR, TECHNICAL-LANDSCAPE, GO-NO-GO-BRIEF)
 - Key risk: Window is 3-6 months before market consolidates (IBM adding features, PointGuard AI entered Mar 18)
 - Go binary path: /Users/andrewnoble/.cache/pre-commit/repoj93vdc0b/golangenv-default/.go/bin/go (go 1.26.0, no system-wide install)
-- Go module: github.com/AnobleSCM/mcp-zero-trust-proxy
+- Go module: github.com/keith-aykira/mcp-zero-trust-proxy
 - Core interfaces stable in internal/proxy/ and internal/middleware/ — all plans 02-06 build against these
 - Three built-in RBAC roles: admin (all tools), readonly (list+read), restricted (tools/list only)
 - Config loads from YAML with ${ENV_VAR} substitution; defaults: listen :8080, 100 req/min, burst 10, audit stdout enabled
@@ -128,7 +128,7 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 - 2026-03-21 (04-02): PKCS#8 PEM format for signing private key — required by crypto.subtle.importKey('pkcs8')
 - 2026-03-21 (04-02): Service role RLS only for license inserts/updates — anon read is intentional (JWT is the secret, not the row)
 - 2026-03-21 (04-03): Stripe checkout links use named placeholders (STRIPE_PRO_LINK / STRIPE_ENTERPRISE_LINK) — agent generates page without live credentials; user replaces before deploy
-- 2026-03-21 (04-03): GHCR auth uses GITHUB_TOKEN only — no PAT required, works out of the box for any push to AnobleSCM org
+- 2026-03-21 (04-03): GHCR auth uses GITHUB_TOKEN only — no PAT required, works out of the box for any push to keith-aykira org
 - 2026-03-21 (04-03): Show HN body leads with breach data (8,000+ exposed servers, 30+ CVEs) — evidence-first hook for technical audience
 - 2026-03-21 (04-03): "Founding member pricing — locked in for life" badge above pricing grid — urgency framing for early adopters
 - 2026-03-23 (05-01): FAQPage questions cover 5 buyer intents: setup, comparison, self-hosting, pricing, client compatibility — these match exact developer search queries

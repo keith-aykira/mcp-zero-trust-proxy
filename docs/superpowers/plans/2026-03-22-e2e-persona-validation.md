@@ -74,11 +74,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/license"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/rbac"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/ratelimit"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/license"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/rbac"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/ratelimit"
 )
 
 // --- Persona token constants ---
@@ -1476,9 +1476,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/audit"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/audit"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 func TestKai_HealthCheck(t *testing.T) {

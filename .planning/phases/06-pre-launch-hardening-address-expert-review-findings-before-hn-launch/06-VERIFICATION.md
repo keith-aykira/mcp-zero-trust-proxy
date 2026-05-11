@@ -38,7 +38,7 @@ human_verification:
 | 2 | Free tier burst size is 30 (not 5) | VERIFIED | `cmd/mcpproxy/main.go` line 66: `if cfg.RateLimit.BurstSize > 30` |
 | 3 | All documentation shows 60 req/min for free tier | VERIFIED | QUICKSTART.md line 295 + 357; index.html line 872; SHOW-HN.md line 38; no `10 req/min` anywhere in these files |
 | 4 | Landing page has one clear CTA path — no 'Get Early Access' confusion | VERIFIED | Zero occurrences of "Get Early Access" or "handleEarlySubmit" in index.html; nav → `#pricing`; hero → GitHub Releases; free tier → GitHub Releases |
-| 5 | Free tier users can get the proxy without entering an email (link to GitHub Releases) | VERIFIED | index.html lines 650, 878 both point to `github.com/AnobleSCM/mcp-zero-trust-proxy/releases` |
+| 5 | Free tier users can get the proxy without entering an email (link to GitHub Releases) | VERIFIED | index.html lines 650, 878 both point to `github.com/keith-aykira/mcp-zero-trust-proxy/releases` |
 | 6 | Top waitlist email capture section is removed from landing page | VERIFIED | `handleEarlySubmit` count = 0; early capture section gone |
 | 7 | No personal Gmail address appears on any customer-facing page | VERIFIED | `andrewnoble1992@gmail.com` count = 0 in index.html and checkout-success.html |
 | 8 | Footer shows support@mcpzerotrust.dev as a mailto link | VERIFIED | index.html line 965: `mailto:support@mcpzerotrust.dev` in footer |

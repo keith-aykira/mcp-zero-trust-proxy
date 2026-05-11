@@ -13,6 +13,7 @@ type Config struct {
 	CORS             CORSConfig             `yaml:"cors"`
 	License          LicenseConfig          `yaml:"license"`
 	PIIMasking       PIIMaskingConfig       `yaml:"pii_masking"`
+	Outbound         OutboundConfig         `yaml:"outbound"`
 }
 
 // LicenseConfig holds the optional license key for enabling paid tiers.
@@ -73,6 +74,12 @@ type CORSConfig struct {
 	MaxAge int `yaml:"max_age"`
 }
 
+// OutboundConfig holds TLS settings for outbound HTTP connections (OAuth, upstream MCP, audit sinks).
+type OutboundConfig struct {
+	// MinTLSVersion sets the minimum TLS version for outbound connections. Valid values: "1.0", "1.1", "1.2", "1.3". Default: "1.2".
+	MinTLSVersion string `yaml:"min_tls_version"`
+}
+
 // ServerConfig holds the proxy's network configuration.
 type ServerConfig struct {
 	// UpstreamURL is the URL of the upstream MCP server to proxy to. Required.
@@ -82,6 +89,8 @@ type ServerConfig struct {
 	// MaxBodySize is the maximum request body size in bytes. Default: 1048576 (1MB).
 	// Requests exceeding this limit are rejected with 413 before any parsing.
 	MaxBodySize int64 `yaml:"max_body_size"`
+	// MinHTTPVersion sets the minimum HTTP version. Valid values: "1.0", "1.1", "2.0". Default: "1.1".
+	MinHTTPVersion string `yaml:"min_http_version"`
 	// TLS holds optional TLS termination configuration.
 	TLS TLSConfig `yaml:"tls"`
 	// SSE holds configurable SSE proxy settings.
@@ -95,6 +104,10 @@ type TLSConfig struct {
 	CertFile string `yaml:"cert_file"`
 	// KeyFile is the path to the TLS private key file (PEM format).
 	KeyFile string `yaml:"key_file"`
+	// MinVersion sets the minimum TLS version. Valid values: "1.0", "1.1", "1.2", "1.3". Default: "1.2".
+	MinVersion string `yaml:"min_version"`
+	// CipherSuites is an optional list of cipher suite names to use. If empty, Go's secure defaults are applied.
+	CipherSuites []string `yaml:"cipher_suites"`
 }
 
 // SSEConfig controls Server-Sent Events proxy behavior.

@@ -20,7 +20,7 @@ Ready-to-submit listing content for MCP registries. Copy-paste during submission
 |-------|-------|
 | **Name** | MCP Zero-Trust Proxy |
 | **Category** | Security / Infrastructure |
-| **URL** | https://github.com/AnobleSCM/mcp-zero-trust-proxy |
+| **URL** | https://github.com/keith-aykira/mcp-zero-trust-proxy |
 | **Docker image** | `ghcr.io/anoblescm/mcp-zero-trust-proxy` |
 | **License** | MIT |
 
@@ -46,7 +46,7 @@ Ready-to-submit listing content for MCP registries. Copy-paste during submission
 |-------|-------|
 | **Name** | MCP Zero-Trust Proxy |
 | **Category** | Security |
-| **URL** | https://github.com/AnobleSCM/mcp-zero-trust-proxy |
+| **URL** | https://github.com/keith-aykira/mcp-zero-trust-proxy |
 | **Install command** | `docker pull ghcr.io/anoblescm/mcp-zero-trust-proxy` |
 
 **Short description:**
@@ -91,7 +91,7 @@ docker run \
 **Exact markdown line to add to README.md:**
 
 ```markdown
-- [MCP Zero-Trust Proxy](https://github.com/AnobleSCM/mcp-zero-trust-proxy) - Open-source reverse proxy adding OAuth 2.1, RBAC, per-client sessions, and audit logging to any MCP server. Zero code changes. MIT licensed.
+- [MCP Zero-Trust Proxy](https://github.com/keith-aykira/mcp-zero-trust-proxy) - Open-source reverse proxy adding OAuth 2.1, RBAC, per-client sessions, and audit logging to any MCP server. Zero code changes. MIT licensed.
 ```
 
 **PR body (copy-paste):**

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 func makeIdentity(clientID, email string) *proxy.ClientIdentity {

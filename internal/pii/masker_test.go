@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 func TestNew(t *testing.T) {
@@ -266,8 +266,6 @@ func TestMaskRequest(t *testing.T) {
 }
 
 func TestMaskResponse(t *testing.T) {
-	// Note: Response masking uses "unknown" as tool name since tool name isn't tracked in responses
-	// In production, tool names can be extracted from the request that generated the response
 	cfg := config.PIIMaskingConfig{
 		Enabled: true,
 		Patterns: []config.PIIPatternConfig{
@@ -276,7 +274,7 @@ func TestMaskResponse(t *testing.T) {
 		SensitivityClasses: []config.PIISensitivityClassConfig{
 			{Name: "medium", PatternNames: []string{"email"}},
 		},
-		ToolClassAssignments: map[string]string{"unknown": "medium"},
+		ToolClassAssignments: map[string]string{"get_user": "medium"},
 	}
 	masker, err := New(cfg)
 	if err != nil {
@@ -293,7 +291,7 @@ func TestMaskResponse(t *testing.T) {
 				]
 			}
 		}`)
-		maskedResp, err := masker.MaskResponse(proxy.MethodToolsCall, response)
+		maskedResp, err := masker.MaskResponse(proxy.MethodToolsCall, "get_user", response)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -322,7 +320,7 @@ func TestMaskResponse(t *testing.T) {
 	t.Run("nil masker passes through", func(t *testing.T) {
 		var m *Masker
 		response := json.RawMessage(`{"jsonrpc": "2.0", "id": 1, "result": {}}`)
-		maskedResp, err := m.MaskResponse(proxy.MethodToolsCall, response)
+		maskedResp, err := m.MaskResponse(proxy.MethodToolsCall, "any_tool", response)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -524,7 +522,7 @@ func TestResponseWithAnthropicUtility(t *testing.T) {
 		SensitivityClasses: []config.PIISensitivityClassConfig{
 			{Name: "medium", PatternNames: []string{"url"}},
 		},
-		ToolClassAssignments: map[string]string{"unknown": "medium"},
+		ToolClassAssignments: map[string]string{"search": "medium"},
 	}
 	masker, err := New(cfg)
 	if err != nil {
@@ -548,7 +546,7 @@ func TestResponseWithAnthropicUtility(t *testing.T) {
 			]
 		}
 	}`)
-	maskedResp, err := masker.MaskResponse(proxy.MethodToolsCall, response)
+	maskedResp, err := masker.MaskResponse(proxy.MethodToolsCall, "search", response)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

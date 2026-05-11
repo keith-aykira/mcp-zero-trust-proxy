@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 )
 
 // contextKey is an unexported type for context keys defined in this package.

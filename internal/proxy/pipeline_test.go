@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/middleware"
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/proxy"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/middleware"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
 )
 
 // --- Mock implementations ---
@@ -126,6 +126,17 @@ func toolsListResponse(tools []string) string {
 		},
 	})
 	return string(result)
+}
+
+// helper: build a minimal resources/read JSON-RPC body
+func resourcesReadBody(uri string) []byte {
+	b, _ := json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "resources/read",
+		"params":  map[string]string{"uri": uri},
+	})
+	return b
 }
 
 // --- Tests ---
@@ -1179,5 +1190,196 @@ func TestPipelineLatencyTracking(t *testing.T) {
 	}
 	if entry.Latency > 1*time.Second {
 		t.Errorf("latency should be under 1 second in unit test, got %v", entry.Latency)
+	}
+}
+
+// mockPIIMasker simulates PII masking for tests.
+type mockPIIMasker struct {
+	called         bool
+	toolName       string
+	shouldMask     bool
+	maskRequest    func(req *proxy.MCPRequest) (*proxy.MCPRequest, error)
+	maskResponse   func(method string, toolOrResource string, response json.RawMessage) (json.RawMessage, error)
+}
+
+func (m *mockPIIMasker) ShouldMaskTool(toolName string) bool {
+	return m.shouldMask
+}
+
+func (m *mockPIIMasker) MaskRequest(req *proxy.MCPRequest) (*proxy.MCPRequest, error) {
+	m.called = true
+	if m.maskRequest != nil {
+		return m.maskRequest(req)
+	}
+	return req, nil
+}
+
+func (m *mockPIIMasker) MaskResponse(method string, toolOrResource string, response json.RawMessage) (json.RawMessage, error) {
+	m.called = true
+	m.toolName = toolOrResource
+	if !m.shouldMask {
+		return response, nil
+	}
+	if m.maskResponse != nil {
+		return m.maskResponse(method, toolOrResource, response)
+	}
+	return response, nil
+}
+
+// TestPipelinePIIResponseMasking tests that PII masking is applied to tools/call responses.
+func TestPipelinePIIResponseMasking(t *testing.T) {
+	upstream := &mockUpstreamHandler{
+		responseBody: `{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"email: test@example.com"}]}}`,
+		statusCode:   200,
+	}
+	auth := &mockAuthenticator{
+		identity: &proxy.ClientIdentity{ClientID: "user1", Role: "admin"},
+	}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	piiMasker := &mockPIIMasker{
+		shouldMask: true, // Simulates tool assigned to sensitivity class
+		maskResponse: func(method string, toolName string, response json.RawMessage) (json.RawMessage, error) {
+			return json.RawMessage(`{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"email: ***REDACTED***"}]}}`), nil
+		},
+	}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, piiMasker, auditLogger)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("get_user")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if !piiMasker.called {
+		t.Error("PII masker MaskResponse should have been called")
+	}
+	if piiMasker.toolName != "get_user" {
+		t.Errorf("expected tool name 'get_user', got '%s'", piiMasker.toolName)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "***REDACTED***") {
+		t.Errorf("response should contain masked data, got: %s", body)
+	}
+	if strings.Contains(body, "test@example.com") {
+		t.Error("response should not contain unmasked email")
+	}
+}
+
+// TestPipelinePIIResponseMaskingResourcesRead tests PII masking on resources/read responses.
+func TestPipelinePIIResponseMaskingResourcesRead(t *testing.T) {
+	upstream := &mockUpstreamHandler{
+		responseBody: `{"jsonrpc":"2.0","id":1,"result":{"contents":[{"uri":"file:///secret","text":"password: secret123"}]}}`,
+		statusCode:   200,
+	}
+	auth := &mockAuthenticator{
+		identity: &proxy.ClientIdentity{ClientID: "user1", Role: "admin"},
+	}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	piiMasker := &mockPIIMasker{
+		shouldMask: true, // Simulates resource assigned to sensitivity class
+		maskResponse: func(method string, resourceURI string, response json.RawMessage) (json.RawMessage, error) {
+			if resourceURI != "file:///secret" {
+				return nil, fmt.Errorf("expected resource URI 'file:///secret', got '%s'", resourceURI)
+			}
+			return json.RawMessage(`{"jsonrpc":"2.0","id":1,"result":{"contents":[{"uri":"file:///secret","text":"password: ***REDACTED***"}]}}`), nil
+		},
+	}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, piiMasker, auditLogger)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(resourcesReadBody("file:///secret")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if !piiMasker.called {
+		t.Error("PII masker MaskResponse should have been called for resources/read")
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "***REDACTED***") {
+		t.Errorf("response should contain masked data, got: %s", body)
+	}
+	if strings.Contains(body, "secret123") {
+		t.Error("response should not contain unmasked password")
+	}
+}
+
+// TestPipelinePIINoMaskingForUnassignedTool tests that PII masking is skipped for unassigned tools.
+func TestPipelinePIINoMaskingForUnassignedTool(t *testing.T) {
+	unmaskedResponse := `{"jsonrpc":"2.0","id":1,"result":{"message":"hello","email":"test@example.com"}}`
+	upstream := &mockUpstreamHandler{
+		responseBody: unmaskedResponse,
+		statusCode:   200,
+	}
+	auth := &mockAuthenticator{
+		identity: &proxy.ClientIdentity{ClientID: "user1", Role: "admin"},
+	}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{}
+	piiMasker := &mockPIIMasker{
+		shouldMask: false, // Simulates unassigned tool returning no patterns
+		maskResponse: func(method string, toolOrResource string, response json.RawMessage) (json.RawMessage, error) {
+			// When tool is unassigned, masker returns response unchanged
+			return response, nil
+		},
+	}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, piiMasker, auditLogger)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsCallBody("unassigned_tool")))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	body := w.Body.String()
+	// Response should be passed through unchanged for unassigned tools
+	if !strings.Contains(body, `"email":"test@example.com"`) {
+		t.Errorf("response should be unchanged for unassigned tool, got: %s", body)
+	}
+	if strings.Contains(body, "***REDACTED***") {
+		t.Error("response should not contain redacted content for unassigned tool")
+	}
+}
+
+// TestPipelinePIIWithRBACFiltering tests that both PII masking and RBAC filtering can work together.
+func TestPipelinePIIWithRBACFiltering(t *testing.T) {
+	upstream := &mockUpstreamHandler{
+		responseBody: toolsListResponse([]string{"tool1", "tool2", "admin_tool"}),
+		statusCode:   200,
+	}
+	auth := &mockAuthenticator{
+		identity: &proxy.ClientIdentity{ClientID: "user1", Role: "readonly"},
+	}
+	rl := &mockRateLimiter{allow: true}
+	rbac := &mockRBACEngine{
+		filteredResult: json.RawMessage(`{"tools":[{"name":"tool1"},{"name":"tool2"}]}`),
+	}
+	piiMasker := &mockPIIMasker{}
+	auditLogger := &mockAuditLogger{}
+
+	p := proxy.NewPipelineForTest(upstream, auth, rl, rbac, piiMasker, auditLogger)
+
+	req := httptest.NewRequest("POST", "/", bytes.NewReader(toolsListBody()))
+	w := httptest.NewRecorder()
+
+	p.ServeHTTP(w, req)
+
+	if !rbac.filterCalled {
+		t.Error("RBAC filtering should be called for tools/list")
+	}
+
+	body := w.Body.String()
+	if strings.Contains(body, "admin_tool") {
+		t.Error("RBAC should have filtered out admin_tool")
+	}
+	if !strings.Contains(body, "tool1") || !strings.Contains(body, "tool2") {
+		t.Errorf("RBAC should have kept tool1 and tool2, got: %s", body)
 	}
 }

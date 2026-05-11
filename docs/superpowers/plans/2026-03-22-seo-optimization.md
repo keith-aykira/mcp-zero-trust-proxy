@@ -213,7 +213,7 @@ MCP Zero-Trust Proxy is a drop-in reverse proxy that adds enterprise-grade secur
 
 ## Links
 - Website: https://mcpzerotrust.dev
-- Documentation: https://github.com/AnobleSCM/mcp-zero-trust-proxy/blob/main/docs/QUICKSTART.md
+- Documentation: https://github.com/keith-aykira/mcp-zero-trust-proxy/blob/main/docs/QUICKSTART.md
 - Docker image: ghcr.io/anoblescm/mcp-zero-trust-proxy
 ```
 

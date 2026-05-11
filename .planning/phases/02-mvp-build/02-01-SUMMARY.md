@@ -7,7 +7,7 @@ tags: [go, yaml, config, interfaces, zerolog, yaml.v3]
 requires: []
 
 provides:
-  - Go module github.com/AnobleSCM/mcp-zero-trust-proxy with pinned dependencies
+  - Go module github.com/keith-aykira/mcp-zero-trust-proxy with pinned dependencies
   - YAML config loading and validation (Load, Validate, applyDefaults)
   - Config struct hierarchy: Config, ServerConfig, AuthConfig, RoleConfig, RateLimitConfig, AuditConfig, LogConfig
   - Core proxy interfaces: MCPRequest, MCPResponse, RPCError, ClientIdentity, ProxyHandler
@@ -74,7 +74,7 @@ completed: 2026-03-20
 
 ## Accomplishments
 
-- Initialized Go module `github.com/AnobleSCM/mcp-zero-trust-proxy` with all required dependencies pinned in go.sum
+- Initialized Go module `github.com/keith-aykira/mcp-zero-trust-proxy` with all required dependencies pinned in go.sum
 - Built YAML config system (Load + Validate + applyDefaults) with ${ENV_VAR} substitution and 10 TDD tests covering all specified behaviors
 - Defined typed interface contracts for proxy, middleware, auth, RBAC, rate limiting, and audit — all subsequent plans build against these stable types
 
@@ -87,7 +87,7 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `go.mod` — Module definition: github.com/AnobleSCM/mcp-zero-trust-proxy, go 1.25
+- `go.mod` — Module definition: github.com/keith-aykira/mcp-zero-trust-proxy, go 1.25
 - `go.sum` — Dependency checksums (yaml.v3, time/rate, zerolog, colorable, isatty, sys)
 - `cmd/mcpproxy/main.go` — Binary entrypoint with --config flag, config summary print, placeholder for Plan 06 server startup
 - `internal/config/types.go` — Config struct hierarchy with yaml tags and inline documentation

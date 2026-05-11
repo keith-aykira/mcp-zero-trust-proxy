@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AnobleSCM/mcp-zero-trust-proxy/internal/config"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 )
 
 // mockUserInfoServer creates a test server that validates Bearer tokens and returns user info.
