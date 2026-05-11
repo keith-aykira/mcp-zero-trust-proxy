@@ -113,13 +113,17 @@ func Validate(cfg *Config) error {
 
 	// Validate auth provider if set
 	if cfg.Auth.Provider != "" {
-		validProviders := map[string]bool{"github": true, "google": true, "oidc": true}
+		validProviders := map[string]bool{"github": true, "google": true, "entra": true, "oidc": true}
 		if !validProviders[cfg.Auth.Provider] {
-			errs = append(errs, fmt.Sprintf("unknown auth provider %q: valid providers are github, google, oidc", cfg.Auth.Provider))
+			errs = append(errs, fmt.Sprintf("unknown auth provider %q: valid providers are github, google, entra, oidc", cfg.Auth.Provider))
 		}
 		// OIDC requires an issuer URL
 		if cfg.Auth.Provider == "oidc" && strings.TrimSpace(cfg.Auth.IssuerURL) == "" {
 			errs = append(errs, "auth.issuer_url is required when provider is \"oidc\"")
+		}
+		// Entra tenant ID validation
+		if cfg.Auth.Provider == "entra" && strings.TrimSpace(cfg.Auth.IssuerURL) == "" {
+			errs = append(errs, "auth.issuer_url is required when provider is \"entra\" (format: https://login.microsoftonline.com/{tenant_id}/v2.0)")
 		}
 	}
 

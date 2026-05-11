@@ -1561,32 +1561,170 @@ func TestIsAllowed(t *testing.T) {
 	}
 
 	// No allow regex set — everyone is allowed
-	if !a.isAllowed("anyone@example.com") {
-		t.Error("isAllowed should return true when no allow regex is set")
-	}
+        if !a.isAllowed("anyone@example.com") {
+                t.Error("isAllowed should return true when no allow regex is set")
+        }
 
-	// Set allow regex
-	err = a.SetUserRestrictions("@company\\.com$", "")
-	if err != nil {
-		t.Fatalf("SetUserRestrictions() error: %v", err)
-	}
+        // Set allow regex
+        err = a.SetUserRestrictions("@company\\.com$", "")
+        if err != nil {
+                t.Fatalf("SetUserRestrictions() error: %v", err)
+        }
 
-	tests := []struct {
-		email string
-		want  bool
-	}{
-		{"user@company.com", true},
-		{"admin@company.com", true},
-		{"external@example.com", false},
-		{"user@company.com.org", false},
-	}
+        tests := []struct {
+                email string
+                want  bool
+        }{
+                {"user@company.com", true},
+                {"admin@company.com", true},
+                {"external@example.com", false},
+                {"user@company.com.org", false},
+        }
 
-	for _, tt := range tests {
-		t.Run(tt.email, func(t *testing.T) {
-			got := a.isAllowed(tt.email)
-			if got != tt.want {
-				t.Errorf("isAllowed(%q) = %v, want %v", tt.email, got, tt.want)
-			}
-		})
-	}
+        for _, tt := range tests {
+                t.Run(tt.email, func(t *testing.T) {
+                        got := a.isAllowed(tt.email)
+                        if got != tt.want {
+                                t.Errorf("isAllowed(%q) = %v, want %v", tt.email, got, tt.want)
+                        }
+                })
+        }
+}
+
+// ================================
+// Entra ID Provider Tests
+// ================================
+
+// TestEntraProvider_DefaultTenant verifies Entra provider with default placeholder tenant.
+func TestEntraProvider_DefaultTenant(t *testing.T) {
+        provider, err := EntraProvider("")
+        if err != nil {
+                t.Fatalf("EntraProvider() unexpected error: %v", err)
+        }
+
+        if provider.Name != "entra" {
+                t.Errorf("provider.Name = %q, want %q", provider.Name, "entra")
+        }
+        expectedAuthURL := "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
+        if provider.AuthURL != expectedAuthURL {
+                t.Errorf("provider.AuthURL = %q, want %q", provider.AuthURL, expectedAuthURL)
+        }
+        expectedTokenURL := "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+        if provider.TokenURL != expectedTokenURL {
+                t.Errorf("provider.TokenURL = %q, want %q", provider.TokenURL, expectedTokenURL)
+        }
+        if provider.UserInfoURL != "https://graph.microsoft.com/oidc/userinfo" {
+                t.Errorf("provider.UserInfoURL = %q, want %q", provider.UserInfoURL, "https://graph.microsoft.com/oidc/userinfo")
+        }
+        expectedScopes := []string{"openid", "email", "profile"}
+        if len(provider.Scopes) != len(expectedScopes) {
+                t.Errorf("provider.Scopes length = %d, want %d", len(provider.Scopes), len(expectedScopes))
+        }
+}
+
+// TestEntraProvider_CustomTenant verifies Entra provider with custom tenant ID.
+func TestEntraProvider_CustomTenant(t *testing.T) {
+        issuerURL := "https://login.microsoftonline.com/12345678-1234-1234-1234-123456789012/v2.0"
+        provider, err := EntraProvider(issuerURL)
+        if err != nil {
+                t.Fatalf("EntraProvider() unexpected error: %v", err)
+        }
+
+        expectedAuthURL := "https://login.microsoftonline.com/12345678-1234-1234-1234-123456789012/oauth2/v2.0/authorize"
+        if provider.AuthURL != expectedAuthURL {
+                t.Errorf("provider.AuthURL = %q, want %q", provider.AuthURL, expectedAuthURL)
+        }
+        expectedTokenURL := "https://login.microsoftonline.com/12345678-1234-1234-1234-123456789012/oauth2/v2.0/token"
+        if provider.TokenURL != expectedTokenURL {
+                t.Errorf("provider.TokenURL = %q, want %q", provider.TokenURL, expectedTokenURL)
+        }
+}
+
+// TestEntraProvider_IssuerURLWithoutV2Path verifies Entra provider with issuer URL without /v2.0 suffix.
+func TestEntraProvider_IssuerURLWithoutV2Path(t *testing.T) {
+        issuerURL := "https://login.microsoftonline.com/contoso.onmicrosoft.com"
+        provider, err := EntraProvider(issuerURL)
+        if err != nil {
+                t.Fatalf("EntraProvider() unexpected error: %v", err)
+        }
+
+        expectedAuthURL := "https://login.microsoftonline.com/contoso.onmicrosoft.com/oauth2/v2.0/authorize"
+        if provider.AuthURL != expectedAuthURL {
+                t.Errorf("provider.AuthURL = %q, want %q", provider.AuthURL, expectedAuthURL)
+        }
+}
+
+// TestEntraProvider_TenantName verifies Entra provider with tenant name (not GUID).
+func TestEntraProvider_TenantName(t *testing.T) {
+        issuerURL := "https://login.microsoftonline.com/mytenant.onmicrosoft.com/v2.0"
+        provider, err := EntraProvider(issuerURL)
+        if err != nil {
+                t.Fatalf("EntraProvider() unexpected error: %v", err)
+        }
+
+        if strings.Contains(provider.AuthURL, "mytenant.onmicrosoft.com") {
+                // OK - tenant name is in the URL
+        } else {
+                t.Errorf("provider.AuthURL should contain tenant name, got: %q", provider.AuthURL)
+        }
+}
+
+// TestAuthenticateWithEntraToken verifies authentication flow with Entra ID token.
+func TestAuthenticateWithEntraToken(t *testing.T) {
+        const validToken = "valid-entra-token"
+        const email = "alice@contoso.com"
+
+        // Mock Entra userinfo endpoint response
+        userInfoSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                auth := r.Header.Get("Authorization")
+                if auth != "Bearer "+validToken {
+                        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+                        return
+                }
+                w.Header().Set("Content-Type", "application/json")
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "sub":    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                        "email":  email,
+                        "name":   "Alice Johnson",
+                        "tid":    "12345678-1234-1234-1234-123456789012",
+                        "groups": []string{"admins", "developers"},
+                })
+        }))
+        defer userInfoSrv.Close()
+
+        store := NewSessionStore(1 * time.Hour)
+        defer store.Stop()
+
+        // Create authenticator with Entra provider
+        issuerURL := "https://login.microsoftonline.com/12345678-1234-1234-1234-123456789012/v2.0"
+        _ = issuerURL // Used below in config
+
+        cfg := &config.AuthConfig{
+                Provider:    "entra",
+                ClientID:    "test-client-id",
+                IssuerURL:   issuerURL,
+                RedirectURL: "http://localhost:8080/auth/callback",
+        }
+        auth, err := NewAuthenticator(cfg, store)
+        if err != nil {
+                t.Fatalf("NewAuthenticator() error: %v", err)
+        }
+        auth.provider.UserInfoURL = userInfoSrv.URL
+
+        req := httptest.NewRequest("POST", "/", nil)
+        req.Header.Set("Authorization", "Bearer "+validToken)
+
+        identity, err := auth.Authenticate(req)
+        if err != nil {
+                t.Fatalf("Authenticate() returned unexpected error: %v", err)
+        }
+        if identity.Email != email {
+                t.Errorf("Email = %q, want %q", identity.Email, email)
+        }
+        if identity.ClientID == "" {
+                t.Error("ClientID should be set from 'sub' claim")
+        }
+        if identity.Role != "readonly" {
+                t.Errorf("Role = %q, want default %q", identity.Role, "readonly")
+        }
 }

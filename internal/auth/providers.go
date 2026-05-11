@@ -45,6 +45,35 @@ func GoogleProvider() OAuthProvider {
 	}
 }
 
+// EntraProvider returns the OAuth endpoint configuration for Microsoft Entra ID.
+// If tenantID is set (via issuerURL), uses tenant-specific URLs.
+// Otherwise uses common endpoint for multi-tenant authentication.
+// Scopes: openid, email, profile.
+func EntraProvider(issuerURL string) (OAuthProvider, error) {
+	// Default tenant-specific endpoint if not provided
+	tenantID := "{tenant_id}"
+
+	if issuerURL != "" {
+		// Extract tenant ID from issuer URL like https://login.microsoftonline.com/{tenant_id}/v2.0
+		issuerURL = strings.TrimSuffix(issuerURL, "/")
+		issuerURL = strings.TrimSuffix(issuerURL, "/v2.0")
+		parts := strings.Split(issuerURL, "/")
+		if len(parts) >= 5 && parts[2] == "login" && parts[3] == "microsoftonline" && parts[4] != "" {
+			tenantID = parts[4]
+		} else if len(parts) >= 2 && parts[len(parts)-1] != "" {
+			tenantID = parts[len(parts)-1]
+		}
+	}
+
+	return OAuthProvider{
+		Name:        "entra",
+		AuthURL:     fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID),
+		TokenURL:    fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID),
+		UserInfoURL: "https://graph.microsoft.com/oidc/userinfo",
+		Scopes:      []string{"openid", "email", "profile"},
+	}, nil
+}
+
 // oidcDiscovery is the subset of an OIDC discovery document we need.
 type oidcDiscovery struct {
 	AuthorizationEndpoint string `json:"authorization_endpoint"`

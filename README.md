@@ -11,7 +11,7 @@ docker run -e MCP_TARGET=localhost:3000 -e AUTH_PROVIDER=github -p 8080:8080 \
 
 MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Cursor, Copilot all use it. But authentication is optional in the spec. This proxy sits between your MCP clients and servers to enforce security:
 
-- **OAuth 2.1 PKCE** — Require login via GitHub, Google, Okta, or any OIDC provider
+- **OAuth 2.1 PKCE** — Require login via GitHub, Google, Microsoft Entra ID, Okta, or any OIDC provider
 - **Tool-level RBAC** — Control which tools each user can call with built-in roles (admin/readonly/restricted) and unlimited custom roles
 - **Claim-based role mapping** — Automatic role assignment from OAuth claims (e.g., assign "devops" role to Engineering department)
 - **Per-client sessions** — Each user gets their own session boundary

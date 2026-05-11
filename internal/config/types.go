@@ -122,14 +122,15 @@ type SSEConfig struct {
 
 // AuthConfig holds OAuth 2.1 PKCE authentication provider configuration.
 type AuthConfig struct {
-	// Provider is the OAuth provider to use. Accepted values: "github", "google", "oidc".
+	// Provider is the OAuth provider to use. Accepted values: "github", "google", "entra", "oidc".
 	Provider string `yaml:"provider"`
 	// ClientID is the OAuth application client ID.
 	ClientID string `yaml:"client_id"`
 	// ClientSecret is the OAuth application client secret.
 	// Supports ${ENV_VAR} syntax for secret injection from environment variables.
 	ClientSecret string `yaml:"client_secret"`
-	// IssuerURL is the OIDC issuer URL (required when provider = "oidc").
+	// IssuerURL is the OIDC issuer URL (required when provider = "oidc", optional for "entra").
+	// For "entra", default is https://login.microsoftonline.com/{tenant_id}/v2.0
 	IssuerURL string `yaml:"issuer_url"`
 	// RedirectURL is the OAuth callback URL registered with the provider.
 	RedirectURL string `yaml:"redirect_url"`

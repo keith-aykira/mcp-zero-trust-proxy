@@ -72,13 +72,18 @@ func NewAuthenticator(cfg *config.AuthConfig, sessionStore *SessionStore) (*Auth
 		provider = GitHubProvider()
 	case "google":
 		provider = GoogleProvider()
+	case "entra":
+		provider, err = EntraProvider(cfg.IssuerURL)
+		if err != nil {
+			return nil, fmt.Errorf("Entra provider initialization failed: %w", err)
+		}
 	case "oidc":
 		provider, err = OIDCProvider(cfg.IssuerURL)
 		if err != nil {
 			return nil, fmt.Errorf("OIDC discovery failed: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unknown provider %q: valid values are github, google, oidc", cfg.Provider)
+		return nil, fmt.Errorf("unknown provider %q: valid values are github, google, entra, oidc", cfg.Provider)
 	}
 
 	return &Authenticator{
