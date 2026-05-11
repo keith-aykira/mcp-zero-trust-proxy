@@ -1,13 +1,78 @@
+# Git
 .git
-.planning
-docs
-landing-page
-supabase
-src
-.vercel
+.gitignore
+.gitattributes
+
+# Documentation
 *.md
-!LICENSE
-.github
-data-test
-*.test
-bin
+docs/
+README*
+CHANGELOG*
+LICENSE*
+
+# VS Code / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test coverage
+*.out
+coverage.txt
+coverage.xml
+*.coverprofile
+
+# Local development
+.local/
+.env.local
+.env.development.local
+
+# Build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test files (not needed in production image)
+*_test.go
+tests/
+
+# Benchmark results
+*.benchstat
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.cirrus.yml
+.travis.yml
+
+# Docker (not needed inside container)
+docker-compose*.yml
+Dockerfile*
+
+# Make files (not needed in container)
+Makefile
+makefile
+
+# Go workspace (if used)
+go.work
+go.work.sum
+
+# Linters
+.lint*
+.golangci*
+.gomodcache/

@@ -65,6 +65,44 @@ curl http://localhost:8080/health
 # {"status":"ok"}
 ```
 
+### Build from source
+
+```bash
+# Build for native platform
+docker build -t mcpzerotrust/proxy:latest .
+
+# Build multi-arch image (requires buildx)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t mcpzerotrust/proxy:latest --push .
+
+# Run with docker-compose
+docker compose up -d
+```
+
+**Image sizes:**
+- Runtime image: ~17MB (alpine:3.19 + static binary)
+- Builder image: ~120MB (golang:1.24-alpine)
+
+**Health check:**
+
+The proxy includes a built-in health endpoint for container orchestration:
+
+```bash
+# Check health
+curl http://localhost:8080/health
+# {"status":"ok"}
+
+# Docker reports health status
+docker inspect --format='{{.State.Health.Status}}' <container_id>
+# healthy
+```
+
+Docker HEALTHCHECK configuration:
+- Interval: 30s
+- Timeout: 5s
+- Start period: 5s
+- Retries: 3
+
 ### Binary
 
 ```bash
@@ -183,11 +221,11 @@ audit:
 
 ## Performance
 
-Single binary, ~10MB. Sub-millisecond proxy overhead:
+Single static binary, ~12MB. Sub-millisecond proxy overhead:
 
 - p50: ~400us
 - p95: ~900us
-- Docker image: 6.6MB
+- Docker image: ~17MB (includes alpine + ca-certificates + tzdata)
 
 Run benchmarks: `./scripts/benchmark.sh`
 
@@ -199,7 +237,7 @@ Run benchmarks: `./scripts/benchmark.sh`
 
 ## Tests
 
-236+ tests across 9 packages:
+236+ tests across 10 packages (including new cmd/mcpproxy tests):
 
 ```bash
 go test ./...

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -164,21 +165,25 @@ func main() {
 		proxy.WithCORS(corsConfig),
 	)
 
-	// Register routes
+	// Register health check endpoint
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	// Register routes
 	mux.Handle("/", pipeline)
 
-	// HTTP server with timeouts
-	server := &http.Server{
-		Addr:         cfg.Server.ListenAddr,
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 120 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Start server in background
+	// Build TLS configuration from config
 	tlsEnabled := cfg.Server.TLS.CertFile != "" && cfg.Server.TLS.KeyFile != ""
+	tlsConfig := buildTLSConfig(&cfg.Server.TLS)
+
+	// Build HTTP server with security hardening
+	server := buildServer(&cfg.Server, mux, tlsConfig)
+
+	// Log TLS status
 	if tlsEnabled {
 		log.Info().
 			Str("cert_file", cfg.Server.TLS.CertFile).
@@ -197,6 +202,7 @@ func main() {
 			Msg("Proxy ready")
 		var serveErr error
 		if tlsEnabled {
+			server.TLSConfig = tlsConfig
 			serveErr = server.ListenAndServeTLS(cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
 		} else {
 			serveErr = server.ListenAndServe()
@@ -257,4 +263,73 @@ func testConfiguration(configPath string) {
 
 	fmt.Printf("configuration valid: %s\n", absConfigPath)
 	os.Exit(0)
+}
+
+// buildTLSConfig creates a *tls.Config from ServerConfig.TLS with security hardening:
+// - Minimum TLS version enforced (default: 1.2)
+// - Cipher suite preferences applied (defaults to Go's secure ciphers if not specified)
+// - PreferServerCipherSuites enabled for server-side selection
+func buildTLSConfig(tlsCfg *config.TLSConfig) *tls.Config {
+	result := &tls.Config{
+		PreferServerCipherSuites: true,
+	}
+
+	// Set minimum TLS version
+	minVersion, ok := parseTLSVersion(tlsCfg.MinVersion)
+	if ok {
+		result.MinVersion = minVersion
+	} else {
+		// Default to TLS 1.2 if parsing fails
+		result.MinVersion = tls.VersionTLS12
+		log.Warn().Str("provided", tlsCfg.MinVersion).Msg("Invalid TLS min_version; defaulting to 1.2")
+	}
+
+	// Apply custom cipher suites if specified
+	if len(tlsCfg.CipherSuites) > 0 {
+		var suites []uint16
+		for _, name := range tlsCfg.CipherSuites {
+			for _, cs := range tls.CipherSuites() {
+				if cs.Name == name {
+					suites = append(suites, cs.ID)
+					break
+				}
+			}
+		}
+		if len(suites) > 0 {
+			result.CipherSuites = suites
+		}
+	}
+
+	return result
+}
+
+// parseTLSVersion converts a version string to the corresponding TLS constant.
+func parseTLSVersion(v string) (uint16, bool) {
+	switch v {
+	case "1.0":
+		return tls.VersionTLS10, true
+	case "1.1":
+		return tls.VersionTLS11, true
+	case "1.2":
+		return tls.VersionTLS12, true
+	case "1.3":
+		return tls.VersionTLS13, true
+	default:
+		return 0, false
+	}
+}
+
+// buildServer creates an *http.Server with security-focused configuration:
+// - ReadHeaderTimeout for Slowloris protection
+// - Configured TLS if enabled
+func buildServer(serverCfg *config.ServerConfig, handler http.Handler, tlsConfig *tls.Config) *http.Server {
+	return &http.Server{
+		Addr:              serverCfg.ListenAddr,
+		Handler:           handler,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,   // Slowloris protection
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,           // 1MB max headers (prevents header flooding)
+	}
 }
