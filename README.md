@@ -237,12 +237,39 @@ Run benchmarks: `./scripts/benchmark.sh`
 
 ## Tests
 
-236+ tests across 10 packages (including new cmd/mcpproxy tests):
+**276+ tests** across 13 packages with **64–95% coverage** on core packages:
 
 ```bash
-go test ./...
-go test -race ./...  # zero data races
+# Full suite (unit + integration + e2e)
+go test ./... -race -count=1
+
+# Coverage report
+go test ./... -cover
+
+# Single package
+go test ./internal/proxy/ -v -count=1
 ```
+
+**Test coverage by package:**
+
+| Package | Coverage | Description |
+ `internal/ratelimit` | 95.5% | Rate limiting (token bucket algorithm) |
+| `tests/integration` | 83.3% | Integration tests (5 mock server types) |
+| `internal/rbac` | 82.3% | Role-based access control |
+| `internal/auth` | 79.8% | OAuth 2.1 PKCE authentication |
+| `internal/proxy` | 65.7% | Core proxy pipeline |
+| `internal/pii` | 77.3% | PII masking/redaction |
+
+**Test types:**
+- **Unit tests**: Individual component tests (auth, rbac, ratelimit, proxy)
+- **Integration tests**: 5 mock server types (tools-only, resources, prompts, mixed, streaming)
+- **E2E tests**: 24 persona tests covering the full pipeline with buyer personas (Marcus/Priya/James/Sofia/Kai)
+
+**Test coverage highlights:**
+- Rate limiter: default config handling, burst behavior, token refresh, cleanup, edge cases (very high/low rates, many unique clients)
+- Proxy: multiple upstreams, unknown server fallback, SSE detection with quality values, custom transport injection
+- Auth: OAuth flows, PKCE verification, claim-based role mapping, token caching
+- RBAC: admin/readonly/restricted roles, per-tool allow/deny lists, batch request handling
 
 ## Contributing
 

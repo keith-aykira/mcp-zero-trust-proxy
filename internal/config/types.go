@@ -83,6 +83,7 @@ type OutboundConfig struct {
 // ServerConfig holds the proxy's network configuration.
 type ServerConfig struct {
 	// UpstreamURL is the URL of the upstream MCP server to proxy to. Required.
+	// Deprecated: Use Registry.Servers for multi-server routing. Kept for backward compatibility.
 	UpstreamURL string `yaml:"upstream_url"`
 	// ListenAddr is the address the proxy listens on. Default: ":8080"
 	ListenAddr string `yaml:"listen_addr"`
@@ -95,6 +96,37 @@ type ServerConfig struct {
 	TLS TLSConfig `yaml:"tls"`
 	// SSE holds configurable SSE proxy settings.
 	SSE SSEConfig `yaml:"sse"`
+	// Registry is the multi-server routing configuration. When set, takes precedence over UpstreamURL.
+	Registry ServerRegistryConfig `yaml:"registry"`
+}
+
+// ServerRegistryConfig defines upstream MCP server registry and routing.
+type ServerRegistryConfig struct {
+	// Default is the fallback server name. If not set, unknown paths return 404.
+	Default string `yaml:"default"`
+	// Servers is the list of upstream MCP servers.
+	Servers []UpstreamServerConfig `yaml:"servers"`
+}
+
+// UpstreamServerConfig defines a single upstream MCP server.
+type UpstreamServerConfig struct {
+	// Name is the server identifier (used in path routing: /{name}/...).
+	Name string `yaml:"name"`
+	// URL is the upstream server URL (e.g., "http://localhost:3000").
+	URL string `yaml:"url"`
+	// Enabled controls whether this server is active. Default: true.
+	Enabled bool `yaml:"enabled"`
+	// Tags are optional metadata labels for filtering/organization.
+	Tags []string `yaml:"tags"`
+	// Timeout is the HTTP client timeout for this server in seconds. Default: 120.
+	Timeout int `yaml:"timeout"`
+}
+
+// ToolInfo holds metadata about a tool from tools/list response.
+type ToolInfo struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	InputSchema map[string]interface{} `json:"inputSchema,omitempty"`
 }
 
 // TLSConfig holds TLS termination settings. When CertFile and KeyFile are both

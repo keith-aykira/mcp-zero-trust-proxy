@@ -17,6 +17,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -204,8 +206,21 @@ func writeJSONRPC(w http.ResponseWriter, result interface{}, rpcErr interface{},
 // newE2EPipeline creates the standard E2E pipeline with multi-token auth and configurable options.
 func newE2EPipeline(t *testing.T, upstreamURL string, opts ...proxy.PipelineOption) (*httptest.Server, *memAuditLogger) {
 	t.Helper()
-	cfg := &config.Config{Server: config.ServerConfig{UpstreamURL: upstreamURL}}
-	handler, err := proxy.NewHandler(cfg)
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			Registry: config.ServerRegistryConfig{
+				Default: "default",
+				Servers: []config.UpstreamServerConfig{
+					{Name: "default", URL: upstreamURL, Enabled: true},
+				},
+			},
+		},
+	}
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		t.Fatalf("create router: %v", err)
+	}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
@@ -235,8 +250,21 @@ func newE2EPipeline(t *testing.T, upstreamURL string, opts ...proxy.PipelineOpti
 // newFreeTierPipeline creates a pipeline with free-tier rate limits (10 RPM, burst 5).
 func newFreeTierPipeline(t *testing.T, upstreamURL string) (*httptest.Server, *memAuditLogger) {
 	t.Helper()
-	cfg := &config.Config{Server: config.ServerConfig{UpstreamURL: upstreamURL}}
-	handler, err := proxy.NewHandler(cfg)
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			Registry: config.ServerRegistryConfig{
+				Default: "default",
+				Servers: []config.UpstreamServerConfig{
+					{Name: "default", URL: upstreamURL, Enabled: true},
+				},
+			},
+		},
+	}
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		t.Fatalf("create router: %v", err)
+	}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
@@ -458,10 +486,28 @@ func TestE2E_BasicPipeline(t *testing.T) {
 	t.Logf("Priya intern tools/call denied: OK")
 
 	// Verify audit captured both
-	entries := auditLog.snapshot()
-	if len(entries) < 2 {
-		t.Fatalf("expected at least 2 audit entries, got %d", len(entries))
-	}
-	t.Logf("Audit captured %d entries: OK", len(entries))
-	t.Logf("Layer 1 basic pipeline PASSED: multi-token auth + RBAC + audit working")
+        entries := auditLog.snapshot()
+        if len(entries) < 2 {
+                t.Fatalf("expected at least 2 audit entries, got %d", len(entries))
+        }
+        t.Logf("Audit captured %d entries: OK", len(entries))
+        t.Logf("Layer 1 basic pipeline PASSED: multi-token auth + RBAC + audit working")
+}
+
+func getProjectRoot() string {
+        dir, err := os.Getwd()
+        if err != nil {
+                return "."
+        }
+        for {
+                if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+                        return dir
+                }
+                parent := filepath.Dir(dir)
+                if parent == dir {
+                        break
+                }
+                dir = parent
+        }
+        return "."
 }

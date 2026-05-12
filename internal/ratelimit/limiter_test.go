@@ -1,8 +1,10 @@
 package ratelimit_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -129,4 +131,114 @@ func TestAllow_ConcurrentSafe(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+// TestLimiter_DefaultConfig verifies default values are applied when config has zero values.
+func TestLimiter_DefaultConfig(t *testing.T) {
+	cfg := &config.RateLimitConfig{}
+	l := ratelimit.NewLimiter(cfg)
+	
+	// Default should be 300 req/min = 5 req/sec with burst 100
+	// First 100 requests should be allowed by burst
+	successCount := 0
+	for i := 0; i < 100; i++ {
+		if l.Allow("default-test-client") {
+			successCount++
+		}
+	}
+	if successCount != 100 {
+		t.Errorf("expected all 100 burst requests to be allowed, got %d", successCount)
+	}
+}
+
+// TestLimiter_ZeroValues verifies negative/zero values are handled gracefully.
+func TestLimiter_ZeroValues(t *testing.T) {
+	cfg := &config.RateLimitConfig{
+		RequestsPerMinute: -1,
+		BurstSize:         -5,
+	}
+	l := ratelimit.NewLimiter(cfg)
+	
+	// Should use defaults and allow burst
+	if !l.Allow("test-client") {
+		t.Error("first request should be allowed with default config")
+	}
+}
+
+// TestLimiter_Cleanup verifies that cleanup does not panic on empty map.
+func TestLimiter_Cleanup(t *testing.T) {
+	cfg := &config.RateLimitConfig{
+		RequestsPerMinute: 300,
+		BurstSize:         10,
+	}
+	l := ratelimit.NewLimiter(cfg)
+	
+	// Cleanup with no clients should not panic
+	l.Cleanup(1 * time.Second)
+	
+	// Add a client and cleanup again
+	l.Allow("test-client")
+	l.Cleanup(1 * time.Millisecond) // This client will be stale
+}
+
+// TestLimiter_ManyUniqueClients simulates many unique clients.
+func TestLimiter_ManyUniqueClients(t *testing.T) {
+	l := makeLimiter(600, 10)
+	
+	// Simulate 100 unique clients
+	for i := 0; i < 100; i++ {
+		clientID := fmt.Sprintf("unique-client-%d", i)
+		if !l.Allow(clientID) {
+			t.Errorf("unique client %d should be allowed on first request", i)
+		}
+	}
+}
+
+// TestLimiter_VeryHighRate verifies limiter handles high throughput scenarios.
+func TestLimiter_VeryHighRate(t *testing.T) {
+	// Enterprise tier: 6000 req/min = 100 req/sec, burst 500
+	cfg := &config.RateLimitConfig{
+		RequestsPerMinute: 6000,
+		BurstSize:         500,
+	}
+	l := ratelimit.NewLimiter(cfg)
+	
+	// 500 requests should all pass under burst
+	successCount := 0
+	for i := 0; i < 500; i++ {
+		if l.Allow("high-throughput-client") {
+			successCount++
+		}
+	}
+	if successCount != 500 {
+		t.Errorf("expected 500 requests allowed under burst, got %d", successCount)
+	}
+}
+
+// TestLimiter_VeryLowRate verifies limiter works correctly at minimum rates.
+func TestLimiter_VeryLowRate(t *testing.T) {
+	// Free tier minimum: 60 req/min = 1 req/sec, burst 5
+	cfg := &config.RateLimitConfig{
+		RequestsPerMinute: 60,
+		BurstSize:         5,
+	}
+	l := ratelimit.NewLimiter(cfg)
+	
+	// 5 requests pass under burst
+	for i := 0; i < 5; i++ {
+		if !l.Allow("low-rate-client") {
+			t.Errorf("request %d should be allowed under burst", i+1)
+		}
+	}
+	
+	// 6th request should fail (and several more)
+	deniedCount := 0
+	for i := 0; i < 10; i++ {
+		if !l.Allow("low-rate-client") {
+			deniedCount++
+		}
+	}
+	if deniedCount < 9 {
+		t.Errorf("expected at least 9 of 10 requests to be denied after burst, got %d", deniedCount)
+	}
 }

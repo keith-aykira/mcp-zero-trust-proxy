@@ -46,9 +46,16 @@ func Load(path string) (*Config, error) {
 func Validate(cfg *Config) error {
 	var errs []string
 
-	// Required: server.upstream_url
-	if strings.TrimSpace(cfg.Server.UpstreamURL) == "" {
-		errs = append(errs, "server.upstream_url is required")
+	// Required: server.upstream_url OR registry.servers (at least one source required)
+	upstreamURLSet := strings.TrimSpace(cfg.Server.UpstreamURL) != ""
+	registrySet := len(cfg.Server.Registry.Servers) > 0
+	if !upstreamURLSet && !registrySet {
+		errs = append(errs, "either server.upstream_url or server.registry.servers is required")
+	}
+
+	// Validate server.registry if configured
+	if registrySet {
+		validateServerRegistry(&cfg.Server.Registry, &errs)
 	}
 
 	// Validate role names and collect all role names from config
@@ -284,6 +291,48 @@ func Validate(cfg *Config) error {
 	return nil
 }
 
+// validateServerRegistry validates the server registry configuration.
+func validateServerRegistry(reg *ServerRegistryConfig, errs *[]string) {
+	if reg == nil {
+		return
+	}
+
+	// Track unique server names
+	serverNames := make(map[string]bool)
+
+	for i, srv := range reg.Servers {
+		index := i + 1
+
+		// Name is required
+		if strings.TrimSpace(srv.Name) == "" {
+			*errs = append(*errs, fmt.Sprintf("server.registry.servers[%d]: name is required", index))
+		} else {
+			// Check for duplicate names
+			if serverNames[srv.Name] {
+				*errs = append(*errs, fmt.Sprintf("server.registry.servers[%d]: duplicate server name %q", index, srv.Name))
+			}
+			serverNames[srv.Name] = true
+		}
+
+		// URL is required
+		if strings.TrimSpace(srv.URL) == "" {
+			*errs = append(*errs, fmt.Sprintf("server.registry.servers[%d]: url is required", index))
+		}
+
+		// Validate timeout if set
+		if srv.Timeout < 0 {
+			*errs = append(*errs, fmt.Sprintf("server.registry.servers[%d]: timeout must be >= 0", index))
+		}
+	}
+
+	// Validate default references a valid server name
+	if strings.TrimSpace(reg.Default) != "" {
+		if !serverNames[reg.Default] {
+			*errs = append(*errs, fmt.Sprintf("server.registry.default %q references undefined server", reg.Default))
+		}
+	}
+}
+
 // validatePIIMasking validates the PII masking configuration.
 func validatePIIMasking(cfg *Config, errs *[]string) {
 	if len(cfg.PIIMasking.Patterns) == 0 && len(cfg.PIIMasking.SensitivityClasses) == 0 && len(cfg.PIIMasking.ToolClassAssignments) == 0 {
@@ -371,6 +420,19 @@ func applyDefaults(cfg *Config) {
 		cfg.Outbound.MinTLSVersion = "1.2"
 	}
 
+	// Backward compatibility: if upstream_url is set but registry is empty,
+	// create a default server entry in registry
+	if cfg.Server.UpstreamURL != "" && len(cfg.Server.Registry.Servers) == 0 {
+		cfg.Server.Registry.Servers = []UpstreamServerConfig{
+			{
+				Name:    "default",
+				URL:     cfg.Server.UpstreamURL,
+				Enabled: true,
+			},
+		}
+		cfg.Server.Registry.Default = "default"
+	}
+
 	// UserRoles defaults
 	if cfg.UserRoles.Default == "" {
 		cfg.UserRoles.Default = "readonly"
@@ -394,6 +456,20 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Audit.Output == "" {
 		cfg.Audit.Output = "stdout"
+	}
+
+	// Apply defaults to server registry
+	for i := range cfg.Server.Registry.Servers {
+		srv := &cfg.Server.Registry.Servers[i]
+		if srv.Enabled {
+			// Already true (explicit user value) — keep as-is
+		} else {
+			// Default enabled to true
+			srv.Enabled = true
+		}
+		if srv.Timeout == 0 {
+			srv.Timeout = 120 // 120 seconds default
+		}
 	}
 
 	// Apply defaults to sink configurations

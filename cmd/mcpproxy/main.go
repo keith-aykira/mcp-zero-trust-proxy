@@ -140,8 +140,14 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize PII masker")
 	}
 
-	// Step 7: Proxy handler
-	handler, err := proxy.NewHandler(cfg)
+	// Step 7: Router for multi-server routing
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize router")
+	}
+
+	// Step 8: Proxy handler
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize proxy handler")
 	}

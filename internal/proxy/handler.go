@@ -2,10 +2,10 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"time"
 
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
@@ -25,9 +25,9 @@ const (
 	ClientIdentityKey contextKey = "client_identity"
 )
 
-// Handler is the core reverse proxy. It parses incoming JSON-RPC 2.0 requests,
-// stores the parsed data in context for middleware, and forwards requests to
-// the upstream MCP server. For SSE connections, it delegates to ProxySSE.
+// Handler is the core reverse proxy. It routes incoming requests to the appropriate
+// upstream MCP server based on path prefix, or aggregates responses for tools/list.
+// For SSE connections, it delegates to ProxySSE.
 //
 // Middleware fields (authenticator, rateLimiter, auditLogger) are left as
 // interface{} placeholders here — concrete types will be wired in Plans 02-03
@@ -35,8 +35,7 @@ const (
 // avoids an import cycle between proxy (the HTTP layer) and middleware (which
 // imports proxy types for MCPRequest/ClientIdentity).
 type Handler struct {
-	upstream     *url.URL
-	reverseProxy *httputil.ReverseProxy
+	router       Router
 	httpClient   *http.Client
 
 	// sseTimeout is the configurable SSE connection timeout. 0 = no timeout.
@@ -45,19 +44,10 @@ type Handler struct {
 	sseMaxBuffer int
 }
 
-// NewHandler constructs a Handler from config. Returns an error if the upstream URL
-// is missing or cannot be parsed.
-func NewHandler(cfg *config.Config) (*Handler, error) {
-	if cfg.Server.UpstreamURL == "" {
-		return nil, fmt.Errorf("upstream_url is required")
-	}
-
-	upstream, err := url.Parse(cfg.Server.UpstreamURL)
-	if err != nil {
-		return nil, fmt.Errorf("parse upstream_url %q: %w", cfg.Server.UpstreamURL, err)
-	}
-	if upstream.Scheme == "" || upstream.Host == "" {
-		return nil, fmt.Errorf("upstream_url %q must have scheme and host", cfg.Server.UpstreamURL)
+// NewHandler constructs a Handler from config. Returns an error if the router is nil.
+func NewHandler(cfg *config.Config, router Router) (*Handler, error) {
+	if router == nil {
+		return nil, fmt.Errorf("router is required")
 	}
 
 	// HTTP client with sensible timeouts.
@@ -69,19 +59,6 @@ func NewHandler(cfg *config.Config) (*Handler, error) {
 		},
 	}
 
-	// httputil.ReverseProxy handles standard HTTP forwarding.
-	rp := httputil.NewSingleHostReverseProxy(upstream)
-	// Preserve original request Host header.
-	rp.Director = func(req *http.Request) {
-		req.URL.Scheme = upstream.Scheme
-		req.URL.Host = upstream.Host
-		req.Host = upstream.Host
-		// Strip the client's Authorization header so upstream operators cannot
-		// steal client OAuth tokens. The proxy has already validated the token;
-		// upstream must not receive it.
-		req.Header.Del("Authorization")
-	}
-
 	// SSE configuration: timeout and buffer size from config.
 	sseTimeout := time.Duration(cfg.Server.SSE.TimeoutSeconds) * time.Second
 	sseMaxBuffer := cfg.Server.SSE.MaxBufferBytes
@@ -90,31 +67,46 @@ func NewHandler(cfg *config.Config) (*Handler, error) {
 	}
 
 	return &Handler{
-		upstream:     upstream,
-		reverseProxy: rp,
+		router:       router,
 		httpClient:   httpClient,
 		sseTimeout:   sseTimeout,
 		sseMaxBuffer: sseMaxBuffer,
 	}, nil
 }
 
-// SetTransport replaces the ReverseProxy's transport. Primarily for testing —
+// SetTransport replaces the HTTP client's transport. Primarily for testing —
 // allows injection of a custom RoundTripper to intercept or capture requests.
 func (h *Handler) SetTransport(t http.RoundTripper) {
-	h.reverseProxy.Transport = t
+	if h.httpClient != nil {
+		h.httpClient.Transport = t
+	}
 }
 
 // ServeHTTP is the main entry point. It:
-//  1. Detects SSE requests (Accept: text/event-stream) and delegates to ProxySSE.
-//  2. Forwards all other requests to upstream via httputil.ReverseProxy.
+//  1. Resolves the target upstream server based on path prefix.
+//  2. Detects SSE requests (Accept: text/event-stream) and delegates to ProxySSE.
+//  3. Forwards all other requests to upstream via httputil.ReverseProxy.
+//
+// For multi-server mode, paths must start with `/server_name/...`. Requests to
+// unknown server names return 404 Not Found.
 //
 // Body reading and JSON-RPC parsing are handled exclusively by Pipeline (HARD-11).
 // Handler is a simple pass-through — it does not parse the body or set context values.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Route SSE requests to the streaming proxy.
+	// Resolve the upstream server for this request.
+	upstream, serverName, err := h.router.ResolveForRequest(r)
+	if err != nil {
+		if err == ErrUnknownServer {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Route SSE requests to the streaming proxy with the resolved upstream.
 	if isSSERequest(r) {
-		upstreamURL := h.upstreamURLForRequest(r)
-		if err := ProxySSE(w, r, upstreamURL, h.sseTimeout, h.sseMaxBuffer); err != nil {
+		if err := ProxySSE(w, r, upstream, h.sseTimeout, h.sseMaxBuffer); err != nil {
 			// SSE errors after headers are sent cannot change the status code.
 			// Log silently; client will see connection close.
 			_ = err
@@ -122,17 +114,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set context values for middleware downstream.
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, ResolvedServerKey, serverName)
+	r = r.WithContext(ctx)
+
+	// Create a reverse proxy for this specific upstream.
+	proxy := httputil.NewSingleHostReverseProxy(upstream)
+	proxy.Director = func(req *http.Request) {
+		req.URL.Scheme = upstream.Scheme
+		req.URL.Host = upstream.Host
+		req.Host = upstream.Host
+		req.Header.Del("Authorization")
+	}
+	// Use the HTTP client's transport so SetTransport works for testing.
+	if h.httpClient != nil {
+		proxy.Transport = h.httpClient.Transport
+	}
+
 	// Standard HTTP forwarding via httputil.ReverseProxy.
 	// ReverseProxy handles 5xx from upstream by passing them through.
-	h.reverseProxy.ServeHTTP(w, r)
-}
-
-// upstreamURLForRequest builds the full upstream URL for a given request path.
-func (h *Handler) upstreamURLForRequest(r *http.Request) *url.URL {
-	u := *h.upstream
-	u.Path = r.URL.Path
-	u.RawQuery = r.URL.RawQuery
-	return &u
+	proxy.ServeHTTP(w, r)
 }
 
 // isSSERequest returns true if the request signals an SSE connection.

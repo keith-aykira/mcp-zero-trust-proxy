@@ -140,10 +140,14 @@ func newPipelineWithRole(t *testing.T, upstreamURL string, role string) (*proxy.
 	t.Helper()
 
 	cfg := &config.Config{
-		Server: config.ServerConfig{UpstreamURL: upstreamURL},
+		Server: config.ServerConfig{Registry: config.ServerRegistryConfig{Default: "default", Servers: []config.UpstreamServerConfig{{Name: "default", URL: upstreamURL, Enabled: true}}}},
 	}
 
-	handler, err := proxy.NewHandler(cfg)
+		router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+		if err != nil {
+			t.Fatalf("create router: %v", err)
+		}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
@@ -179,10 +183,14 @@ func newPipelineNoAuth(t *testing.T, upstreamURL string) *proxy.Pipeline {
 	t.Helper()
 
 	cfg := &config.Config{
-		Server: config.ServerConfig{UpstreamURL: upstreamURL},
+		Server: config.ServerConfig{Registry: config.ServerRegistryConfig{Default: "default", Servers: []config.UpstreamServerConfig{{Name: "default", URL: upstreamURL, Enabled: true}}}},
 	}
 
-	handler, err := proxy.NewHandler(cfg)
+		router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+		if err != nil {
+			t.Fatalf("create router: %v", err)
+		}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
@@ -372,9 +380,20 @@ func TestProxy_SSEStreamingServer(t *testing.T) {
 	// Build proxy pointing to the SSE mock server.
 	// The mock server responds to all paths with SSE when a tools/call is sent.
 	cfg := &config.Config{
-		Server: config.ServerConfig{UpstreamURL: mock.URL()},
+		Server: config.ServerConfig{
+			Registry: config.ServerRegistryConfig{
+				Default: "default",
+				Servers: []config.UpstreamServerConfig{
+					{Name: "default", URL: mock.URL(), Enabled: true},
+				},
+			},
+		},
 	}
-	handler, err := proxy.NewHandler(cfg)
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		t.Fatalf("create router: %v", err)
+	}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
@@ -709,9 +728,20 @@ func TestProxy_OverRateLimit_Returns429(t *testing.T) {
 	t.Cleanup(mock.Close)
 
 	cfg := &config.Config{
-		Server: config.ServerConfig{UpstreamURL: mock.URL()},
+		Server: config.ServerConfig{
+			Registry: config.ServerRegistryConfig{
+				Default: "default",
+				Servers: []config.UpstreamServerConfig{
+					{Name: "default", URL: mock.URL(), Enabled: true},
+				},
+			},
+		},
 	}
-	handler, err := proxy.NewHandler(cfg)
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		t.Fatalf("create router: %v", err)
+	}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
 	}

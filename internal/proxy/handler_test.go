@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -20,10 +21,56 @@ import (
 func makeTestConfig(upstreamURL string) *config.Config {
 	return &config.Config{
 		Server: config.ServerConfig{
-			UpstreamURL: upstreamURL,
-			ListenAddr:  ":8080",
+			ListenAddr: ":8080",
+			Registry: config.ServerRegistryConfig{
+				Default: "default",
+				Servers: []config.UpstreamServerConfig{
+					{
+						Name:    "default",
+						URL:     upstreamURL,
+						Enabled: true,
+					},
+				},
+			},
 		},
 	}
+}
+
+// makeTestRouter creates a new server router for testing.
+func makeTestRouter(upstreamURL string) (Router, error) {
+	cfg := makeTestConfig(upstreamURL)
+	return NewServerRouter(&cfg.Server.Registry)
+}
+
+// TestRouter is a minimal router implementation for testing that always returns
+// a "default" server. Use makeDefaultRouter to create one.
+type TestRouter struct {
+	upstream *url.URL
+}
+
+func (r *TestRouter) ResolveForRequest(req *http.Request) (*url.URL, string, error) {
+	return r.upstream, "default", nil
+}
+
+func (r *TestRouter) GetServerUpstream(name string) (*url.URL, error) {
+	return r.upstream, nil
+}
+
+func (r *TestRouter) GetServerTimeout(name string) int { return 120 }
+
+func (r *TestRouter) GetServerNames() []string { return []string{"default"} }
+
+func (r *TestRouter) RefreshToolsCache() error { return nil }
+
+func (r *TestRouter) GetAggregatedTools() []config.ToolInfo { return nil }
+
+// makeDefaultRouter creates a test router that routes everything to a "default" server
+func makeDefaultRouter(upstreamURL string) (*url.URL, Router, error) {
+	upstream, err := url.Parse(upstreamURL)
+	if err != nil {
+		return nil, nil, err
+	}
+	return upstream, &TestRouter{upstream: upstream}, nil
 }
 
 // TestHandler_POST_ProxiesJSONRPC verifies POST with JSON-RPC body is forwarded and response returned.
@@ -40,11 +87,15 @@ func TestHandler_POST_ProxiesJSONRPC(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	body := `{"jsonrpc":"2.0","method":"tools/list","id":1}`
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
@@ -78,11 +129,15 @@ func TestHandler_SSE_OpensEventStream(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	req := httptest.NewRequest(http.MethodGet, "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -118,11 +173,15 @@ func TestHandler_SSE_StreamsWithoutBuffering(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -165,11 +224,15 @@ func TestHandler_DoesNotParseBody_InContext(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	// Inject a context-capturing transport so we can see what context was forwarded.
 	capturedCh := make(chan context.Context, 1)
@@ -205,11 +268,15 @@ func TestHandler_Upstream500_ReturnsError(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	body := `{"jsonrpc":"2.0","method":"tools/list","id":1}`
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
@@ -236,11 +303,15 @@ func TestHandler_UpstreamTimeout_ReturnsError(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -268,11 +339,15 @@ func TestHandler_NonJSONRPC_ForwardedTransparently(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	// Non-JSON body (not JSON-RPC).
 	rawBody := "not json rpc at all"
@@ -303,11 +378,15 @@ func TestProxySSE_StreamsEvents(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	req := httptest.NewRequest(http.MethodGet, "/sse", nil)
 	req.Header.Set("Accept", "text/event-stream")
@@ -348,11 +427,15 @@ func TestHandler_BodyAvailableForBothParseAndProxy(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	originalBody := `{"jsonrpc":"2.0","method":"tools/call","params":{"name":"read_file","arguments":{"path":"/tmp/test"}},"id":7}`
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(originalBody))
@@ -366,21 +449,11 @@ func TestHandler_BodyAvailableForBothParseAndProxy(t *testing.T) {
 	}
 }
 
-// TestNewHandler_InvalidUpstreamURL verifies NewHandler returns error for invalid URL.
-func TestNewHandler_InvalidUpstreamURL(t *testing.T) {
-	cfg := makeTestConfig("://invalid url")
-	_, err := NewHandler(cfg)
+// TestNewHandler_NilRouter verifies NewHandler returns error when router is nil.
+func TestNewHandler_NilRouter(t *testing.T) {
+	_, err := NewHandler(&config.Config{}, nil)
 	if err == nil {
-		t.Fatal("expected error for invalid upstream URL, got nil")
-	}
-}
-
-// TestNewHandler_EmptyUpstreamURL verifies NewHandler returns error for empty URL.
-func TestNewHandler_EmptyUpstreamURL(t *testing.T) {
-	cfg := makeTestConfig("")
-	_, err := NewHandler(cfg)
-	if err == nil {
-		t.Fatal("expected error for empty upstream URL, got nil")
+		t.Fatal("expected error for nil router, got nil")
 	}
 }
 
@@ -394,11 +467,15 @@ func TestHandler_BodyReadAndForwarded(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := makeTestConfig(upstream.URL)
-	h, err := NewHandler(cfg)
-	if err != nil {
-		t.Fatalf("NewHandler error: %v", err)
-	}
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
 
 	reqBody := `{"jsonrpc":"2.0","method":"resources/read","params":{"uri":"file:///data.json"},"id":1}`
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(reqBody))
@@ -407,7 +484,201 @@ func TestHandler_BodyReadAndForwarded(t *testing.T) {
 
 	h.ServeHTTP(rr, req)
 
-	if upstreamBody.String() != reqBody {
-		t.Errorf("upstream received wrong body.\nWant: %s\n Got: %s", reqBody, upstreamBody.String())
-	}
+        if upstreamBody.String() != reqBody {
+                t.Errorf("upstream received wrong body.\nWant: %s\n Got: %s", reqBody, upstreamBody.String())
+        }
+}
+
+// TestHandler_MultipleUpstreams tests routing to different upstreams.
+func TestHandler_MultipleUpstreams(t *testing.T) {
+        upstream1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                w.WriteHeader(http.StatusOK)
+                fmt.Fprint(w, `"server1"`)
+        }))
+        defer upstream1.Close()
+
+        upstream2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                w.WriteHeader(http.StatusOK)
+                fmt.Fprint(w, `"server2"`)
+        }))
+        defer upstream2.Close()
+
+        cfg := &config.Config{
+                Server: config.ServerConfig{
+                        Registry: config.ServerRegistryConfig{
+                                Default: "server1",
+                                Servers: []config.UpstreamServerConfig{
+                                        {Name: "server1", URL: upstream1.URL, Enabled: true},
+                                        {Name: "server2", URL: upstream2.URL, Enabled: true},
+                                },
+                        },
+                },
+        }
+
+        router, err := NewServerRouter(&cfg.Server.Registry)
+        if err != nil {
+                t.Fatalf("NewServerRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
+
+        // Test server1 (default)
+        req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+        rr1 := httptest.NewRecorder()
+        h.ServeHTTP(rr1, req1)
+        if rr1.Body.String() != `"server1"` {
+                t.Errorf("expected server1 response, got %s", rr1.Body.String())
+        }
+
+        // Test server2 via path
+        req2 := httptest.NewRequest(http.MethodGet, "/server2/", nil)
+        rr2 := httptest.NewRecorder()
+        h.ServeHTTP(rr2, req2)
+        if rr2.Body.String() != `"server2"` {
+                t.Errorf("expected server2 response, got %s", rr2.Body.String())
+        }
+}
+
+// TestHandler_UnknownServer tests that non-existent server names fall back to default or return 404.
+func TestHandler_UnknownServer(t *testing.T) {
+        // Case 1: Unknown server with default configured -> should use default (200)
+        upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                w.WriteHeader(http.StatusOK)
+                fmt.Fprint(w, `"default_response"`)
+        }))
+        defer upstream.Close()
+
+        cfg := &config.Config{
+                Server: config.ServerConfig{
+                        Registry: config.ServerRegistryConfig{
+                                Default: "default",
+                                Servers: []config.UpstreamServerConfig{
+                                        {Name: "default", URL: upstream.URL, Enabled: true},
+                                },
+                        },
+                },
+        }
+
+        router, err := NewServerRouter(&cfg.Server.Registry)
+        if err != nil {
+                t.Fatalf("NewServerRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
+
+        // Unknown server name falls back to default
+        req := httptest.NewRequest(http.MethodGet, "/unknown_server/", nil)
+        rr := httptest.NewRecorder()
+        h.ServeHTTP(rr, req)
+
+        // Should fall back to default server (200)
+        if rr.Code != http.StatusOK {
+                t.Errorf("expected 200 (fallback to default), got %d", rr.Code)
+        }
+
+        // Case 2: No default server and unknown server name -> 404
+        cfg2 := &config.Config{
+                Server: config.ServerConfig{
+                        Registry: config.ServerRegistryConfig{
+                                Default: "", // No default
+                                Servers: []config.UpstreamServerConfig{
+                                        {Name: "onlyserver", URL: upstream.URL, Enabled: true},
+                                },
+                        },
+                },
+        }
+
+        router2, err := NewServerRouter(&cfg2.Server.Registry)
+        if err != nil {
+                t.Fatalf("NewServerRouter error: %v", err)
+        }
+        h2, err := NewHandler(cfg2, router2)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
+
+        req2 := httptest.NewRequest(http.MethodGet, "/unknown_server/", nil)
+        rr2 := httptest.NewRecorder()
+        h2.ServeHTTP(rr2, req2)
+
+        // Should return 404 since no default configured
+        if rr2.Code != http.StatusNotFound {
+                t.Errorf("expected 404 for unknown server with no default, got %d", rr2.Code)
+        }
+}
+
+// TestHandler_SSEWithQualityValue tests SSE detection with quality values in Accept header.
+func TestHandler_SSEWithQualityValue(t *testing.T) {
+        upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                w.Header().Set("Content-Type", "text/event-stream")
+                w.WriteHeader(http.StatusOK)
+                fmt.Fprint(w, "data: test\n\n")
+        }))
+        defer upstream.Close()
+
+        cfg := makeTestConfig(upstream.URL)
+        router, err := makeTestRouter(upstream.URL)
+        if err != nil {
+                t.Fatalf("makeTestRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
+
+        req := httptest.NewRequest(http.MethodGet, "/sse", nil)
+        req.Header.Set("Accept", "text/event-stream, application/json;q=0.9")
+        rr := httptest.NewRecorder()
+        h.ServeHTTP(rr, req)
+
+        ct := rr.Header().Get("Content-Type")
+        if !strings.Contains(ct, "text/event-stream") {
+                t.Errorf("expected SSE content type, got %q", ct)
+        }
+}
+
+// TestHandler_SetTransport sets custom transport and uses it.
+func TestHandler_SetTransport(t *testing.T) {
+        customTransportCalled := false
+        customTransport := &testTransport{
+                roundTrip: func(r *http.Request) (*http.Response, error) {
+                        customTransportCalled = true
+                        return &http.Response{
+                                StatusCode: http.StatusOK,
+                                Body:       io.NopCloser(strings.NewReader(`{"jsonrpc":"2.0","id":1,"result":{}}`)),
+                        }, nil
+                },
+        }
+
+        cfg := makeTestConfig("http://unused")
+        router, err := NewServerRouter(&cfg.Server.Registry)
+        if err != nil {
+                t.Fatalf("NewServerRouter error: %v", err)
+        }
+        h, err := NewHandler(cfg, router)
+        if err != nil {
+                t.Fatalf("NewHandler error: %v", err)
+        }
+        h.SetTransport(customTransport)
+
+        req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"test"}`))
+        rr := httptest.NewRecorder()
+        h.ServeHTTP(rr, req)
+
+        if !customTransportCalled {
+                t.Error("custom transport was not called")
+        }
+}
+
+// testTransport is a simple http.RoundTripper for testing.
+type testTransport struct {
+        roundTrip func(*http.Request) (*http.Response, error)
+}
+
+func (t *testTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+        return t.roundTrip(r)
 }

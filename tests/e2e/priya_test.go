@@ -8,10 +8,10 @@ import (
 )
 
 func TestPriya_DockerBuild(t *testing.T) {
-	// Build Docker image and check size
-	cmd := exec.Command("docker", "build", "-t", "mcp-proxy-e2e-test", ".")
-	cmd.Dir = "/Users/andrewnoble/Developer/mcp-zero-trust-proxy"
-	out, err := cmd.CombinedOutput()
+        // Build Docker image and check size
+        cmd := exec.Command("docker", "build", "-t", "mcp-proxy-e2e-test", ".")
+        cmd.Dir = getProjectRoot()
+        out, err := cmd.CombinedOutput()
 	if err != nil {
 		record(finding{Persona: "priya", Category: "fail", Summary: "Docker build failed", Detail: string(out)})
 		t.Fatalf("Docker build failed: %s", string(out))

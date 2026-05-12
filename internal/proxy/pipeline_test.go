@@ -714,10 +714,23 @@ func TestHandlerNoParsing(t *testing.T) {
 
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			UpstreamURL: upstreamSrv.URL,
+			Registry: config.ServerRegistryConfig{
+				Default: "default",
+				Servers: []config.UpstreamServerConfig{
+					{
+						Name:    "default",
+						URL:     upstreamSrv.URL,
+						Enabled: true,
+					},
+				},
+			},
 		},
 	}
-	h, err := proxy.NewHandler(cfg)
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		t.Fatalf("NewServerRouter error: %v", err)
+	}
+	h, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("NewHandler error: %v", err)
 	}

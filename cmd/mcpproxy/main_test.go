@@ -145,7 +145,11 @@ auth:
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	handler, err := proxy.NewHandler(cfg)
+	router, err := proxy.NewServerRouter(&cfg.Server.Registry)
+	if err != nil {
+		t.Fatalf("failed to create router: %v", err)
+	}
+	handler, err := proxy.NewHandler(cfg, router)
 	if err != nil {
 		t.Fatalf("failed to create handler: %v", err)
 	}
