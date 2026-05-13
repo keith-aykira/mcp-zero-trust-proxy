@@ -4,7 +4,7 @@ Complete reference for `config.yaml`. All fields shown with types, defaults, and
 
 ---
 
-## Complete example
+## Complete example — single server
 
 ```yaml
 server:
@@ -16,6 +16,36 @@ auth:
   client_id: "your-client-id"
   client_secret: "${OAUTH_CLIENT_SECRET}"
   redirect_url: "http://localhost:8080/auth/callback"
+```
+
+## Complete example — multiple servers
+
+```yaml
+server:
+  listen_addr: ":8080"
+  registry:
+    default: "files"  # fallback for unmatched paths
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+        enabled: true
+      - name: "database"
+        url: "http://database-server:5432"
+        enabled: true
+        timeout: 60
+      - name: "github"
+        url: "http://github-mcp:8080"
+        enabled: true
+      - name: "postgres"
+        url: "http://postgres-mcp:5432"
+        enabled: false  # disabled but configured
+
+auth:
+  provider: "github"
+  client_id: "your-client-id"
+  client_secret: "${OAUTH_CLIENT_SECRET}"
+  redirect_url: "http://localhost:8080/auth/callback"
+```
 
 user_roles:
   default: "readonly"
@@ -107,17 +137,34 @@ If the variable is unset, the literal string `${ENV_VAR}` is used (no error). Us
 
 ## server
 
-Controls where the proxy listens and where it forwards requests.
+Controls where the proxy listens and how it routes requests to upstream MCP servers.
+
+### Single-server vs. multi-server routing
+
+The proxy supports two modes:
+
+**Single-server mode** (simple, backward compatible):
+- Use `server.upstream_url` to point to one MCP server
+- All requests go to that server
+
+**Multi-server mode** (recommended for scaling):
+- Use `server.registry.servers` to define multiple MCP servers
+- Requests are routed by path prefix (`/files/...` → files server, `/database/...` → database server)
+- More flexible, supports server discovery and independent configuration
+
+---
 
 ### server.upstream_url
 
 | | |
-|---|---|
+||---|-|-|
 | **Type** | string |
-| **Required** | yes |
+| **Required** | yes (if not `server.registry`) |
 | **Default** | none |
 
-The URL of the upstream MCP server. All authenticated, authorized requests are forwarded here. Must include scheme and host.
+The URL of the upstream MCP server for single-server mode. All authenticated, authorized requests are forwarded here. Must include scheme and host.
+
+**Note:** This field is deprecated in favor of `server.registry`. Kept for backward compatibility. If both are set, `server.registry` takes precedence.
 
 ```yaml
 server:
@@ -127,6 +174,129 @@ server:
 ```
 
 The proxy preserves the request path when forwarding. A request to `http://proxy:8080/` is forwarded to `http://upstream:3000/`.
+
+---
+
+### server.registry
+
+| | |
+|---|-|-|
+| **Type** | ServerRegistryConfig |
+| **Required** | yes (if not `upstream_url`) |
+| **Default** | none |
+
+Multi-server routing configuration. When present, the proxy routes requests to different upstream MCP servers based on the first path segment.
+
+**Routing behavior:**
+- Request path `/files/tools/list` → routes to server named `files`
+- Request path `/database/query` → routes to server named `database`
+- Request path `/tools/list` (no server prefix) → routes to `default` server, or returns 404
+
+**Tools aggregation:** When clients call `/tools/list`, they see tools from all servers with namespaced names:
+- `"files.read_file"`, `"files.list_directory"`
+- `"database.query"`, `"database.insert"`
+- `"github.create_issue"`, `"github.search"`
+
+```yaml
+server:
+  registry:
+    default: "files"  # fallback server for unmatched paths
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+        enabled: true
+      - name: "database"
+        url: "http://database-server:5432"
+        enabled: true
+        timeout: 60
+      - name: "github"
+        url: "http://github-mcp:8080"
+        enabled: true
+```
+
+#### server.registry.default
+
+| | |
+||---|-|-|
+| **Type** | string |
+| **Required** | no |
+| **Default** | none (returns 404 for unmatched paths) |
+
+The fallback server name for requests without a path prefix (e.g., `/tools/list` instead of `/files/tools/list`). Must match one of the `server.registry.servers[].name` values.
+
+**Example:**
+```yaml
+server:
+  registry:
+    default: "files"  # Routes /tools/list to files server
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+```
+
+**Behavior:**
+- `POST /files/tools/list` → files server
+- `POST /tools/list` → files server (default)
+- `POST /nonexistent/tools/list` → 404 (server not found)
+
+If omitted, requests without a server prefix return 404.
+
+#### server.registry.servers
+
+| | |
+||---|-|-|
+| **Type** | []UpstreamServerConfig |
+| **Required** | yes (when using `registry`) |
+| **Default** | none |
+
+List of upstream MCP server configurations. Each server has a unique `name` used for path routing.
+
+**Example:**
+```yaml
+server:
+  registry:
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+      - name: "database"
+        url: "http://database-server:5432"
+        timeout: 60
+      - name: "github"
+        url: "http://github-mcp:8080"
+      - name: "legacy"
+        url: "http://legacy-server:9000"
+        enabled: false  # server is configured but disabled
+```
+
+##### UpstreamServerConfig fields
+
+| Field | Type | Required | Default | Description |
+|-|-|-|-|-|-|
+| `name` | string | yes | — | Server identifier used in path routing (e.g., `/files/...`) |
+| `url` | string | yes | — | Upstream server URL (e.g., `http://localhost:3000`) |
+| `enabled` | boolean | no | `true` | Whether this server accepts requests |
+| `timeout` | integer | no | `120` | HTTP timeout in seconds for this server |
+| `tags` | []string | no | `[]` | Optional metadata labels for organization |
+
+**Constraints:**
+- `name` must be unique across all servers
+- `name` must be URL-safe (alphanumeric, hyphens, underscores)
+- `url` must include scheme (`http://` or `https://`)
+- Disabled servers (`enabled: false`) return 404 on all requests
+
+**Example with all fields:**
+```yaml
+server:
+  registry:
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+        enabled: true
+        timeout: 120
+        tags: ["internal", "primary"]
+```
+
+---
 
 ### server.listen_addr
 

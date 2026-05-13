@@ -11,6 +11,7 @@ docker run -e MCP_TARGET=localhost:3000 -e AUTH_PROVIDER=github -p 8080:8080 \
 
 MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Cursor, Copilot all use it. But authentication is optional in the spec. This proxy sits between your MCP clients and servers to enforce security:
 
+- **Multi-server routing** — Configure multiple MCP servers with path-based routing (`/files/...` → files server, `/db/...` → database server)
 - **OAuth 2.1 PKCE** — Require login via GitHub, Google, Microsoft Entra ID, Okta, or any OIDC provider
 - **Tool-level RBAC** — Control which tools each user can call with built-in roles (admin/readonly/restricted) and unlimited custom roles
 - **Claim-based role mapping** — Automatic role assignment from OAuth claims (e.g., assign "devops" role to Engineering department)
@@ -27,7 +28,7 @@ MCP (Model Context Protocol) is how AI agents connect to tools — Claude, Curso
 
 ## Quick start
 
-### Docker (recommended)
+### Single server (simple)
 
 ```bash
 # 1. Pull
@@ -41,7 +42,7 @@ server:
 auth:
   provider: "github"
   client_id: "your-github-client-id"
-  client_secret: "\${OAUTH_CLIENT_SECRET}"
+  client_secret: "${OAUTH_CLIENT_SECRET}"
   redirect_url: "http://localhost:8080/auth/callback"
 roles:
   - name: "admin"
@@ -64,6 +65,44 @@ docker run -p 8080:8080 \
 curl http://localhost:8080/health
 # {"status":"ok"}
 ```
+
+### Multiple servers (path-based routing)
+
+Route requests to different MCP servers based on the path prefix:
+
+```yaml
+server:
+  listen_addr: ":8080"
+  registry:
+    default: "files"  # fallback server for unmatched paths
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+        enabled: true
+        timeout: 120
+      - name: "database"
+        url: "http://db-server:5432"
+        enabled: true
+        timeout: 60
+      - name: "github"
+        url: "http://github-mcp:8080"
+        enabled: true
+      - name: "postgres"
+        url: "http://postgres-mcp:5432"
+        enabled: false  # disabled
+```
+
+**How routing works:**
+- `POST /files/tools/list` → files server at `http://files-server:3000/tools/list`
+- `POST /database/tools/call` → database server at `http://db-server:5432/tools/call`
+- `POST /tools/list` → default server (files) at `http://files-server:3000/tools/list`
+- Requests to disabled servers return 404
+
+**Benefits of multi-server routing:**
+- **Unified access**: One proxy endpoint for multiple MCP servers
+- **Server discovery**: Clients see all tools with namespaced names (`files.read_file`, `database.query`)
+- **Independent configuration**: Each server can have different timeouts, can be enabled/disabled independently
+- **Fallback routing**: Default server handles unmatched paths
 
 ### Build from source
 
@@ -112,29 +151,59 @@ mcpproxy --config ./config.yaml
 
 Or download a release binary from the [releases page](https://github.com/keith-aykira/mcp-zero-trust-proxy/releases).
 
-## How it works
+## How it works (single server)
 
 ```
 AI Client (Claude, Cursor, Copilot)
         │
         ▼
-┌─────────────────────────┐
-│  MCP Zero-Trust Proxy   │
-│                         │
-│  1. Body size check     │
-│  2. Auth (OAuth 2.1)    │
-│  3. Rate limit          │
-│  4. JSON-RPC parse      │
-│  5. RBAC check          │
-│  6. Forward to upstream │
-│  7. Filter tools/list   │
-│  8. Audit log           │
-└─────────────────────────┘
+┌──────────────────────┐
+│ MCP Zero-Trust Proxy │
+│                      │
+│  1. Body size check  │
+│  2. Auth (OAuth 2.1) │
+│  3. Rate limit       │
+│  4. JSON-RPC parse   │
+│  5. RBAC check       │
+│  6. Forward to UPSTREAM SERVER │
+│  7. Filter tools/list│
+│  8. Audit log        │
+└─────━━━━━━━━───────┘
         │
         ▼
    Your MCP Server
    (unchanged)
 ```
+
+## How it works
+
+```
+AI Client (Claude, Cursor, Copilot)
+        │
+        ▼  
+┌───━━━━━━━●───────┐
+│  MCP Zero-Trust Proxy │
+│                   │
+│   ● Path router:  │
+│     /files/* → Files Server     │
+│     /database/* → Database Server │ 
+│     /github/* → GitHub MCP      │
+│     /* → Default server (or 404) │
+└───┬─────┬─────┬────┘
+    │     │     │
+    ▼     ▼     ▼
+┌─────┐ ┌──────┐ ┌──────┐
+│Files│ │Database│ │GitHub│
+│Server│ │ Server │ │ MCP  │
+└─────┘ └──────┘ └──────┘
+```
+
+**Request flow with multi-server:**
+1. Request arrives at proxy (e.g., `POST /database/tools/call`)
+2. Path router extracts server name from first path segment (`database`)
+3. Routes to configured upstream (`http://db-server:5432/tools/call`)
+4. Standard security pipeline runs: auth → rate limit → RBAC → proxy → audit
+5. Response returned to client with tools namespaced (`database.query`, `files.read_file`)
 
 ## Configuration
 

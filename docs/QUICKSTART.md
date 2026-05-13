@@ -30,17 +30,9 @@ docker pull ghcr.io/anoblescm/mcp-zero-trust-proxy:latest
 docker build -t mcp-zero-trust-proxy https://github.com/keith-aykira/mcp-zero-trust-proxy.git#main
 ```
 
-This builds the Docker image directly from the GitHub repository without cloning. You can also build from a local clone:
-
-```bash
-git clone https://github.com/keith-aykira/mcp-zero-trust-proxy.git
-cd mcp-zero-trust-proxy
-docker build -t mcp-zero-trust-proxy .
-```
-
 ### 2. Create config.yaml
 
-Create a `config.yaml` in your current directory. At minimum you need `upstream_url`:
+**Single server (simple):**
 
 ```yaml
 server:
@@ -58,18 +50,40 @@ roles:
     allowed_tools: []
   - name: "readonly"
     allowed_tools: []
-  - name: "restricted"
-    allowed_tools: []
 
 audit:
   enabled: true
   output: "stdout"
 ```
 
+**Multiple servers (path-based routing):**
+
+```yaml
+server:
+  listen_addr: ":8080"
+  registry:
+    default: "files"  # fallback server
+    servers:
+      - name: "files"
+        url: "http://files-server:3000"
+      - name: "database"
+        url: "http://database-server:5432"
+        timeout: 60
+      - name: "github"
+        url: "http://github-mcp:8080"
+```
+
+**How multi-server routing works:**
+- `POST /files/tools/list` → files server
+- `POST /database/tools/list` → database server  
+- `POST /tools/list` → default server (files)
+- Tools are aggregated with namespaced names: `"files.read_file"`, `"database.query"`
+
 See [configs/example.yaml](../configs/example.yaml) for the full set of options.
 
 ### 3. Run the proxy
 
+**Single server:**
 ```bash
 docker run \
   -p 8080:8080 \
@@ -79,10 +93,28 @@ docker run \
   --config /etc/mcpproxy/config.yaml
 ```
 
-Or with Docker Compose using the provided `docker-compose.yaml`:
-
-```bash
-OAUTH_CLIENT_SECRET=your_actual_secret docker compose up
+**Multiple servers with Docker Compose:**
+```yaml
+# docker-compose.yaml
+services:
+  files-server:
+    image: your-files-mcp-image
+    ports: ["3000:3000"]
+  
+  database-server:
+    image: your-database-mcp-image
+    ports: ["5432:5432"]
+  
+  proxy:
+    image: ghcr.io/anoblescm/mcp-zero-trust-proxy:latest
+    ports: ["8080:8080"]
+    volumes:
+      - ./config.yaml:/etc/mcpproxy/config.yaml
+    environment:
+      - OAUTH_CLIENT_SECRET=your_secret
+    depends_on:
+      - files-server
+      - database-server
 ```
 
 ### 4. Verify the proxy is running
@@ -90,6 +122,18 @@ OAUTH_CLIENT_SECRET=your_actual_secret docker compose up
 ```bash
 curl http://localhost:8080/health
 # Expected: {"status":"ok"}
+```
+
+**With multiple servers, verify routing:**
+```bash
+# Test files server
+curl http://localhost:8080/files/tools/list
+
+# Test database server  
+curl http://localhost:8080/database/tools/list
+
+# Test default routing
+curl http://localhost:8080/tools/list
 ```
 
 ---

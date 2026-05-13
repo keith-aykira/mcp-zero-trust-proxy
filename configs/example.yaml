@@ -9,14 +9,91 @@
 # ============================================================
 # Server Configuration
 # ============================================================
+# The proxy supports two modes:
+#   1. Single-server mode: Use server.upstream_url for simple forwarding
+#   2. Multi-server mode: Use server.registry for path-based routing to multiple servers
+
 server:
-  # Required. The URL of the upstream MCP server to proxy.
+  # ============================================================
+  # Single-Server Mode (Simple)
+  # ============================================================
+  # Required for single-server mode. The URL of the upstream MCP server to proxy.
   # All authenticated, authorized requests will be forwarded here.
+  # Deprecated: Use server.registry for multi-server routing. Kept for backward compatibility.
   upstream_url: "http://localhost:3000"
 
   # Optional. The address the proxy listens on.
   # Default: ":8080" (all interfaces on port 8080)
   listen_addr: ":8080"
+
+  # ============================================================
+  # Multi-Server Mode (Recommended for Scaling)
+  # ============================================================
+  # Registry configuration for path-based routing to multiple MCP servers.
+  # When present, takes precedence over upstream_url.
+  #
+  # Routing behavior:
+  # - Request to /files/tools/list → routes to server named "files"
+  # - Request to /database/query → routes to server named "database"
+  # - Request to /tools/list (no prefix) → routes to default server, or returns 404
+  #
+  # Tools aggregation: Clients see all tools with namespaced names:
+  # - "files.read_file", "files.list_directory"
+  # - "database.query", "database.insert"
+  #
+  # registry:
+  #   # Optional. Default server for unmatched paths (e.g., /tools/list).
+  #   # If not set, unmatched paths return 404.
+  #   default: "files"
+  #
+  #   # Required when using registry. List of upstream MCP servers.
+  #   servers:
+  #     # Files server — handles file operations
+  #     - name: "files"
+  #       url: "http://files-server:3000"
+  #       enabled: true       # Whether this server accepts requests (default: true)
+  #       timeout: 120        # HTTP timeout in seconds (default: 120)
+  #       tags: ["internal"]  # Optional metadata labels
+  #
+  #     # Database server — handles database queries
+  #     - name: "database"
+  #       url: "http://database-server:5432"
+  #       enabled: true
+  #       timeout: 60         # Shorter timeout for database operations
+  #
+  #     # GitHub MCP server — handles GitHub operations
+  #     - name: "github"
+  #       url: "http://github-mcp:8080"
+  #       enabled: true
+  #
+  #     # Disabled server — configured but not accepting requests
+  #     - name: "legacy"
+  #       url: "http://legacy-server:9000"
+  #       enabled: false      # Disabled — requests return 404
+
+  # ============================================================
+  # Request Examples with Multi-Server
+  # ============================================================
+  # With the multi-server config above (uncommented):
+  #
+  # curl http://localhost:8080/files/tools/list
+  #   → routes to files-server:3000/tools/list
+  #
+  # curl http://localhost:8080/database/tools/list
+  #   → routes to database-server:5432/tools/list
+  #
+  # curl http://localhost:8080/tools/list
+  #   → routes to default server (files-server:3000/tools/list)
+  #
+  # Aggregated tools/list response:
+  # {
+  #   "tools": [
+  #     {"name": "files.read_file", ...},
+  #     {"name": "files.list_directory", ...},
+  #     {"name": "database.query", ...},
+  #     {"name": "github.create_issue", ...}
+  #   ]
+  # }
 
 # ============================================================
 # Authentication Configuration (OAuth 2.1 PKCE)
