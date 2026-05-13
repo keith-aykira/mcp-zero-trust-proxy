@@ -156,11 +156,11 @@ The proxy supports two modes:
 
 ### server.upstream_url
 
-| | |
-|---|---|---|
-| **Type** | string |
-| **Required** | yes (if not `server.registry`) |
-| **Default** | none |
+  | | |
+  |---|---|
+  | **Type** | string |
+  | **Required** | yes (if not `server.registry`) |
+  | **Default** | none |
 
 The URL of the upstream MCP server for single-server mode. All authenticated, authorized requests are forwarded here. Must include scheme and host.
 
@@ -180,7 +180,7 @@ The proxy preserves the request path when forwarding. A request to `http://proxy
 ### server.registry
 
 | | |
-|---|---|---|
+|---|---|
 | **Type** | ServerRegistryConfig |
 | **Required** | yes (if not `upstream_url`) |
 | **Default** | none |
@@ -217,7 +217,7 @@ server:
 #### server.registry.default
 
 | | |
-|---|---|---|
+|---|---|
 | **Type** | string |
 | **Required** | no |
 | **Default** | none (returns 404 for unmatched paths) |
@@ -271,7 +271,7 @@ server:
 ##### UpstreamServerConfig fields
 
 | Field | Type | Required | Default | Description |
-|---|---|---|-|-|-|-|
+|---|-|-|-|---|
 | `name` | string | yes | — | Server identifier used in path routing (e.g., `/files/...`) |
 | `url` | string | yes | — | Upstream server URL (e.g., `http://localhost:3000`) |
 | `enabled` | boolean | no | `true` | Whether this server accepts requests |
@@ -790,7 +790,7 @@ Controls the immutable audit trail. Every request (allowed and denied) is logged
 ### audit.enabled
 
 | | |
-||---|-
+|---|---|
 | **Type** | boolean |
 | **Required** | no |
 | **Default** | `true` |
@@ -806,7 +806,7 @@ audit:
 ### audit.output
 
 | | |
-||---|-
+|---|---|
 | **Type** | string |
 | **Required** | no |
 | **Default** | `"stdout"` |
@@ -830,7 +830,7 @@ audit:
 ### audit.file_path
 
 | | |
-||---|-
+|---|---|
 | **Type** | string |
 | **Required** | yes when `output: "file"` or `output: "both"` |
 | **Default** | `""` |
@@ -848,7 +848,7 @@ audit:
 Controls audit log file rotation for file output.
 
 | Field | Type | Default | Description |
-|-|------|-------|-|-|------|
+|-|-|-|---|
 | `max_size_mb` | integer | 0 (disabled) | Rotate file when it reaches this size in MB |
 | `max_age_hours` | integer | 0 (disabled) | Delete rotated files older than this many hours |
 
@@ -893,7 +893,7 @@ sinks:
 All sinks support filtering via the `filter` field:
 
 | Field | Type | Description |
-|-|------|-|-|-|-|
+|-|-|-|-|-|-|-|
 | `methods` | []string | MCP methods to include (e.g., `["tools/call"]`). Empty = all methods |
 | `tools` | []string | Tool names to include (supports `*` wildcards). Empty = all tools |
 | `results` | []string | Outcomes: `["allowed"]`, `["denied"]`, or both. Empty = both |
@@ -910,7 +910,7 @@ Sends audit events transformed to [OCSF 12.0.0](https://schema-registry.osso Sta
 **Use case:** Enterprise security monitoring with Azure Sentinel, Microsoft Defender for Cloud, or other OCSF-compatible platforms.
 
 | Field | Type | Default | Description |
-|-|------|-------|-|-|-|-|
+|-|-|-|---|
 | `workspace_id` | string | required | Azure Log Analytics workspace ID (32-character hex string) |
 | `api_key` | string | required | Workspace primary key (use `${ENV_VAR}` for security) |
 | `batch_size` | integer | 100 | Maximum events per batch before sending |
@@ -958,14 +958,14 @@ Sends audit events in [Common Event Format](https://docs.logr.io/logr/cef/) to s
 #### Transport Options
 
 | Transport | Description | Default Port |
-|-|-------|-|-|
+|-|---|-|-|
 | `udp` | UDP syslog (fire-and-forget, may drop packets) | 514 |
 | `tcp` | Reliable TCP delivery | 514 |
 | `tcp_tls` | Encrypted TCP with TLS (recommended for production) | 6514 |
 | `https` | REST API over HTTPS (batched delivery) | 443 |
 
 | Field | Type | Default | Description |
-|-|------|-------|-|-|-|-|
+|-|-|-|---|
 | `transport` | string | `"udp"` | Transport protocol (`udp`, `tcp`, `tcp_tls`, `https`) |
 | `host` | string | required | Syslog server hostname or IP address |
 | `port` | integer | transport-specific | Port number (514 for UDP/TCP, 6514 for TCP-TLS, 443 for HTTPS) |
@@ -1024,7 +1024,7 @@ Sends raw JSON audit events to a custom HTTPS endpoint.
 **Use case:** Custom log aggregators, internal audit systems, webhook-based integrations, or forwarding to other services.
 
 | Field | Type | Default | Description |
-|-|------|-------|-|-|-|-|
+|-|-|-|---|
 | `endpoint` | string | required | HTTPS URL to send events to |
 | `headers` | map[string]string | `{}` | Custom HTTP headers to include |
 | `batch_size` | integer | 50 | Maximum events per batch |
@@ -1227,7 +1227,7 @@ Each audit log entry is a single-line JSON object (JSONL format). One entry per 
 ### Fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+|------|--|------|
 | `timestamp` | string (RFC3339) | UTC timestamp when the request arrived at the proxy |
 | `request_id` | string | Unique ID for this request; use to correlate proxy logs with upstream logs |
 | `client_id` | string | Authenticated client identifier (typically email or OAuth subject) |
