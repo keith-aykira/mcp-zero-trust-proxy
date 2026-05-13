@@ -157,7 +157,7 @@ The proxy supports two modes:
 ### server.upstream_url
 
 | | |
-||---|-|-|
+|---|---|---|
 | **Type** | string |
 | **Required** | yes (if not `server.registry`) |
 | **Default** | none |
@@ -180,7 +180,7 @@ The proxy preserves the request path when forwarding. A request to `http://proxy
 ### server.registry
 
 | | |
-|---|-|-|
+|---|---|---|
 | **Type** | ServerRegistryConfig |
 | **Required** | yes (if not `upstream_url`) |
 | **Default** | none |
@@ -217,7 +217,7 @@ server:
 #### server.registry.default
 
 | | |
-||---|-|-|
+|---|---|---|
 | **Type** | string |
 | **Required** | no |
 | **Default** | none (returns 404 for unmatched paths) |
@@ -244,7 +244,7 @@ If omitted, requests without a server prefix return 404.
 #### server.registry.servers
 
 | | |
-||---|-|-|
+|---|---|---|
 | **Type** | []UpstreamServerConfig |
 | **Required** | yes (when using `registry`) |
 | **Default** | none |
@@ -271,7 +271,7 @@ server:
 ##### UpstreamServerConfig fields
 
 | Field | Type | Required | Default | Description |
-|-|-|-|-|-|-|
+|---|---|---|-|-|-|-|
 | `name` | string | yes | — | Server identifier used in path routing (e.g., `/files/...`) |
 | `url` | string | yes | — | Upstream server URL (e.g., `http://localhost:3000`) |
 | `enabled` | boolean | no | `true` | Whether this server accepts requests |
@@ -408,7 +408,7 @@ user_roles:
 **Available operators:**
 
 | Operator | Description | Example |
-|----------|-------------|-|-|-|-|
+|---|-|---|
 | `equals` | Exact match | `department: "engineering"` matches `"engineering"` |
 | `contains` | Check if claim contains the value | `groups: "administrators"` matches `"sales,administrators,auditors"` |
 | `starts_with` | Check if claim starts with the value | `role: "admin"` matches `"admin_user"` |

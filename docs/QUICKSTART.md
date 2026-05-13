@@ -254,7 +254,11 @@ auth:
 The proxy has three built-in roles: `admin`, `readonly`, and `restricted`.
 
 | Role | What they can do |
-|------|------------------|
+|---|-|-|-|
+| `admin` | Call any tool, read any resource, use any prompt |
+| `readonly` | List tools/resources/prompts, read resources — but cannot call tools that modify state |
+| `restricted` | Call only the tools explicitly listed in `allowed_tools` |t they can do |
+|---|--|-|-|
 | `admin` | Call any tool, read any resource, use any prompt |
 | `readonly` | List tools/resources/prompts, read resources — but cannot call tools that modify state |
 | `restricted` | Call only the tools explicitly listed in `allowed_tools` |
