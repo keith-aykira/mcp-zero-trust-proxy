@@ -118,7 +118,9 @@ Plans:
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 4 (COMPLETE) | 3/3 | Complete   | 2026-03-21 | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) | 3/3 | Complete   | 2026-03-23 | Ship functional proxy | PRXY + RBAC + DOCS | 6 (COMPLETE) |
+| 0 | Infrastructure | Repo, Supabase, landing page ready | INFRA-01, INFRA-02, INFRA-03 | 3 (COMPLETE) |
+| 1 | Deep Research | Evidence-based demand + feasibility picture | RSCH-01 through RSCH-06 | 6 (COMPLETE) |
+| 2 | MVP Build | Ship functional proxy | PRXY + RBAC + DOCS | 12 (COMPLETE) |
 | 3 | Hardening | Production-readiness gaps | HARD-01 through HARD-14 | 14 (COMPLETE) |
 | 4 | Beta Launch & Revenue | 10+ teams, first revenue | BETA-01 through BETA-04 | 4 |
 | 5 | Marketing & SEO | Search/AI discoverability | MKT-01 through MKT-07 | 6 (COMPLETE) |

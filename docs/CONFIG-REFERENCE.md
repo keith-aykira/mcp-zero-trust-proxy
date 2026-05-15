@@ -244,7 +244,7 @@ If omitted, requests without a server prefix return 404.
 #### server.registry.servers
 
 | | |
-|---|---|---|
+|---|-|
 | **Type** | []UpstreamServerConfig |
 | **Required** | yes (when using `registry`) |
 | **Default** | none |
@@ -276,7 +276,7 @@ server:
 | `url` | string | yes | — | Upstream server URL (e.g., `http://localhost:3000`) |
 | `enabled` | boolean | no | `true` | Whether this server accepts requests |
 | `timeout` | integer | no | `120` | HTTP timeout in seconds for this server |
-| `tags` | []string | no | `[]` | Optional metadata labels for organization |
+| `tags` | []string | no | — | Arbitrary labels for server grouping |
 
 **Constraints:**
 - `name` must be unique across all servers
@@ -408,7 +408,7 @@ user_roles:
 **Available operators:**
 
 | Operator | Description | Example |
-|---|-|---|
+|---|---|---|
 | `equals` | Exact match | `department: "engineering"` matches `"engineering"` |
 | `contains` | Check if claim contains the value | `groups: "administrators"` matches `"sales,administrators,auditors"` |
 | `starts_with` | Check if claim starts with the value | `role: "admin"` matches `"admin_user"` |
@@ -893,7 +893,7 @@ sinks:
 All sinks support filtering via the `filter` field:
 
 | Field | Type | Description |
-|-|-|-|-|-|-|-|
+|---|---|---|
 | `methods` | []string | MCP methods to include (e.g., `["tools/call"]`). Empty = all methods |
 | `tools` | []string | Tool names to include (supports `*` wildcards). Empty = all tools |
 | `results` | []string | Outcomes: `["allowed"]`, `["denied"]`, or both. Empty = both |
@@ -958,7 +958,7 @@ Sends audit events in [Common Event Format](https://docs.logr.io/logr/cef/) to s
 #### Transport Options
 
 | Transport | Description | Default Port |
-|-|---|-|-|
+|---|---|---|
 | `udp` | UDP syslog (fire-and-forget, may drop packets) | 514 |
 | `tcp` | Reliable TCP delivery | 514 |
 | `tcp_tls` | Encrypted TCP with TLS (recommended for production) | 6514 |

@@ -322,7 +322,8 @@ go test ./internal/proxy/ -v -count=1
 **Test coverage by package:**
 
 | Package | Coverage | Description |
- `internal/ratelimit` | 95.5% | Rate limiting (token bucket algorithm) |
+|---|---|---|
+| `internal/ratelimit` | 95.5% | Rate limiting (token bucket algorithm) |
 | `tests/integration` | 83.3% | Integration tests (5 mock server types) |
 | `internal/rbac` | 82.3% | Role-based access control |
 | `internal/auth` | 79.8% | OAuth 2.1 PKCE authentication |
