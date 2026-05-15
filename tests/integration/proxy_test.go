@@ -167,7 +167,7 @@ func newPipelineWithRole(t *testing.T, upstreamURL string, role string) (*proxy.
 		{Name: "readonly", AllowedTools: []string{}, DenyTools: []string{}},
 		{Name: "restricted", AllowedTools: []string{"read_file", "list_dir"}, DenyTools: []string{}},
 	}
-	rbacEngine := rbac.NewEngine(roles)
+	rbacEngine := rbac.NewEngine(roles, config.ClassificationConfig{})
 
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1000, BurstSize: 100}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
@@ -196,7 +196,7 @@ func newPipelineNoAuth(t *testing.T, upstreamURL string) *proxy.Pipeline {
 	}
 
 	roles := rbac.DefaultRoles()
-	rbacEngine := rbac.NewEngine(roles)
+	rbacEngine := rbac.NewEngine(roles, config.ClassificationConfig{})
 
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1000, BurstSize: 100}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
@@ -412,7 +412,7 @@ func TestProxy_SSEStreamingServer(t *testing.T) {
 		{Name: "readonly", AllowedTools: []string{}, DenyTools: []string{}},
 		{Name: "restricted", AllowedTools: []string{}, DenyTools: []string{}},
 	}
-	rbacEngine := rbac.NewEngine(roles)
+	rbacEngine := rbac.NewEngine(roles, config.ClassificationConfig{})
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1000, BurstSize: 100}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
 
@@ -759,7 +759,7 @@ func TestProxy_OverRateLimit_Returns429(t *testing.T) {
 		{Name: "readonly", AllowedTools: []string{}, DenyTools: []string{}},
 		{Name: "restricted", AllowedTools: []string{}, DenyTools: []string{}},
 	}
-	rbacEngine := rbac.NewEngine(roles)
+	rbacEngine := rbac.NewEngine(roles, config.ClassificationConfig{})
 
 	// Very tight rate limit: 1 req/min, burst of 1.
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 1, BurstSize: 1}

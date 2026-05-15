@@ -284,6 +284,9 @@ func Validate(cfg *Config) error {
 	// Validate PII masking configuration
 	validatePIIMasking(cfg, &errs)
 
+	// Validate classification configuration
+	validateClassification(cfg, &errs)
+
 	if len(errs) > 0 {
 		return fmt.Errorf("configuration errors:\n  - %s", strings.Join(errs, "\n  - "))
 	}
@@ -559,6 +562,11 @@ func applyDefaults(cfg *Config) {
 		cfg.Logging.Format = "json"
 	}
 
+	// Classification defaults
+	if len(cfg.Classification.Levels) == 0 {
+		cfg.Classification.Levels = []string{"Public", "Sensitive", "Confidential"}
+	}
+
 	// Merge built-in roles with user-defined roles
 	mergeRoles(cfg)
 }
@@ -635,4 +643,36 @@ func expandEnvVars(content string) string {
 		// Leave unresolved references as-is
 		return match
 	})
+}
+
+// validateClassification validates the classification configuration.
+func validateClassification(cfg *Config, errs *[]string) {
+	if len(cfg.Classification.Levels) == 0 {
+		return
+	}
+
+	// Check for duplicate levels
+	levelSet := make(map[string]bool)
+	for _, lvl := range cfg.Classification.Levels {
+		if lvl == "" {
+			*errs = append(*errs, "classification.levels: level name cannot be empty")
+		} else if levelSet[lvl] {
+			*errs = append(*errs, fmt.Sprintf("classification.levels: duplicate level %q", lvl))
+		}
+		levelSet[lvl] = true
+	}
+
+	// Validate tool assignments reference valid levels
+	for toolName, lvl := range cfg.Classification.ToolAssignments {
+		if !levelSet[lvl] {
+			*errs = append(*errs, fmt.Sprintf("classification.tool_assignments[%q]: references undefined level %q", toolName, lvl))
+		}
+	}
+
+	// Validate role classification levels reference valid levels
+	for _, role := range cfg.Roles {
+		if role.ClassificationLevel != "" && !levelSet[role.ClassificationLevel] {
+			*errs = append(*errs, fmt.Sprintf("roles[%q]: classification_level %q references undefined level", role.Name, role.ClassificationLevel))
+		}
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
@@ -21,6 +22,9 @@ type permission struct {
 	denyTools map[string]bool
 	// denyToolsCall denies ALL tools/call invocations regardless of tool name (readonly).
 	denyToolsCall bool
+	// maxClassLevel is the highest numeric classification rank this role may access.
+	// -1 means classification is inactive (role has no classification_level set).
+	maxClassLevel int
 }
 
 // Engine enforces tool-level RBAC for incoming MCP requests.
@@ -28,24 +32,64 @@ type permission struct {
 type Engine struct {
 	// permissions maps role name -> compiled permission rules.
 	permissions map[string]*permission
+
+	// levelRank maps classification level name → numeric rank (index in levels slice).
+	// nil means classification is inactive.
+	levelRank map[string]int
+
+	// toolClassification maps tool name → classification level name.
+	// nil means classification is inactive.
+	toolClassification map[string]string
+
+	// sessionFloors maps session ID → minimum allowed classification rank.
+	// When a user calls a higher-classification tool, their floor rises and
+	// they can no longer call tools below that floor (prevents information leakage).
+	sessionFloors  map[string]int
+	sessionFloorsMu sync.RWMutex
 }
 
-// NewEngine builds an Engine from a slice of RoleConfig entries.
-// It compiles each role's rules into an efficient lookup structure.
-func NewEngine(roles []config.RoleConfig) *Engine {
+// NewEngine builds an Engine from a slice of RoleConfig entries and the
+// classification configuration. Classification is opt-in: if ClassificationConfig
+// has no levels or no tool assignments, classification checks are skipped.
+func NewEngine(roles []config.RoleConfig, classification config.ClassificationConfig) *Engine {
 	e := &Engine{
 		permissions: make(map[string]*permission, len(roles)),
 	}
+
+	// Build classification maps. Classification is inactive until both
+	// levels and tool assignments are configured.
+	classificationActive := len(classification.Levels) > 0 && len(classification.ToolAssignments) > 0
+	if classificationActive {
+		e.levelRank = make(map[string]int, len(classification.Levels))
+		for i, lvl := range classification.Levels {
+			e.levelRank[lvl] = i
+		}
+		e.toolClassification = make(map[string]string, len(classification.ToolAssignments))
+		for toolName, lvl := range classification.ToolAssignments {
+			e.toolClassification[toolName] = lvl
+		}
+		e.sessionFloors = make(map[string]int)
+	}
+
 	for _, rc := range roles {
-		perm := compileRole(rc)
+		perm := compileRole(rc, e.levelRank)
 		e.permissions[rc.Name] = perm
 	}
 	return e
 }
 
 // compileRole translates a RoleConfig into a permission struct.
-func compileRole(rc config.RoleConfig) *permission {
-	perm := &permission{}
+func compileRole(rc config.RoleConfig, levelRank map[string]int) *permission {
+	perm := &permission{
+		maxClassLevel: -1, // inactive by default
+	}
+
+	// Resolve classification level rank.
+	if levelRank != nil && rc.ClassificationLevel != "" {
+		if rank, ok := levelRank[rc.ClassificationLevel]; ok {
+			perm.maxClassLevel = rank
+		}
+	}
 
 	switch rc.Name {
 	case RoleAdmin:
@@ -119,12 +163,12 @@ func (e *Engine) Process(ctx context.Context, req *proxy.MCPRequest, identity *p
 
 	// For tools/call, enforce tool-level restrictions.
 	if req.Method == proxy.MethodToolsCall {
+		toolName := proxy.ExtractToolName(req)
+
 		// ReadOnly: deny all tool calls.
 		if perm.denyToolsCall {
 			return nil, fmt.Errorf("rbac: role %q cannot execute tools (tools/call is denied)", identity.Role)
 		}
-
-		toolName := proxy.ExtractToolName(req)
 
 		// Check deny list first (deny takes precedence over allow).
 		if perm.denyTools != nil && perm.denyTools[toolName] {
@@ -137,9 +181,57 @@ func (e *Engine) Process(ctx context.Context, req *proxy.MCPRequest, identity *p
 				return nil, fmt.Errorf("rbac: tool %q is not in the allowed list for role %q", toolName, identity.Role)
 			}
 		}
+
+		// Classification check (runs after allow/deny RBAC).
+		if e.levelRank != nil && e.toolClassification != nil {
+			_, err := e.checkClassification(identity, toolName)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return req, nil
+}
+
+// checkClassification validates that the user's session can access the requested
+// tool at its classification level, and updates the session floor if needed.
+func (e *Engine) checkClassification(identity *proxy.ClientIdentity, toolName string) (*proxy.MCPRequest, error) {
+	// Look up tool's classification level. If unassigned, defaults to
+	// the lowest level (index 0).
+	toolLevel, hasLevel := e.toolClassification[toolName]
+	toolRank := 0
+	if hasLevel {
+		if rank, ok := e.levelRank[toolLevel]; ok {
+			toolRank = rank
+		}
+	}
+
+	// Check role's maximum classification level. If the role has no
+	// classification level assigned, allow access (defaults to lowest).
+	perm := e.permissions[identity.Role]
+	if perm.maxClassLevel >= 0 && toolRank > perm.maxClassLevel {
+		return nil, fmt.Errorf("rbac: tool %q at classification %q exceeds role %q maximum level", toolName, toolLevel, identity.Role)
+	}
+
+	// Enforce session floor: if the user has previously called a higher-
+	// classification tool, they cannot call tools below that floor.
+	e.sessionFloorsMu.RLock()
+	currentFloor, hasFloor := e.sessionFloors[identity.SessionID]
+	e.sessionFloorsMu.RUnlock()
+
+	if hasFloor && toolRank < currentFloor {
+		return nil, fmt.Errorf("rbac: tool %q at classification %q is below session floor (declassification prevented)", toolName, toolLevel)
+	}
+
+	// Update floor if this tool's rank is higher than current floor.
+	e.sessionFloorsMu.Lock()
+	if !hasFloor || toolRank > e.sessionFloors[identity.SessionID] {
+		e.sessionFloors[identity.SessionID] = toolRank
+	}
+	e.sessionFloorsMu.Unlock()
+
+	return nil, nil
 }
 
 // toolsListResult is the shape of the tools/list result payload.
@@ -154,10 +246,11 @@ type toolEntry struct {
 	InputSchema json.RawMessage `json:"inputSchema,omitempty"`
 }
 
-// FilterToolsList filters the tools/list result to only include tools the identity's role can access.
-// Admin sees all tools. ReadOnly sees all tools (can list but not call).
-// Restricted sees only the tools in their allowed_tools list.
-// Returns the filtered JSON-encoded result.
+// FilterToolsList filters the tools/list result to only include tools the
+// identity's role can access. Admin sees all tools. ReadOnly sees all tools
+// (can list but not call). Restricted sees only the tools in their
+// allowed_tools list. Classification-based and floor-based filtering are
+// also applied when classification is active.
 func (e *Engine) FilterToolsList(identity *proxy.ClientIdentity, toolsList json.RawMessage) (json.RawMessage, error) {
 	perm, ok := e.permissions[identity.Role]
 	if !ok {
@@ -175,17 +268,47 @@ func (e *Engine) FilterToolsList(identity *proxy.ClientIdentity, toolsList json.
 		return toolsList, nil
 	}
 
-	// Restricted: filter to only allowed tools.
+	// Parse the tools list.
 	var result toolsListResult
 	if err := json.Unmarshal(toolsList, &result); err != nil {
 		return nil, fmt.Errorf("rbac: failed to parse tools/list result: %w", err)
 	}
 
+	// Get current session floor for filtering.
+	e.sessionFloorsMu.RLock()
+	currentFloor, hasFloor := e.sessionFloors[identity.SessionID]
+	e.sessionFloorsMu.RUnlock()
+
 	filtered := make([]toolEntry, 0, len(result.Tools))
 	for _, tool := range result.Tools {
-		if perm.allowedTools[tool.Name] {
-			filtered = append(filtered, tool)
+		// Check allowed_tools list.
+		if !perm.allowedTools[tool.Name] {
+			continue
 		}
+
+		// Check classification level.
+		if e.levelRank != nil && e.toolClassification != nil {
+			toolLevel, hasLevel := e.toolClassification[tool.Name]
+			toolRank := 0
+			if hasLevel {
+				if rank, ok := e.levelRank[toolLevel]; ok {
+					toolRank = rank
+				}
+			}
+
+			// Role maximum level check.
+			if perm.maxClassLevel >= 0 && toolRank > perm.maxClassLevel {
+				continue
+			}
+
+			// Session floor check: hide tools below the session floor
+			// (user has accessed higher-classification data).
+			if hasFloor && toolRank < currentFloor {
+				continue
+			}
+		}
+
+		filtered = append(filtered, tool)
 	}
 	result.Tools = filtered
 

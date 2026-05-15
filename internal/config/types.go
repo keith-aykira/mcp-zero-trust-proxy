@@ -7,6 +7,7 @@ type Config struct {
 	UserRoles        UserRolesConfig        `yaml:"user_roles"`
 	UserRestrictions UserRestrictionsConfig `yaml:"user_restrictions"`
 	Roles            []RoleConfig           `yaml:"roles"`
+	Classification   ClassificationConfig   `yaml:"classification"`
 	RateLimit        RateLimitConfig        `yaml:"rate_limit"`
 	Audit            AuditConfig            `yaml:"audit"`
 	Logging          LogConfig              `yaml:"logging"`
@@ -178,6 +179,10 @@ type RoleConfig struct {
 	// DenyTools lists MCP tool names explicitly denied for this role.
 	// Deny rules take precedence over allow rules.
 	DenyTools []string `yaml:"deny_tools"`
+	// ClassificationLevel sets the highest classification this role may access.
+	// Empty string defaults to the lowest level ("Public").
+	// Accepted values are those defined in the classification.levels section.
+	ClassificationLevel string `yaml:"classification_level,omitempty"`
 }
 
 // RateLimitConfig controls per-client request rate limiting via a token bucket.
@@ -374,4 +379,16 @@ type PIISensitivityClassConfig struct {
 
 	// Description provides documentation for this class.
 	Description string `yaml:"description"`
+}
+
+// ClassificationConfig holds information classification settings.
+// When empty or not configured, classification is inactive and has no effect.
+type ClassificationConfig struct {
+	// Levels defines the ordered classification hierarchy from lowest to highest.
+	// Default: ["Public", "Sensitive", "Confidential"].
+	Levels []string `yaml:"levels"`
+
+	// ToolAssignments maps tool names to their classification levels.
+	// Tools not listed default to the lowest level ("Public").
+	ToolAssignments map[string]string `yaml:"tool_assignments"`
 }

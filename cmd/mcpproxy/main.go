@@ -107,7 +107,7 @@ func main() {
 	defer authenticator.StopCleanup()
 
 	// Step 3: RBAC engine
-	rbacEngine := rbac.NewEngine(cfg.Roles)
+	rbacEngine := rbac.NewEngine(cfg.Roles, cfg.Classification)
 
 	// Step 4: Rate limiter
 	rateLimiter := ratelimit.NewLimiter(&cfg.RateLimit)

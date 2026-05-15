@@ -137,6 +137,9 @@ roles:
     # Explicitly denied tools (deny rules take precedence over allow rules).
     deny_tools:
       - "delete_database"  # Example: prevent database deletion even for admins
+    # Optional: classification_level caps maximum tool classification this role may access.
+    # When unset, the role is unconstrained by classification (bypasses level checks).
+    # classification_level: "Confidential"
 
   # Readonly role: can list and read resources, but cannot call tools that modify state.
   - name: "readonly"
@@ -189,6 +192,51 @@ roles:
   #   deny_tools:
   #     - "read_password_file"
   #     - "read_secrets"
+
+# ============================================================
+# Information Classification Configuration
+# ============================================================
+# Optional. Layer information classification on top of RBAC.
+# Classification is opt-in — it is inactive unless both `levels`
+# and `tool_assignments` are configured.
+#
+# How it works:
+#   1. `levels`: Define an ordered hierarchy from low to high.
+#      Example: [Public, Sensitive, Confidential]
+#      Default levels: [Public, Sensitive, Confidential]
+#
+#   2. `tool_assignments`: Map tool names to classification levels.
+#      Unassigned tools default to the lowest level (e.g., Public).
+#
+#   3. `classification_level` on roles: Set the maximum level a role
+#      may access. Roles without this field are unconstrained.
+#      This is independent of allow/deny tool lists.
+#
+#   4. Declassification prevention (session floor):
+#      Once a user calls a tool at a given classification level,
+#      their "session floor" rises to that level. They can no longer
+#      call tools below that floor, preventing information leakage
+#      from a high-classification context to a low-classification one.
+#      The floor only rises; it never drops during the session.
+#
+# Evaluation order: deny_tools → allow_tools → classification level
+# → session floor check.
+#
+# Example: Public-facing analytics with classified internal tools
+# classification:
+#   # Define hierarchy (lowest → highest)
+#   levels:
+#     - "Public"
+#     - "Internal"
+#     - "Confidential"
+#     - "Secret"
+#
+#   # Assign tools to levels
+#   tool_assignments:
+#     "read_public_report": "Public"
+#     "query_internal_metrics": "Internal"
+#     "view_billing_data": "Confidential"
+#     "access_source_code": "Secret"
 
 # ===============================================================
 # User-Role Mapping Configuration

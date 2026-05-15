@@ -230,7 +230,7 @@ func newE2EPipeline(t *testing.T, upstreamURL string, opts ...proxy.PipelineOpti
 		{Name: "readonly", AllowedTools: []string{}, DenyTools: []string{}},
 		{Name: "restricted", AllowedTools: []string{"read_file", "list_dir"}, DenyTools: []string{}},
 	}
-	rbacEngine := rbac.NewEngine(roles)
+	rbacEngine := rbac.NewEngine(roles, config.ClassificationConfig{})
 
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 200, BurstSize: 20}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
@@ -273,7 +273,7 @@ func newFreeTierPipeline(t *testing.T, upstreamURL string) (*httptest.Server, *m
 		{Name: "admin", AllowedTools: []string{}, DenyTools: []string{}},
 		{Name: "readonly", AllowedTools: []string{}, DenyTools: []string{}},
 	}
-	rbacEngine := rbac.NewEngine(roles)
+	rbacEngine := rbac.NewEngine(roles, config.ClassificationConfig{})
 
 	rlCfg := &config.RateLimitConfig{RequestsPerMinute: 10, BurstSize: 5}
 	rateLimiter := ratelimit.NewLimiter(rlCfg)
