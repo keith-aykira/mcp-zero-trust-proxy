@@ -587,6 +587,11 @@ func applyDefaults(cfg *Config) {
 		cfg.Classification.Levels = []string{"Public", "Sensitive", "Confidential"}
 	}
 
+	// Catalog defaults
+	if cfg.Catalog.DatabasePath == "" {
+		cfg.Catalog.DatabasePath = "./tools_catalog.db"
+	}
+
 	// Merge built-in roles with user-defined roles
 	mergeRoles(cfg)
 }

@@ -15,6 +15,7 @@ type Config struct {
 	License          LicenseConfig          `yaml:"license"`
 	PIIMasking       PIIMaskingConfig       `yaml:"pii_masking"`
 	Outbound         OutboundConfig         `yaml:"outbound"`
+	Catalog          CatalogConfig          `yaml:"catalog"`
 }
 
 // LicenseConfig holds the optional license key for enabling paid tiers.
@@ -418,4 +419,24 @@ type ClassificationConfig struct {
 	// ToolAssignments maps tool names to their classification levels.
 	// Tools not listed default to the lowest level ("Public").
 	ToolAssignments map[string]string `yaml:"tool_assignments"`
+}
+
+// CatalogConfig holds tool cataloging and caching settings.
+type CatalogConfig struct {
+	// Enabled controls whether tool cataloging is active. Default: false.
+	Enabled bool `yaml:"enabled"`
+
+	// DatabasePath is the SQLite database file path for storing tool metadata.
+	// Default: "./tools_catalog.db".
+	DatabasePath string `yaml:"database_path"`
+
+	// RefreshInterval is the time between catalog updates (e.g., "5m", "1h").
+	// Default: "1h".
+	RefreshInterval string `yaml:"refresh_interval"`
+
+	// CacheToolsList controls whether tools/list responses should be served
+	// from the catalog cache instead of forwarding to upstream.
+	// When true, provides faster responses and consistent filtering.
+	// Default: false.
+	CacheToolsList bool `yaml:"cache_tools_list"`
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/audit"
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/auth"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/catalog"
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/pii"
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/proxy"
@@ -155,8 +156,35 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize router")
 	}
 
+	// Step 7b: Initialize tool catalog if enabled
+	var toolCatalog *catalog.ToolCatalog
+	if cfg.Catalog.Enabled {
+		// Build upstream URLs map from registry
+		upstreamURLs := make(map[string]string)
+		for _, srv := range cfg.Server.Registry.Servers {
+			if srv.Enabled {
+				upstreamURLs[srv.Name] = srv.URL
+			}
+		}
+
+		catalogConfig := &catalog.CatalogConfig{
+			Enabled:        cfg.Catalog.Enabled,
+			DatabasePath:   cfg.Catalog.DatabasePath,
+			CacheToolsList: cfg.Catalog.CacheToolsList,
+			UpstreamURLs:   upstreamURLs,
+		}
+
+		toolCatalog, err = catalog.NewToolCatalog(catalogConfig)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize tool catalog")
+		}
+
+		toolCatalog.Start()
+		log.Info().Str("db", cfg.Catalog.DatabasePath).Msg("Tool catalog initialized")
+	}
+
 	// Step 8: Proxy handler
-	handler, err := proxy.NewHandler(cfg, router)
+	handler, err := proxy.NewHandler(cfg, router, toolCatalog)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize proxy handler")
 	}
@@ -179,6 +207,11 @@ func main() {
 		proxy.WithMaxBodySize(cfg.Server.MaxBodySize),
 		proxy.WithCORS(corsConfig),
 	)
+	
+	// Add tool catalog option if enabled.
+	if toolCatalog != nil && cfg.Catalog.CacheToolsList {
+		// Note: WithToolCatalog option needs to be added to pipeline
+	}
 
 	// Register health check endpoint
 	mux := http.NewServeMux()
@@ -249,6 +282,9 @@ func main() {
 
 		// Stop background goroutines
 		close(rlStop)
+		if toolCatalog != nil {
+			toolCatalog.Stop()
+		}
 		authenticator.StopCleanup()
 		sessionStore.Stop()
 

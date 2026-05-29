@@ -3,11 +3,13 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"time"
 
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/catalog"
 	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 )
 
@@ -37,6 +39,7 @@ const (
 type Handler struct {
 	router       Router
 	httpClient   *http.Client
+	toolCatalog  *catalog.ToolCatalog
 
 	// sseTimeout is the configurable SSE connection timeout. 0 = no timeout.
 	sseTimeout time.Duration
@@ -45,7 +48,7 @@ type Handler struct {
 }
 
 // NewHandler constructs a Handler from config. Returns an error if the router is nil.
-func NewHandler(cfg *config.Config, router Router) (*Handler, error) {
+func NewHandler(cfg *config.Config, router Router, toolCatalog *catalog.ToolCatalog) (*Handler, error) {
 	if router == nil {
 		return nil, fmt.Errorf("router is required")
 	}
@@ -69,6 +72,7 @@ func NewHandler(cfg *config.Config, router Router) (*Handler, error) {
 	return &Handler{
 		router:       router,
 		httpClient:   httpClient,
+		toolCatalog:  toolCatalog,
 		sseTimeout:   sseTimeout,
 		sseMaxBuffer: sseMaxBuffer,
 	}, nil

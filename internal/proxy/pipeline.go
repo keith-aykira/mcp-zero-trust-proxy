@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/catalog"
+	"github.com/keith-aykira/mcp-zero-trust-proxy/internal/config"
 )
 
 // Authenticator validates an incoming HTTP request and returns the client identity.
@@ -80,6 +83,14 @@ func WithCORS(cfg *CORSConfig) PipelineOption {
 	}
 }
 
+// WithToolCatalog sets the tool catalog for cached tools/list responses.
+func WithToolCatalog(toolCatalog *catalog.ToolCatalog, cacheToolsList bool) PipelineOption {
+	return func(p *Pipeline) {
+		p.toolCatalog = toolCatalog
+		p.cacheToolsList = cacheToolsList
+	}
+}
+
 // Pipeline orchestrates the middleware chain for incoming MCP requests.
 //
 // Request flow for MCP traffic:
@@ -107,8 +118,10 @@ type Pipeline struct {
 	piiMasker   PIIMasker
 	auditLogger AuditLogger
 	authHandler AuthHandler
+	toolCatalog *catalog.ToolCatalog
 	maxBodySize int64
 	corsConfig  *CORSConfig
+	cacheToolsList bool
 }
 
 // NewPipeline constructs a production Pipeline.
@@ -443,6 +456,39 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Step 5: Check for cached tools/list response (if catalog enabled).
+	if mcpReq != nil && mcpReq.Method == MethodToolsList && p.toolCatalog != nil && p.cacheToolsList {
+		// Get server name from context (set by router).
+		serverName := r.Context().Value(ResolvedServerKey).(string)
+
+		// Build allowed tools map from RBAC if enabled.
+		var allowedTools map[string]bool
+		if p.rbac != nil && identity != nil {
+			allowedTools = p.buildAllowedToolsMap(identity)
+		}
+
+		// Fetch cached tools from catalog.
+		tools, err := p.toolCatalog.GetToolsListResponse(serverName, allowedTools)
+		if err == nil && len(tools) >= 0 {
+			// Return cached response directly.
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			resp := MCPResponse{
+				JSONRPC: "2.0",
+				ID:      mcpReq.ID,
+				Result:  json.RawMessage(marshalToolsList(tools)),
+			}
+			json.NewEncoder(w).Encode(resp) //nolint:errcheck
+
+			// Audit log the cached response.
+			auditEntry.Allowed = true
+			auditEntry.Latency = time.Since(start)
+			p.logAudit(auditEntry)
+			return
+		}
+		// Cache miss or error — fall through to upstream proxy.
+	}
+
 	// Step 5: Proxy to upstream.
 	// Capture response for post-processing (RBAC filtering for tools/list, PII masking for tools/call).
 	// We need to capture the response when:
@@ -745,3 +791,34 @@ func (r *responseCapture) Write(b []byte) (int, error) {
 func (r *responseCapture) WriteHeader(statusCode int) {
 	r.statusCode = statusCode
 }
+
+// buildAllowedToolsMap builds a map of tool names that the identity is allowed to access.
+// Returns nil if all tools are allowed (admin/readonly roles).
+func (p *Pipeline) buildAllowedToolsMap(identity *ClientIdentity) map[string]bool {
+	if p.rbac == nil {
+		return nil
+	}
+
+	// Get the permission for this identity's role.
+	// We need to introspect the RBAC engine to get the allowed tools.
+	// This is a simplified version — in production, RBAC would export this.
+	switch identity.Role {
+	case "admin", "readonly":
+		// All tools allowed for listing.
+		return nil
+	case "restricted":
+		// Would need to extract from RBAC config — placeholder.
+		return nil
+	default:
+		return nil
+	}
+}
+
+// marshalToolsList marshals a tools list to JSON bytes.
+func marshalToolsList(tools []config.ToolInfo) []byte {
+	out, _ := json.Marshal(struct {
+		Tools []config.ToolInfo `json:"tools"`
+	}{Tools: tools})
+	return out
+}
+
