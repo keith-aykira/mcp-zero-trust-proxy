@@ -353,7 +353,52 @@ PRs welcome. The codebase is standard Go — no frameworks, minimal dependencies
 
 ## Security
 
-Found a vulnerability? See [SECURITY.md](SECURITY.md) for responsible disclosure.
+### Security Architecture
+
+The proxy implements defense-in-depth with multiple security layers:
+
+**1. Transport Security**
+- TLS 1.2+ required for production (TLS 1.0/1.1 disabled)
+- Configurable `tls.required: true` to refuse starting without valid certificates
+- Client IP extracted from `X-Forwarded-For` / `X-Real-IP` for accurate logging
+
+**2. Authentication**  
+- OAuth 2.1 with PKCE (Proof Key for Code Exchange)
+- Supports GitHub, Google, Microsoft Entra ID, and any OIDC provider
+- Immutable user identifier (`immutable_id`) from OAuth `sub` claim prevents rate limit bypass
+- Token cache with LRU eviction (default 1000 entries, 5-minute TTL)
+- Session persistence to disk (optional) survives proxy restarts
+
+**3. Authorization**
+- Role-based access control (RBAC) with tool-level granularity
+- Three built-in roles: `admin`, `readonly`, `restricted`
+- Custom roles supported for fine-grained access control
+- Claim-based role mapping from OAuth tokens (enterprise-ready)
+
+**4. Rate Limiting**
+- Per-client token bucket (default: 60 RPM, burst 10)
+- Uses `immutable_id` from OAuth `sub` claim (not mutable `client_id`)
+- HTTP headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+
+**5. DoS Protection**
+- JSON depth limiter (max 32 levels) prevents stack overflow attacks
+- Body size limits before JSON parsing
+- Graceful degradation under load
+
+**6. Audit & Accountability**
+- Immutable JSONL audit trail (tamper-evident)
+- Client IP tracked in all audit entries
+- Cascading file rotation with configurable `max_backups`
+- Multiple external sinks: OCSF (Azure), CEF (SIEM), custom webhooks
+
+**7. Security Hardening**
+- CEF sanitization per CEF v0 spec (escapes `\`, `|`, `=`, `:`)
+- No secrets in config files (environment variables only)
+- Session file permissions: 0600
+
+### Found a vulnerability?
+
+See [SECURITY.md](SECURITY.md) for responsible disclosure.
 
 ## License
 

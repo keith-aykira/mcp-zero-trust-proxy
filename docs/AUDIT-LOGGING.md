@@ -15,35 +15,48 @@ Every audit event is a single JSON object written as one line:
 ```json
 {
   "timestamp": "2025-01-01T00:00:00.000000000Z",
-  "event": {
-    "session_id": "uuid",
-    "client_id": "client:service:account",
-    "user_id": "user-uuid",
-    "method": "tools/call",
-    "tool": "read_file",
-    "params": "... or null",
-    "latency_ms": 42,
-    "result": "success",
-    "error": "..."
-  }
+  "request_id": "abc123XYZ",
+  "session_id": "sess-uuid-456",
+  "client_id": "user@example.com",
+  "client_ip": "203.0.113.42",
+  "method": "tools/call",
+  "tool_name": "read_file",
+  "allowed": true,
+  "denied_reason": "",
+  "latency_ms": 42
 }
 ```
 
 ### Fields Reference
 
 | Field | Type | Description |
-|-------|------|-------------|
+|-|-|-|
 | `timestamp` | string (RFC3339) | Server time of event |
-| `session_id` | string (UUID) | Unique session identifier |
-| `client_id` | string | OAuth `client_id` (e.g., `client:service:account`) |
-| `user_id` | string | OAuth `sub` claim |
+| `request_id` | string | Unique identifier for request tracing |
+| `session_id` | string | Unique session identifier |
+| `client_id` | string | Authenticated user identifier (email or OAuth ID) |
+| `client_ip` | string | Client IP address (extracted from X-Forwarded-For, X-Real-IP, or RemoteAddr) |
 | `method` | string | MCP method: `initialize`, `tools/list`, `resources/read`, `tools/call` |
-| `tool` | string | Tool name (for `tools/call` events) |
-| `params` | string\|null | Truncated/escaped request parameters (first 1KB) |
+| `tool_name` | string | Tool name (for `tools/call` events) |
+| `allowed` | boolean | Whether request was permitted (`true`) or denied (`false`) |
+| `denied_reason` | string | Reason for denial: `rbac`, `rate limit exceeded`, `auth required` |
 | `latency_ms` | integer | Request latency in milliseconds |
-| `result` | string | One of: `success`, `denied`, `error` |
-| `error` | string | Error message (when `result` is `error`) |
-| `denied_reason` | string | RBAC denial reason (when `result` is `denied`) |
+
+### Client IP Extraction
+
+The proxy extracts the real client IP address using the following priority:
+
+1. **`X-Forwarded-For`** header — First IP in the comma-separated list
+2. **`X-Real-IP`** header — Set by reverse proxies like nginx
+3. **`RemoteAddr`** — Direct connection IP (may include port, e.g., `192.168.1.1:54321`)
+
+**Example extraction:**
+```
+X-Forwarded-For: 203.0.113.42, 10.0.0.1, 192.168.1.100
+→ client_ip = "203.0.113.42"  (first entry = real client)
+```
+
+This ensures accurate client identification even when the proxy is behind load balancers or reverse proxies.
 
 ---
 
@@ -68,7 +81,29 @@ audit:
   rotation:
     max_size_mb: 100     # Max file size before rotation
     max_age_hours: 168   # Max age of old files (7 days)
+    max_backups: 5       # Number of rotated files to retain
 ```
+
+### File Rotation Behavior
+
+When the audit log reaches `max_size_mb`, the proxy performs atomic rotation with cascading:
+
+**Cascade sequence with `max_backups: 5`:**
+```
+Before rotation:              After rotation:
+audit.jsonl  (100MB)    →    audit.jsonl  (0 bytes, new)
+audit.jsonl.1  (100MB)    →    audit.jsonl.2  (100MB)
+audit.jsonl.2  (80MB)     →    audit.jsonl.3  (80MB)
+audit.jsonl.3  (50MB)     →    audit.jsonl.4  (50MB)
+audit.jsonl.4  (30MB)     →    audit.jsonl.5  (30MB)
+audit.jsonl.5  (20MB)     →    DELETED (exceeds max_backups)
+```
+
+**Rotation guarantees:**
+- **Atomic:** Current log renamed to `.1`, then new file created (no data loss)
+- **Cascading:** Old backups shifted up (`.1` → `.2` → `.3` ...)
+- **Bounded:** Oldest file deleted when it exceeds `max_backups`
+- **Configurable retention:** Set `max_backups` to control disk usage
 
 **Output Modes:**
 - `stdout` — Write to standard output (default, useful for containers)
@@ -171,18 +206,42 @@ audit:
 **CEF Format Example:**
 
 ```
-CEF:0|mcpproxy|MCP Proxy|1.0.0|0|Tool Access|4|Sub=1 src=10.0.0.1 act=tools/call tool=read_file result=success latency=42 user=john@company.com client=client:service:account
+CEF:0|mcpproxy|MCP Proxy|1.0.0|0|Tool Access|4|Sub=1 src=203.0.113.42 dst=10.0.0.1 act=tools/call tool=read_file result=success latency=42 user=john@company.com client=client:service:account cs1Label=client_ip cs1=203.0.113.42
 ```
 
 **Fields Mapped:**
-- `Sub` — User ID
-- `src` — Source address (if configured)
+- `Sub` — User ID (from `client_id`)
+- `src` — Client IP address (from `client_ip`)
+- `dst` — Destination address (if configured)
 - `act` — Method name
 - `tool` — Tool name (for `tools/call`)
-- `result` — success/denied/error
+- `result` — allowed/denied
 - `latency` — Request latency in ms
-- `user` — User ID
+- `user` — User email
 - `client` — Client ID
+- `cs1` — Client IP (custom field per CEF spec)
+
+### CEF Sanitization
+
+The proxy sanitizes CEF extension values per CEF v0 specification to prevent log injection and ensure proper parsing:
+
+| Character | Action | Reason |
+|-|-|-|
+| `\` | Escaped as `\\` | Backslash escape character |
+| `\|` | Escaped as `\|` | Field delimiter |
+| `=` | Escaped as `\=` | Key-value delimiter |
+| `:` | Escaped as `\:` | CEF syntax character |
+| `\n`, `\r` | Removed | Prevent CRLF injection |
+| `\t` | Replaced with `_` | Control character |
+| ` ` (space) | Replaced with `_` | Readability |
+
+**Example sanitization:**
+```
+Original:  "user@example.com: admin user"
+Sanitized: "user_example_com:_admin_user"
+```
+
+**Security benefit:** This prevents attackers from injecting malformed CEF records via tool names, file paths, or other user-controlled parameters.
 
 ---
 
@@ -408,6 +467,15 @@ index=siem product="mcpproxy" action="tools/call"
 ---
 
 ## Changelog
+
+### v1.2.0 (Unreleased)
+
+- Added `client_ip` field to audit entries (extracted from X-Forwarded-For, X-Real-IP headers)
+- Added `request_id` field for request tracing across logs
+- Added `max_backups` to `audit.rotation` for cascading file rotation
+- Improved CEF sanitization per CEF v0 spec (escapes `\`, `|`, `=`, `:` before control chars)
+- Added `allowed` boolean field (replaces `result` string)
+- Added `denied_reason` enum: `rbac`, `rate limit exceeded`, `auth required`
 
 ### v1.1.0
 

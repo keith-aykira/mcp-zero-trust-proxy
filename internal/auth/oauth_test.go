@@ -65,7 +65,7 @@ func TestAuthenticateValidToken(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, userID, email)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{
@@ -98,7 +98,7 @@ func TestAuthenticateValidToken(t *testing.T) {
 }
 
 func TestAuthenticateNoAuthHeader(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -117,7 +117,7 @@ func TestAuthenticateNoAuthHeader(t *testing.T) {
 }
 
 func TestAuthenticateMalformedToken(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -154,7 +154,7 @@ func TestAuthenticateInvalidToken(t *testing.T) {
 	}))
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -186,7 +186,7 @@ func TestTokenCache(t *testing.T) {
 	}))
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -209,7 +209,7 @@ func TestTokenCache(t *testing.T) {
 }
 
 func TestHandleAuthStart(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{
@@ -295,7 +295,7 @@ func TestHandleCallbackPKCESuccess(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(returnToken, "user1", "user1@example.com")
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{
@@ -342,7 +342,7 @@ func TestHandleCallbackPKCEWrongVerifier(t *testing.T) {
 	tokenSrv := mockTokenServer("auth-code-456", correctVerifier, challenge, "token")
 	defer tokenSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -375,7 +375,7 @@ func TestHandleCallbackPKCEWrongVerifier(t *testing.T) {
 // ========================
 
 func TestStartCleanupRemovesExpiredTokenCacheEntries(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -385,12 +385,12 @@ func TestStartCleanupRemovesExpiredTokenCacheEntries(t *testing.T) {
 	}
 
 	// Store an already-expired token cache entry
-	a.tokenCache.Store("expired-token", tokenCacheEntry{
+	a.tokenCache.put("expired-token", tokenCacheEntry{
 		identity:  nil,
 		expiresAt: time.Now().Add(-1 * time.Minute), // expired
 	})
 	// Store a valid (non-expired) entry
-	a.tokenCache.Store("valid-token", tokenCacheEntry{
+	a.tokenCache.put("valid-token", tokenCacheEntry{
 		identity:  nil,
 		expiresAt: time.Now().Add(5 * time.Minute), // not expired
 	})
@@ -399,17 +399,17 @@ func TestStartCleanupRemovesExpiredTokenCacheEntries(t *testing.T) {
 	a.runCleanup()
 
 	// Expired entry should be gone
-	if _, ok := a.tokenCache.Load("expired-token"); ok {
+	if _, ok := a.tokenCache.get("expired-token"); ok {
 		t.Error("expired token cache entry should have been removed by cleanup")
 	}
 	// Valid entry should remain
-	if _, ok := a.tokenCache.Load("valid-token"); !ok {
+	if _, ok := a.tokenCache.get("valid-token"); !ok {
 		t.Error("valid token cache entry should NOT have been removed by cleanup")
 	}
 }
 
 func TestStartCleanupRemovesExpiredStateCacheEntries(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -443,7 +443,7 @@ func TestStartCleanupRemovesExpiredStateCacheEntries(t *testing.T) {
 }
 
 func TestStartStopCleanup(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -478,7 +478,7 @@ func TestExchangeCodeIncludesClientSecretWhenConfigured(t *testing.T) {
 	}))
 	defer tokenSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{
@@ -519,7 +519,7 @@ func TestExchangeCodeOmitsClientSecretWhenEmpty(t *testing.T) {
 	}))
 	defer tokenSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{
@@ -551,7 +551,7 @@ func TestExchangeCodeErrorDoesNotLeakProviderBody(t *testing.T) {
 	}))
 	defer tokenSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -585,7 +585,7 @@ func TestAuthenticateErrorIsSanitized(t *testing.T) {
 	}))
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -614,7 +614,7 @@ func TestAuthenticateErrorIsSanitized(t *testing.T) {
 
 // TestResolveRole_MappedEmail verifies that a known email resolves to its mapped role.
 func TestResolveRole_MappedEmail(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -638,7 +638,7 @@ func TestResolveRole_MappedEmail(t *testing.T) {
 
 // TestResolveRole_UnmappedEmail verifies that an unknown email returns the default role.
 func TestResolveRole_UnmappedEmail(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -658,7 +658,7 @@ func TestResolveRole_UnmappedEmail(t *testing.T) {
 
 // TestResolveRole_DefaultWhenNoMapping verifies the default role is used when no mapping is set.
 func TestResolveRole_DefaultWhenNoMapping(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -681,7 +681,7 @@ func TestAuthenticateUsesResolvedRole(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user1", adminEmail)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -709,7 +709,7 @@ func TestAuthenticateUsesResolvedRole(t *testing.T) {
 
 // TestClaimRuleEvaluation_EqualOperator verifies equals operator matching.
 func TestClaimRuleEvaluation_EqualOperator(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -747,7 +747,7 @@ func TestClaimRuleEvaluation_EqualOperator(t *testing.T) {
 
 // TestClaimRuleEvaluation_ContainsOperator verifies contains operator matching.
 func TestClaimRuleEvaluation_ContainsOperator(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -784,7 +784,7 @@ func TestClaimRuleEvaluation_ContainsOperator(t *testing.T) {
 
 // TestClaimRuleEvaluation_StartsWithOperator verifies starts_with operator matching.
 func TestClaimRuleEvaluation_StartsWithOperator(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -821,7 +821,7 @@ func TestClaimRuleEvaluation_StartsWithOperator(t *testing.T) {
 
 // TestClaimRuleEvaluation_EndsWithOperator verifies ends_with operator matching.
 func TestClaimRuleEvaluation_EndsWithOperator(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -858,7 +858,7 @@ func TestClaimRuleEvaluation_EndsWithOperator(t *testing.T) {
 
 // TestClaimRuleEvaluation_RegexOperator verifies regex operator matching.
 func TestClaimRuleEvaluation_RegexOperator(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -895,7 +895,7 @@ func TestClaimRuleEvaluation_RegexOperator(t *testing.T) {
 
 // TestClaimRuleEvaluation_FirstMatchWins verifies that the first matching rule wins.
 func TestClaimRuleEvaluation_FirstMatchWins(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -940,7 +940,7 @@ func TestAuthenticateWithClaims(t *testing.T) {
 	}))
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -994,7 +994,7 @@ func TestAuthenticateClaimsFallbackToEmail(t *testing.T) {
 	}))
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1049,7 +1049,7 @@ func TestAuthenticateClaimsFallbackToDefault(t *testing.T) {
 	}))
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1089,7 +1089,7 @@ func TestHandleCallbackErrorIsSanitized(t *testing.T) {
 	}))
 	defer tokenSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1144,7 +1144,7 @@ func TestHandleCallbackCSRFProtection(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(returnToken, "user1", "user1@example.com")
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{
@@ -1217,7 +1217,7 @@ func TestHandleCallbackCSRFProtection(t *testing.T) {
 
 // TestSetUserRestrictions_Valid verifies that valid regex patterns are compiled successfully.
 func TestSetUserRestrictions_Valid(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1234,7 +1234,7 @@ func TestSetUserRestrictions_Valid(t *testing.T) {
 
 // TestSetUserRestrictions_Empty verifies that empty strings disable the restrictions.
 func TestSetUserRestrictions_Empty(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1251,7 +1251,7 @@ func TestSetUserRestrictions_Empty(t *testing.T) {
 
 // TestSetUserRestrictions_InvalidAllowRegex verifies that invalid regex patterns return an error.
 func TestSetUserRestrictions_InvalidAllowRegex(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1271,7 +1271,7 @@ func TestSetUserRestrictions_InvalidAllowRegex(t *testing.T) {
 
 // TestSetUserRestrictions_InvalidDenyRegex verifies that invalid regex patterns return an error.
 func TestSetUserRestrictions_InvalidDenyRegex(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1297,7 +1297,7 @@ func TestAuthenticate_UserDenied(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user99", deniedEmail)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1333,7 +1333,7 @@ func TestAuthenticate_UserNotAllowed(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user100", blockedEmail)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1369,7 +1369,7 @@ func TestAuthenticate_UserAllowed(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user101", allowedEmail)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1406,7 +1406,7 @@ func TestAuthenticate_DenyTakesPrecedence(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user102", emailInBoth)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1443,7 +1443,7 @@ func TestAuthenticate_AllowThenDeny(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user103", emailNotInAllow)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1480,7 +1480,7 @@ func TestAuthenticate_NoRestrictions(t *testing.T) {
 	userInfoSrv := mockUserInfoServer(validToken, "user104", anyEmail)
 	defer userInfoSrv.Close()
 
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1510,7 +1510,7 @@ func TestAuthenticate_NoRestrictions(t *testing.T) {
 
 // TestIsDenied verifies the isDenied helper directly.
 func TestIsDenied(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1551,7 +1551,7 @@ func TestIsDenied(t *testing.T) {
 
 // TestIsAllowed verifies the isAllowed helper directly.
 func TestIsAllowed(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	cfg := &config.AuthConfig{Provider: "github", ClientID: "test-client-id"}
@@ -1692,7 +1692,7 @@ func TestAuthenticateWithEntraToken(t *testing.T) {
         }))
         defer userInfoSrv.Close()
 
-        store := NewSessionStore(1 * time.Hour)
+store := newSessionStoreForTest(1 * time.Hour)
         defer store.Stop()
 
         // Create authenticator with Entra provider

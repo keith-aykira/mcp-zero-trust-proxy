@@ -137,10 +137,13 @@ type TLSConfig struct {
 	CertFile string `yaml:"cert_file"`
 	// KeyFile is the path to the TLS private key file (PEM format).
 	KeyFile string `yaml:"key_file"`
-	// MinVersion sets the minimum TLS version. Valid values: "1.0", "1.1", "1.2", "1.3". Default: "1.2".
+	// MinVersion sets the minimum TLS version. Valid values: "1.2", "1.3". Default: "1.2".
 	MinVersion string `yaml:"min_version"`
 	// CipherSuites is an optional list of cipher suite names to use. If empty, Go's secure defaults are applied.
 	CipherSuites []string `yaml:"cipher_suites"`
+	// Required, when true, mandates TLS. The proxy will refuse to start if
+	// CertFile and KeyFile are not both configured.
+	Required bool `yaml:"required"`
 }
 
 // SSEConfig controls Server-Sent Events proxy behavior.
@@ -151,6 +154,21 @@ type SSEConfig struct {
 	// MaxBufferBytes is the maximum scanner buffer size for SSE lines in bytes.
 	// Lines exceeding this trigger backpressure (connection closed). Default: 65536 (64KB).
 	MaxBufferBytes int `yaml:"max_buffer_bytes"`
+}
+
+// SessionStoreConfig controls session storage backend and TTL.
+type SessionStoreConfig struct {
+	// TTL is the session validity window. Sessions are refreshed on successful access.
+	// Default: 24h.
+	TTL string `yaml:"ttl"`
+	// Backend is the session storage backend type. Accepted values: "memory", "file".
+	// "memory" keeps sessions in memory only (lost on restart).
+	// "file" persists sessions to disk for cross-restart durability.
+	// Default: "memory".
+	Backend string `yaml:"backend"`
+	// Filepath is the path to the session file when backend = "file".
+	// Default: "./sessions.json".
+	Filepath string `yaml:"filepath"`
 }
 
 // AuthConfig holds OAuth 2.1 PKCE authentication provider configuration.
@@ -167,6 +185,12 @@ type AuthConfig struct {
 	IssuerURL string `yaml:"issuer_url"`
 	// RedirectURL is the OAuth callback URL registered with the provider.
 	RedirectURL string `yaml:"redirect_url"`
+	// MaxTokenCacheSize is the maximum number of entries in the token cache.
+	// When the cache exceeds this size, the least recently used entry is evicted.
+	// Default: 1000.
+	MaxTokenCacheSize int `yaml:"max_token_cache_size"`
+	// Session controls session storage configuration.
+	Session SessionStoreConfig `yaml:"session"`
 }
 
 // RoleConfig defines an RBAC role and its tool-level permissions.
@@ -214,6 +238,9 @@ type AuditRotationConfig struct {
 	MaxSizeMB int `yaml:"max_size_mb"`
 	// MaxAgeHours is the maximum age of audit log files in hours before deletion.
 	MaxAgeHours int `yaml:"max_age_hours"`
+	// MaxBackups is the maximum number of rotated log files to retain.
+	// Default: 1.
+	MaxBackups int `yaml:"max_backups"`
 }
 
 // AuditSinkConfig defines an external audit sink configuration.

@@ -20,16 +20,33 @@ var builtInRoleNames = map[string]bool{
 	"restricted": true,
 }
 
+// LoadResult holds the output of Load: the config, any unresolved env vars, and any error.
+type LoadResult struct {
+	Config         *Config
+	UnresolvedVars []string
+}
+
 // Load reads the YAML configuration file at path, applies defaults, and returns a validated Config.
 // Environment variables referenced with ${VAR} syntax are substituted before parsing.
+// Any unresolved references are returned in UnresolvedVars for the caller to log as warnings.
 func Load(path string) (*Config, error) {
+	result, err := LoadWithWarnings(path)
+	if err != nil {
+		return nil, err
+	}
+	return result.Config, nil
+}
+
+// LoadWithWarnings is like Load but also reports which environment variable references
+// could not be resolved. Unresolved references are left as-literal strings in the config.
+func LoadWithWarnings(path string) (*LoadResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file %q: %w", path, err)
 	}
 
 	// Substitute ${ENV_VAR} references with their environment variable values.
-	expanded := expandEnvVars(string(data))
+	expanded, unresolved := expandEnvVars(string(data))
 
 	var cfg Config
 	if err := yaml.Unmarshal([]byte(expanded), &cfg); err != nil {
@@ -38,7 +55,10 @@ func Load(path string) (*Config, error) {
 
 	applyDefaults(&cfg)
 
-	return &cfg, nil
+	return &LoadResult{
+		Config:         &cfg,
+		UnresolvedVars: unresolved,
+	}, nil
 }
 
 // Validate checks the configuration for required fields, valid values, and consistency.
@@ -251,19 +271,19 @@ func Validate(cfg *Config) error {
 		}
 	}
 
-	// Validate TLS minimum version
+	// Validate TLS minimum version (only 1.2+ allowed)
 	if cfg.Server.TLS.MinVersion != "" {
-		validTLSVersions := map[string]bool{"1.0": true, "1.1": true, "1.2": true, "1.3": true}
+		validTLSVersions := map[string]bool{"1.2": true, "1.3": true}
 		if !validTLSVersions[cfg.Server.TLS.MinVersion] {
-			errs = append(errs, fmt.Sprintf("invalid tls.min_version %q: valid values are 1.0, 1.1, 1.2, 1.3", cfg.Server.TLS.MinVersion))
+			errs = append(errs, fmt.Sprintf("invalid tls.min_version %q: TLS 1.0/1.1 are disabled, valid values are 1.2, 1.3", cfg.Server.TLS.MinVersion))
 		}
 	}
 
-	// Validate outbound min TLS version
+	// Validate outbound min TLS version (only 1.2+ allowed)
 	if cfg.Outbound.MinTLSVersion != "" {
-		validTLSVersions := map[string]bool{"1.0": true, "1.1": true, "1.2": true, "1.3": true}
+		validTLSVersions := map[string]bool{"1.2": true, "1.3": true}
 		if !validTLSVersions[cfg.Outbound.MinTLSVersion] {
-			errs = append(errs, fmt.Sprintf("invalid outbound.min_tls_version %q: valid values are 1.0, 1.1, 1.2, 1.3", cfg.Outbound.MinTLSVersion))
+			errs = append(errs, fmt.Sprintf("invalid outbound.min_tls_version %q: TLS 1.0/1.1 are disabled, valid values are 1.2, 1.3", cfg.Outbound.MinTLSVersion))
 		}
 	}
 
@@ -633,16 +653,25 @@ func defaultRoles() []RoleConfig {
 
 // expandEnvVars replaces ${ENV_VAR} references in the YAML content with environment variable values.
 // If an environment variable is not set, the placeholder is left as-is.
-func expandEnvVars(content string) string {
-	return envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
+// Returns the expanded content and a list of any unresolved variable names.
+func expandEnvVars(content string) (string, []string) {
+	var unresolved []string
+	seen := make(map[string]bool)
+	expanded := envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract variable name from ${VAR_NAME}
 		varName := match[2 : len(match)-1]
 		if val, ok := os.LookupEnv(varName); ok {
 			return val
 		}
+		// Track unresolved references (deduplicated)
+		if !seen[varName] {
+			seen[varName] = true
+			unresolved = append(unresolved, varName)
+		}
 		// Leave unresolved references as-is
 		return match
 	})
+	return expanded, unresolved
 }
 
 // validateClassification validates the classification configuration.

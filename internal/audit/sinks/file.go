@@ -25,16 +25,18 @@ type FileSink struct {
 	// Rotation fields
 	maxSizeBytes  int64
 	maxAgeHours   int
+	maxBackups    int
 	fileCreatedAt time.Time
 	bytesWritten  int64
 }
 
 // FileSinkConfig holds configuration for FileSink.
 type FileSinkConfig struct {
-	Output      string
-	FilePath    string
-	MaxSizeMB   int
-	MaxAgeHrs   int
+	Output       string
+	FilePath     string
+	MaxSizeMB    int
+	MaxAgeHrs    int
+	MaxBackups   int
 	StdoutWriter io.Writer // Custom writer for stdout (for testing)
 }
 
@@ -104,6 +106,10 @@ func NewFileSink(name string, cfg *FileSinkConfig) (*FileSink, error) {
 		s.maxSizeBytes = int64(-cfg.MaxSizeMB)
 	}
 	s.maxAgeHours = cfg.MaxAgeHrs
+	s.maxBackups = cfg.MaxBackups
+	if s.maxBackups <= 0 {
+		s.maxBackups = 1
+	}
 
 	return s, nil
 }
@@ -139,6 +145,9 @@ func (s *FileSink) Log(entry proxy.AuditEntry) error {
 	}
 	if entry.ToolName != "" {
 		logEntry["tool_name"] = entry.ToolName
+	}
+	if entry.ClientIP != "" {
+		logEntry["client_ip"] = entry.ClientIP
 	}
 
 	// Marshal to JSON
@@ -191,6 +200,7 @@ func (s *FileSink) shouldRotate() bool {
 }
 
 // rotate closes the current file, renames it, and opens a new file.
+// Existing backups are cascaded (e.g., .1 -> .2, .2 -> .3) up to maxBackups.
 // Must be called with s.mu held.
 func (s *FileSink) rotate() error {
 	if s.fileHandle == nil || s.filePath == "" {
@@ -200,21 +210,18 @@ func (s *FileSink) rotate() error {
 	// Close current file
 	_ = s.fileHandle.Close()
 
-	// Rename to .1
-	rotatedPath := s.filePath + ".1"
-	_ = os.Remove(rotatedPath)
-	if err := os.Rename(s.filePath, rotatedPath); err != nil {
-		// Try to reopen original file
-		f, openErr := os.OpenFile(s.filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if openErr != nil {
-			s.fileHandle = nil
-			return fmt.Errorf("file sink: rotate rename failed: %w", err)
+	// Cascade existing backups: .N-1 -> .N, ..., .1 -> .2
+	for i := s.maxBackups; i >= 1; i-- {
+		oldPath := s.filePath + "." + fmt.Sprintf("%d", i-1)
+		newPath := s.filePath + "." + fmt.Sprintf("%d", i)
+		if i == 1 {
+			oldPath = s.filePath
 		}
-		s.fileHandle = f
-		s.fileCreatedAt = time.Now()
-		s.bytesWritten = 0
-		s.updateFileWriter(f)
-		return nil
+		// Remove oldest backup if it exceeds maxBackups
+		if i == s.maxBackups {
+			_ = os.Remove(newPath)
+		}
+		_ = os.Rename(oldPath, newPath)
 	}
 
 	// Open new file
@@ -262,10 +269,11 @@ func FromConfig(cfg *config.AuditConfig) (*FileSink, error) {
 // FromConfigWithWriter creates a FileSink from AuditConfig with a custom stdout writer.
 func FromConfigWithWriter(cfg *config.AuditConfig, stdoutWriter interface{}) (*FileSink, error) {
 	fileCfg := &FileSinkConfig{
-		Output:    cfg.Output,
-		FilePath:  cfg.FilePath,
-		MaxSizeMB: cfg.Rotation.MaxSizeMB,
-		MaxAgeHrs: cfg.Rotation.MaxAgeHours,
+		Output:     cfg.Output,
+		FilePath:   cfg.FilePath,
+		MaxSizeMB:  cfg.Rotation.MaxSizeMB,
+		MaxAgeHrs:  cfg.Rotation.MaxAgeHours,
+		MaxBackups: cfg.Rotation.MaxBackups,
 	}
 	if stdoutWriter != nil {
 		if w, ok := stdoutWriter.(io.Writer); ok {

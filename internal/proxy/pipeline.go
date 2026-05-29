@@ -23,6 +23,9 @@ type Authenticator interface {
 // RateLimiter enforces per-client request rate limits.
 type RateLimiter interface {
 	Allow(clientID string) bool
+	// GetHeaders returns rate-limit HTTP headers for the given client key.
+	// Returns (Limit, Remaining, Reset-At) as strings.
+	GetHeaders(clientID string) (limit, remaining string, resetAt time.Time)
 }
 
 // RBACEngine evaluates requests against role-based access control policy and
@@ -256,6 +259,7 @@ func (p *Pipeline) handleAuthRoute(w http.ResponseWriter, r *http.Request) {
 func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	requestID := generateRequestID()
+	clientIP := getClientIP(r)
 
 	// Set X-Request-ID header before any writes so both success and error responses include it.
 	w.Header().Set("X-Request-ID", requestID)
@@ -264,6 +268,7 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	auditEntry := AuditEntry{
 		Timestamp: start.UTC(),
 		RequestID: requestID,
+		ClientIP:  clientIP,
 	}
 
 	// Step 0: Enforce body size limit BEFORE any parsing.
@@ -304,14 +309,27 @@ func (p *Pipeline) runPipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 2: Rate limit.
+	// Use ImmutableID (OIDC "sub" claim) for rate limiting to prevent bypass via ClientID change.
+	// If immutable ID not available, fall back to ClientID.
 	if p.rateLimiter != nil && identity != nil {
-		if !p.rateLimiter.Allow(identity.ClientID) {
+		rateKey := identity.ImmutableID
+		if rateKey == "" {
+			rateKey = identity.ClientID
+		}
+		if !p.rateLimiter.Allow(rateKey) {
 			auditEntry.Allowed = false
 			auditEntry.DeniedReason = "rate limit exceeded"
 			auditEntry.Latency = time.Since(start)
 			p.logAudit(auditEntry)
 			writeJSONRPCError(w, nil, ErrCodeRateLimited, "Rate limit exceeded. Upgrade your plan at https://mcpzerotrust.dev for higher limits.", http.StatusTooManyRequests)
 			return
+		}
+		// Set rate limit headers on allowed requests
+		// X-RateLimit-Limit: max requests per window
+		// X-RateLimit-Remaining: requests remaining in current window
+		if limit, remaining, _ := p.rateLimiter.GetHeaders(rateKey); limit != "" {
+			w.Header().Set("X-RateLimit-Limit", limit)
+			w.Header().Set("X-RateLimit-Remaining", remaining)
 		}
 	} else if p.rateLimiter != nil && identity == nil {
 		// No identity (auth was nil), use a default key
@@ -679,6 +697,21 @@ func writeJSONRPCError(w http.ResponseWriter, id interface{}, rpcCode int, messa
 		},
 	}
 	json.NewEncoder(w).Encode(resp) //nolint:errcheck
+}
+
+// getClientIP extracts the real client IP from the request, checking proxy headers first.
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For (first entry is the real client)
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	// Check X-Real-IP
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+	// Fall back to RemoteAddr (may include port)
+	return r.RemoteAddr
 }
 
 // generateRequestID produces a short unique ID for correlating requests across log entries.

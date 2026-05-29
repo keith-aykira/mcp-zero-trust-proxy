@@ -44,6 +44,10 @@ func (m *mockRateLimiter) Allow(clientID string) bool {
 	return m.allow
 }
 
+func (m *mockRateLimiter) GetHeaders(clientID string) (limit, remaining string, resetAt time.Time) {
+	return "", "", time.Time{}
+}
+
 // mockRBACEngine tracks calls and returns configured values.
 type mockRBACEngine struct {
 	processCalled  bool
@@ -238,6 +242,10 @@ type callOrderRL struct {
 func (c *callOrderRL) Allow(clientID string) bool {
 	c.onCall()
 	return c.allow
+}
+
+func (c *callOrderRL) GetHeaders(clientID string) (limit, remaining string, resetAt time.Time) {
+	return "", "", time.Time{}
 }
 
 // callOrderRBAC tracks when Process is called.

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"container/list"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -31,6 +32,83 @@ type tokenCacheEntry struct {
 	expiresAt time.Time
 }
 
+// lruCache is a thread-safe, max-size LRU cache for token entries.
+type lruCache struct {
+	mu         sync.Mutex
+	maxSize    int
+	list       *list.List // *list.Element{Value: cacheNode}
+	items      map[string]*list.Element
+}
+
+type cacheNode struct {
+	key   string
+	value tokenCacheEntry
+}
+
+// lruCachePut inserts or updates a key-value pair. Evicts LRU entry if at capacity.
+func (c *lruCache) put(key string, val tokenCacheEntry) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if elem, ok := c.items[key]; ok {
+		c.list.MoveToFront(elem)
+		elem.Value.(*cacheNode).value = val
+		return
+	}
+	if c.list.Len() >= c.maxSize {
+		old := c.list.Back()
+		if old != nil {
+			delete(c.items, old.Value.(*cacheNode).key)
+			c.list.Remove(old)
+		}
+	}
+	node := &cacheNode{key: key, value: val}
+	elem := c.list.PushFront(node)
+	c.items[key] = elem
+}
+
+// lruCacheGet retrieves a value. Returns nil, false if missing or expired.
+func (c *lruCache) get(key string) (*proxy.ClientIdentity, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	elem, ok := c.items[key]
+	if !ok {
+		return nil, false
+	}
+	node := elem.Value.(*cacheNode)
+	if time.Now().After(node.value.expiresAt) {
+		delete(c.items, key)
+		c.list.Remove(elem)
+		return nil, false
+	}
+	c.list.MoveToFront(elem)
+	return node.value.identity, true
+}
+
+// lruCacheDelete removes a key.
+func (c *lruCache) delete(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if elem, ok := c.items[key]; ok {
+		delete(c.items, key)
+		c.list.Remove(elem)
+	}
+}
+
+// lruCacheCleanup removes all expired entries.
+func (c *lruCache) cleanup(now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for elem := c.list.Back(); elem != nil; {
+		prev := elem.Prev()
+		node := elem.Value.(*cacheNode)
+		if now.After(node.value.expiresAt) {
+			delete(c.items, node.key)
+			c.list.Remove(elem)
+		}
+		elem = prev
+	}
+}
+
 // Authenticator implements OAuth 2.1 PKCE token validation, auth flow start, and callback handling.
 // It is safe for concurrent use.
 type Authenticator struct {
@@ -42,8 +120,8 @@ type Authenticator struct {
 	// stateCache maps state parameter -> pkceEntry. Entries expire after 10 minutes.
 	stateCache sync.Map
 
-	// tokenCache maps Bearer token -> tokenCacheEntry. Valid tokens are cached for 5 minutes.
-	tokenCache sync.Map
+	// tokenCache maps Bearer token -> tokenCacheEntry. Capped by MaxTokenCacheSize with LRU eviction.
+	tokenCache *lruCache
 
 	// stopCleanup is closed to signal the background cleanup goroutine to stop.
 	stopCleanup chan struct{}
@@ -86,11 +164,22 @@ func NewAuthenticator(cfg *config.AuthConfig, sessionStore *SessionStore) (*Auth
 		return nil, fmt.Errorf("unknown provider %q: valid values are github, google, entra, oidc", cfg.Provider)
 	}
 
+	maxSize := cfg.MaxTokenCacheSize
+	if maxSize <= 0 {
+		maxSize = 1000
+	}
+	tokenCache := &lruCache{
+		maxSize: maxSize,
+		list:    list.New(),
+		items:   make(map[string]*list.Element, maxSize),
+	}
+
 	return &Authenticator{
 		cfg:          cfg,
 		provider:     provider,
 		sessionStore: sessionStore,
 		httpClient:   httputil.NewClient(nil, 10*time.Second), // Uses default outbound config
+		tokenCache:   tokenCache,
 		stopCleanup:  make(chan struct{}),
 	}, nil
 }
@@ -130,13 +219,7 @@ func (a *Authenticator) runCleanup() {
 	now := time.Now()
 
 	// Remove expired token cache entries (past expiresAt)
-	a.tokenCache.Range(func(key, val interface{}) bool {
-		entry := val.(tokenCacheEntry)
-		if now.After(entry.expiresAt) {
-			a.tokenCache.Delete(key)
-		}
-		return true
-	})
+	a.tokenCache.cleanup(now)
 
 	// Remove expired state cache entries (created more than 10 minutes ago)
 	a.stateCache.Range(func(key, val interface{}) bool {
@@ -278,13 +361,9 @@ func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, er
 		return nil, err
 	}
 
-	// Check token cache first (5-minute TTL)
-	if cached, ok := a.tokenCache.Load(token); ok {
-		entry := cached.(tokenCacheEntry)
-		if time.Now().Before(entry.expiresAt) {
-			return entry.identity, nil
-		}
-		a.tokenCache.Delete(token)
+	// Check token cache first (5-minute TTL, LRU eviction when full)
+	if cachedIdentity, ok := a.tokenCache.get(token); ok {
+		return cachedIdentity, nil
 	}
 
 	// Call provider's userinfo endpoint to validate token and get identity.
@@ -317,8 +396,8 @@ func (a *Authenticator) Authenticate(r *http.Request) (*proxy.ClientIdentity, er
 	}
 	identity.SessionID = session.ID
 
-	// Cache the validated identity
-	a.tokenCache.Store(token, tokenCacheEntry{
+	// Cache the validated identity (LRU eviction when at capacity)
+	a.tokenCache.put(token, tokenCacheEntry{
 		identity:  identity,
 		expiresAt: time.Now().Add(5 * time.Minute),
 	})
@@ -453,11 +532,8 @@ func (a *Authenticator) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 	// Check token cache first for the client identity
 	var clientID string
-	if cached, ok := a.tokenCache.Load(token); ok {
-		entry := cached.(tokenCacheEntry)
-		if time.Now().Before(entry.expiresAt) {
-			clientID = entry.identity.ClientID
-		}
+	if cachedIdentity, ok := a.tokenCache.get(token); ok {
+		clientID = cachedIdentity.ClientID
 	}
 
 	// If not in cache, fetch identity from provider (token must be valid)
@@ -479,7 +555,7 @@ func (a *Authenticator) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove from token cache
-	a.tokenCache.Delete(token)
+	a.tokenCache.delete(token)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
@@ -571,6 +647,13 @@ func (a *Authenticator) fetchUserIdentity(token string) (*proxy.ClientIdentity, 
 		identity.Claims[k] = v
 	}
 
+	// ImmutableID: use the OIDC "sub" claim as a stable, immutable identifier.
+	// The "sub" claim is guaranteed to be unique and never change for a given user,
+	// making it ideal for rate limiting and audit tracking.
+	if sub, ok := info["sub"].(string); ok && sub != "" {
+		identity.ImmutableID = sub
+	}
+
 	// ClientID: prefer "id" (GitHub integer → string), fallback "sub" (OIDC), then "login"
 	switch v := info["id"].(type) {
 	case string:
@@ -583,6 +666,11 @@ func (a *Authenticator) fetchUserIdentity(token string) (*proxy.ClientIdentity, 
 		} else if login, ok := info["login"].(string); ok {
 			identity.ClientID = login
 		}
+	}
+
+	// If ImmutableID was not set above (no "sub" claim), fall back to ClientID
+	if identity.ImmutableID == "" {
+		identity.ImmutableID = identity.ClientID
 	}
 
 	if email, ok := info["email"].(string); ok {

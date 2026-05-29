@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -49,6 +50,31 @@ func NewLimiter(cfg *config.RateLimitConfig) *Limiter {
 // If the client is not yet known, a fresh limiter is created for them.
 func (l *Limiter) Allow(clientID string) bool {
 	return l.getOrCreate(clientID).Allow()
+}
+
+// GetHeaders returns rate-limit HTTP headers for the given client key.
+// Returns X-RateLimit-Limit (per-window max), X-RateLimit-Remaining (available tokens),
+// and Reset-At (time until next token).
+func (l *Limiter) GetHeaders(clientID string) (limit, remaining string, resetAt time.Time) {
+	limiter := l.getOrCreate(clientID)
+	avail := limiter.Tokens()
+	remainingN := int(avail)
+	if remainingN < 0 {
+		remainingN = 0
+	}
+	retrySecs := 0
+	if remainingN == 0 {
+		// Estimate retry time: at current rate, how long until 1 token?
+		if l.defaultRate > 0 {
+			retryMs := int((60.0 / float64(int(l.defaultRate*60))) * 1000)
+			retrySecs = retryMs / 1000
+			if retrySecs < 1 {
+				retrySecs = 1
+			}
+		}
+	}
+	return fmt.Sprintf("%d", int(l.defaultRate*60)), fmt.Sprintf("%d", remainingN),
+		time.Now().Add(time.Duration(retrySecs) * time.Second)
 }
 
 // getOrCreate atomically retrieves or creates the rate.Limiter for a client.

@@ -31,11 +31,12 @@ type RPCError struct {
 
 // ClientIdentity holds the authenticated identity of a connected MCP client.
 type ClientIdentity struct {
-	ClientID  string                 `json:"client_id"`
-	Role      string                 `json:"role"`
-	SessionID string                 `json:"session_id"`
-	Email     string                 `json:"email"`
-	Claims    map[string]interface{} `json:"claims,omitempty"`
+	ClientID    string                 `json:"client_id"`
+	ImmutableID string                 `json:"immutable_id,omitempty"`
+	Role        string                 `json:"role"`
+	SessionID   string                 `json:"session_id"`
+	Email       string                 `json:"email"`
+	Claims      map[string]interface{} `json:"claims,omitempty"`
 }
 
 // AuditEntry is an immutable record of a single MCP request passing through the proxy.
@@ -44,6 +45,7 @@ type ClientIdentity struct {
 type AuditEntry struct {
 	Timestamp    time.Time    `json:"timestamp"`
 	ClientID     string       `json:"client_id"`
+	ClientIP     string       `json:"client_ip,omitempty"`
 	SessionID    string       `json:"session_id"`
 	Method       string       `json:"method"`
 	ToolName     string       `json:"tool_name,omitempty"`

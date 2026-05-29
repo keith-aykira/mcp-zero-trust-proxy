@@ -387,9 +387,119 @@ Expected response includes:
 ## Provider Comparison
 
 | Feature | GitHub | Google | Entra ID | Generic OIDC |
-|---------|--------|--------|----------|--------------|
+|-|-|-|-|-|
 | PKCE Support | ✅ | ✅ | ✅ | ✅ |
 | Multi-tenant | ❌ | ❌ | ✅ | ⚠️ Provider-dependent |
 | Group Claims | ❌ | ⚠️ Add-on | ✅ | ⚠️ Provider-dependent |
 | Free Tier | ✅ | ⚠️ Quota | ✅ | Varies |
 | Best For | Dev teams | Google Workspace | Azure Orgs | Custom SSO |
+
+---
+
+## Authentication Internals
+
+### ImmutableID — Stable User Identifier for Rate Limiting
+
+The proxy extracts a stable, immutable identifier from the OAuth `sub` (subject) claim for each authenticated user. This **ImmutableID** serves as the primary key for rate limiting and audit tracking.
+
+**Why ImmutableID matters:**
+- The `sub` claim is guaranteed by OAuth/OIDC providers to be unique and never change for a given user
+- Unlike `client_id` or `email`, which users can potentially modify or spoof, the `sub` claim is under the provider's control
+- Rate limiting by ImmutableID prevents bypass attacks where a user changes their client_id to evade limits
+
+**Fallback behavior:**
+- If no `sub` claim is present, the proxy uses `client_id` as ImmutableID
+- The immutable ID always takes precedence for rate limiting when available
+
+```json
+{
+  "client_id": "user@example.com",
+  "immutable_id": "1234567890",  // From OAuth sub claim
+  "role": "admin",
+  "email": "user@example.com"
+}
+```
+
+---
+
+### Token Cache — LRU Cache for Performance
+
+Validated OAuth tokens are cached using an LRU (Least Recently Used) eviction policy to reduce OAuth provider API calls.
+
+**Cache behavior:**
+- **Default size:** 1000 entries
+- **TTL:** 5 minutes per entry
+- **Eviction:** LRU when cache exceeds `max_token_cache_size`
+- **Thread-safe:** Safe for concurrent access
+
+**Configuration:**
+```yaml
+auth:
+  max_token_cache_size: 1000   # (default)
+  # max_token_cache_size: 5000  # High-traffic production
+  # max_token_cache_size: 500   # Memory-constrained
+```
+
+**Performance impact:**
+- With 1000 users each making 60 requests/minute, caching reduces OAuth calls from 60,000/min to ~200/min
+- Each cached token lookup is O(1) vs O(N) provider round-trip
+- Cache miss penalty: ~100-500ms OAuth provider latency
+
+---
+
+### Session Persistence — Surviving Proxy Restarts
+
+Sessions can be configured to persist across proxy restarts, keeping users logged in during deployments.
+
+**Backends:**
+
+| Backend | Durability | Performance | Use Case |
+|-|-|-|-|
+| `memory` | Lost on restart | Fastest | Development, stateless deployments |
+| `file` | Survives restart | Fast (local disk) | Production with persistent volume |
+
+**File backend configuration:**
+```yaml
+auth:
+  session:
+    ttl: "168h"          # 7 days
+    backend: "file"
+    filepath: "/var/lib/mcpproxy/sessions.json"
+```
+
+**File backend behavior:**
+- Sessions saved atomically to `${filepath}.tmp` then renamed
+- JSON format with session IDs as keys
+- Automatically restored on proxy startup
+- Session data includes: identity, creation time, last access time
+
+**Docker example with persistent sessions:**
+```bash
+docker run -p 8080:8080 \
+  -v session-data:/var/lib/mcpproxy \
+  -e AUTH_SESSION_BACKEND=file \
+  -e AUTH_SESSION_FILEPATH=/var/lib/mcpproxy/sessions.json \
+  mcpzerotrust/proxy
+```
+
+**Session data format:**
+```json
+{
+  "sess-abc123": {
+    "identity": {
+      "client_id": "user@example.com",
+      "immutable_id": "sub-xyz",
+      "email": "user@example.com",
+      "role": "admin"
+    },
+    "created_at": "2025-01-15T10:00:00Z",
+    "last_accessed_at": "2025-01-15T14:30:00Z"
+  }
+}
+```
+
+**Security considerations:**
+- Session file permissions: 0600 (owner read/write only)
+- Session IDs are cryptographically random (hard to guess)
+- Sessions expire after TTL even with persistence
+- Consider encrypting session file in high-security environments

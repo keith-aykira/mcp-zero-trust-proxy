@@ -52,10 +52,19 @@ func main() {
 		log.Fatal().Err(err).Msg("Invalid config path")
 	}
 
-	// Load configuration
-	cfg, err := config.Load(absConfigPath)
+	// Load configuration (with env var warning tracking)
+	loadResult, err := config.LoadWithWarnings(absConfigPath)
 	if err != nil {
 		log.Fatal().Err(err).Str("config", absConfigPath).Msg("Failed to load configuration")
+	}
+	cfg := loadResult.Config
+
+	// Warn on unresolved environment variable references
+	if len(loadResult.UnresolvedVars) > 0 {
+		log.Warn().
+			Strs("vars", loadResult.UnresolvedVars).
+			Str("config", absConfigPath).
+			Msg("Unresolved environment variable references in config; values left as literal strings")
 	}
 
 	// Validate configuration
@@ -85,7 +94,7 @@ func main() {
 		Msg("Starting MCP Zero-Trust Proxy")
 
 	// Step 1: Session store (required by auth)
-	sessionStore := auth.NewSessionStore(24 * time.Hour)
+	sessionStore := auth.NewSessionStore(cfg.Auth.Session)
 	defer sessionStore.Stop()
 
 	// Step 2: Authenticator
@@ -189,13 +198,22 @@ func main() {
 	// Build HTTP server with security hardening
 	server := buildServer(&cfg.Server, mux, tlsConfig)
 
+	// Enforce TLS if required by configuration
+	if cfg.Server.TLS.Required && !tlsEnabled {
+		log.Fatal().
+			Str("listen", cfg.Server.ListenAddr).
+			Msg("TLS is required by configuration but not configured: cert_file and key_file must be set")
+	}
+
 	// Log TLS status
 	if tlsEnabled {
 		log.Info().
 			Str("cert_file", cfg.Server.TLS.CertFile).
 			Msg("TLS enabled")
 	} else {
-		log.Info().Msg("TLS disabled (plain HTTP)")
+		log.Warn().
+			Str("listen", cfg.Server.ListenAddr).
+			Msg("TLS disabled (plain HTTP) — auth tokens and sessions will travel unencrypted")
 	}
 
 	serverErr := make(chan error, 1)

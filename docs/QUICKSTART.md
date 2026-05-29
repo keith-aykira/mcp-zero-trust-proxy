@@ -393,7 +393,72 @@ Rate limits are enforced **per proxy instance**. If you run multiple replicas be
 
 For most deployments (single instance or small clusters), this is the correct behavior. If you need globally coordinated rate limiting across many replicas, use an external rate limiter (e.g., Redis-backed) in front of the proxy.
 
+### Rate limit headers
+
+The proxy includes standard HTTP rate limit headers on all responses:
+
+| Header | Description |
+|-|-|
+| `X-RateLimit-Limit` | Maximum requests allowed per window (e.g., `60` for 60/min) |
+| `X-RateLimit-Remaining` | Requests remaining in current window |
+| `X-RateLimit-Reset` | Unix timestamp when the window resets |
+
+**Example response headers:**
+```
+HTTP/1.1 200 OK
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1704067260
+X-Request-ID: abc123XYZ
+
+{"json":"response"}
+```
+
+**When rate limited:**
+```
+HTTP/1.1 429 Too Many Requests
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1704067260
+
+{"jsonrpc":"2.0","error":{"code":1002,"message":"Rate limit exceeded..."},"id":null}
+```
+
+Clients can read these headers to implement graceful backoff or display rate limit status.
+
 ---
+
+## Production deployment considerations
+
+### Enforce TLS
+
+For production, enable TLS and require it to prevent credential exposure:
+
+```yaml
+server:
+  listen_addr: ":8443"
+  upstream_url: "http://localhost:3000"
+  tls:
+    cert_file: "/etc/ssl/certs/proxy.crt"
+    key_file: "/etc/ssl/private/proxy.key"
+    required: true        # Proxy refuses to start without valid TLS
+    min_version: "1.2"   # Only allow TLS 1.2 and 1.3
+```
+
+**Warning:** When TLS is not enabled, the proxy logs a warning:
+```
+WARN TLS disabled (plain HTTP) — auth tokens and sessions will travel unencrypted
+```
+
+If `tls.required: true` but certificates are not configured, the proxy exits with a fatal error.
+
+### Configuring for production
+
+1. **Use TLS** — At minimum, place a TLS terminator (nginx, Caddy, Cloudflare) in front
+2. **Set proper rate limits** — Default is 60 requests/minute; adjust based on your needs
+3. **Enable audit logging** — Keep `audit.enabled: true` for security monitoring
+4. **Configure session persistence** — Use `auth.session.backend: "file"` to survive restarts
+5. **Monitor rate limit headers** — Clients should respect `X-RateLimit-Remaining`
 
 ## Next steps
 

@@ -305,19 +305,27 @@ func (s *CEFSink) toCEF(entry proxy.AuditEntry) string {
 	)
 }
 
-// getClientIP extracts client IP from the entry (would need HTTP request context)
+// getClientIP extracts client IP from the entry.
 func (s *CEFSink) getClientIP(entry proxy.AuditEntry) string {
-	// This would need the original HTTP request to extract real IP
-	// For now, return a placeholder
+	if entry.ClientIP != "" {
+		return entry.ClientIP
+	}
 	return "0.0.0.0"
 }
 
-// sanitizeCEF escapes special characters in CEF extension values.
+// sanitizeCEF escapes special characters in CEF extension values per CEF 0 specification.
+// CEF fields delimited by '|' and extension key=value pairs use '=' as delimiter.
+// Control characters (CRLF) are removed to prevent log injection. Colons and backslashes
+// are escaped to maintain proper CEF parsing. Spaces are replaced for readability.
 func sanitizeCEF(s string) string {
-	// Replace spaces with underscores, remove control characters
+	s = strings.ReplaceAll(s, "\\", `\\`)
+	s = strings.ReplaceAll(s, "|", `\|`)
+	s = strings.ReplaceAll(s, "=", `\=`)
+	s = strings.ReplaceAll(s, ":", `\:`)
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\t", "_")
 	s = strings.ReplaceAll(s, " ", "_")
-	s = strings.ReplaceAll(s, "|", "\\|")
-	s = strings.ReplaceAll(s, "=", "\\=")
 	return s
 }
 

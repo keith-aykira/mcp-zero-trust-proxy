@@ -18,7 +18,7 @@ func makeIdentity(clientID, email string) *proxy.ClientIdentity {
 }
 
 func TestSessionCreateReturnsUniqueID(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	id1 := makeIdentity("client-1", "a@example.com")
@@ -42,7 +42,7 @@ func TestSessionCreateReturnsUniqueID(t *testing.T) {
 }
 
 func TestSessionCreateSetsIdentitySessionID(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	identity := makeIdentity("user-x", "x@example.com")
@@ -57,7 +57,7 @@ func TestSessionCreateSetsIdentitySessionID(t *testing.T) {
 }
 
 func TestSessionGetValid(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	identity := makeIdentity("user-get", "get@example.com")
@@ -79,7 +79,7 @@ func TestSessionGetValid(t *testing.T) {
 }
 
 func TestSessionGetUnknownID(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	_, err := store.Get("nonexistent-session-id")
@@ -89,7 +89,7 @@ func TestSessionGetUnknownID(t *testing.T) {
 }
 
 func TestSessionIsolation(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	idA := makeIdentity("client-A", "a@example.com")
@@ -122,7 +122,7 @@ func TestSessionIsolation(t *testing.T) {
 }
 
 func TestSessionClientACannotReadClientBSessionByAID(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	idA := makeIdentity("client-A", "a@example.com")
@@ -143,7 +143,7 @@ func TestSessionClientACannotReadClientBSessionByAID(t *testing.T) {
 
 func TestSessionExpiry(t *testing.T) {
 	// Use very short TTL
-	store := NewSessionStore(50 * time.Millisecond)
+	store := newSessionStoreForTest(50 * time.Millisecond)
 	defer store.Stop()
 
 	identity := makeIdentity("user-exp", "exp@example.com")
@@ -166,7 +166,7 @@ func TestSessionExpiry(t *testing.T) {
 
 func TestSessionRefreshOnAccess(t *testing.T) {
 	// Use moderate TTL
-	store := NewSessionStore(200 * time.Millisecond)
+	store := newSessionStoreForTest(200 * time.Millisecond)
 	defer store.Stop()
 
 	identity := makeIdentity("user-refresh", "refresh@example.com")
@@ -183,7 +183,7 @@ func TestSessionRefreshOnAccess(t *testing.T) {
 }
 
 func TestSessionDelete(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	identity := makeIdentity("user-del", "del@example.com")
@@ -198,7 +198,7 @@ func TestSessionDelete(t *testing.T) {
 }
 
 func TestSessionDeleteNoOp(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	// Should not panic on unknown ID
@@ -206,7 +206,7 @@ func TestSessionDeleteNoOp(t *testing.T) {
 }
 
 func TestSessionGetByClientID(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	// Create 3 sessions for client-multi, 1 for other client
@@ -230,7 +230,7 @@ func TestSessionGetByClientID(t *testing.T) {
 }
 
 func TestSessionConcurrentCreation(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	const goroutines = 100
@@ -268,7 +268,7 @@ func TestSessionConcurrentCreation(t *testing.T) {
 }
 
 func TestSessionStoresClientMetadata(t *testing.T) {
-	store := NewSessionStore(1 * time.Hour)
+	store := newSessionStoreForTest(1 * time.Hour)
 	defer store.Stop()
 
 	identity := makeIdentity("meta-user", "meta@example.com")

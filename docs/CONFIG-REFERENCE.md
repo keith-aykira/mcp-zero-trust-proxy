@@ -131,7 +131,15 @@ auth:
   client_secret: "${OAUTH_CLIENT_SECRET}"  # reads from environment at startup
 ```
 
-If the variable is unset, the literal string `${ENV_VAR}` is used (no error). Use this for all secrets — never hardcode credentials in the config file.
+If the variable is unset, the literal string `${ENV_VAR}` is used (no error). **The proxy logs a warning at startup listing all unresolved variable names**, helping you catch configuration mistakes early.
+
+```bash
+ WARN Unresolved environment variable references in config; values left as literal strings
+       vars=[DB_PASSWORD,REDIS_URL]
+       config=/etc/mcpproxy/config.yaml
+```
+
+Use this for all secrets — never hardcode credentials in the config file.
 
 ---
 
@@ -311,6 +319,56 @@ The TCP address the proxy HTTP server listens on. Standard Go net/http address f
 ```yaml
 server:
   listen_addr: ":9000"            # custom port
+```
+
+---
+
+### server.tls
+
+TLS configuration for the proxy server.
+
+| Field | Type | Default | Description |
+|------|-|---|---|
+| `cert_file` | string | none | Path to TLS certificate file (PEM format) |
+| `key_file` | string | none | Path to TLS private key file (PEM format) |
+| `min_version` | string | "1.2" | Minimum TLS version: "1.2" or "1.3" |
+| `cipher_suites` | []string | Go defaults | Optional list of cipher suite names |
+| `required` | bool | false | If true, proxy refuses to start without valid TLS |
+
+**Example — basic TLS:**
+```yaml
+server:
+  tls:
+    cert_file: "/etc/ssl/certs/proxy.crt"
+    key_file: "/etc/ssl/private/proxy.key"
+    min_version: "1.2"
+```
+
+**Example — enforce TLS (refuse to start without it):**
+```yaml
+server:
+  tls:
+    cert_file: "/etc/ssl/certs/proxy.crt"
+    key_file: "/etc/ssl/private/proxy.key"
+    required: true
+    min_version: "1.3"
+    cipher_suites:
+      - "TLS_AES_256_GCM_SHA384"
+      - "TLS_CHACHA20_POLY1305_SHA256"
+```
+
+**Note:** TLS 1.0 and 1.1 are disabled for security. Only "1.2" and "1.3" are valid values for `min_version`.
+
+**Behavior when `required: true`:** If `required` is set to `true` but neither `cert_file` nor `key_file` are configured, the proxy exits with a fatal error:
+
+```
+ FATAL TLS is required by configuration but not configured: cert_file and key_file must be set
+```
+
+When TLS is not enabled, a warning is logged:
+
+```
+ WARN TLS disabled (plain HTTP) — auth tokens and sessions will travel unencrypted
 ```
 
 ---
@@ -524,6 +582,60 @@ auth:
 ```
 
 The proxy serves this callback at `/auth/callback` automatically.
+
+### auth.max_token_cache_size
+
+| | |
+|---|---|
+| **Type** | integer |
+| **Required** | no |
+| **Default** | `1000` |
+
+Maximum number of validated tokens to cache in memory. Uses LRU (least recently used) eviction when the cache exceeds this limit. Higher values reduce OAuth provider API calls but consume more memory.
+
+**Why it matters:** Each authenticated request validates the token with the OAuth provider. The cache stores validated tokens for 5 minutes, avoiding repeated validation calls. In high-traffic scenarios, a larger cache can significantly reduce latency and OAuth provider API usage.
+
+```yaml
+auth:
+  max_token_cache_size: 1000   # (default)
+  # max_token_cache_size: 5000  # for high-traffic production
+  # max_token_cache_size: 500   # for memory-constrained environments
+```
+
+### auth.session
+
+Session storage configuration. Controls how long sessions last and whether they persist across proxy restarts.
+
+| Field | Type | Default | Description |
+|------|-|---|-|
+| `ttl` | string | "24h" | Session validity duration (Go duration format) |
+| `backend` | string | "memory" | Storage backend: "memory" or "file" |
+| `filepath` | string | "./sessions.json" | Path to session file (when backend="file") |
+
+**Example — default in-memory sessions (expire on restart):**
+```yaml
+auth:
+  session:
+    ttl: "24h"          # (default)
+    backend: "memory"    # (default)
+```
+
+**Example — persistent sessions on disk:**
+```yaml
+auth:
+  session:
+    ttl: "168h"         # 7 days
+    backend: "file"
+    filepath: "/var/lib/mcpproxy/sessions.json"
+```
+
+**Backend options:**
+- **`memory`** — Sessions stored in RAM. Fast but lost on proxy restart. Best for development or when users can re-authenticate easily.
+- **`file`** — Sessions persisted to disk as JSON. Survives proxy restarts. Users stay logged in across deployments. Suitable for production with persistent storage.
+
+**TTL format:** Uses Go duration strings: `"1h"`, `"30m"`, `"168h"` (7 days), `"168000000000"` (168 hours in nanoseconds).
+
+**Session refresh:** Sessions are automatically refreshed on each successful authentication, extending the TTL from the last access time.
 
 ---
 
@@ -851,13 +963,34 @@ Controls audit log file rotation for file output.
 |-|-|-|---|
 | `max_size_mb` | integer | 0 (disabled) | Rotate file when it reaches this size in MB |
 | `max_age_hours` | integer | 0 (disabled) | Delete rotated files older than this many hours |
+| `max_backups` | integer | 1 | Maximum number of rotated files to retain |
 
+**Rotation behavior:** When rotation occurs, existing backup files are cascaded to make room:
+- `.1` → `.2` → `.3` → ... → `.max_backups`
+- The oldest file (`.max_backups`) is deleted if it exists
+- The current file becomes `.1`
+- A new empty file is created for continued logging
+
+**Example — retain 5 rotated files:**
 ```yaml
 audit:
   rotation:
-    max_size_mb: 100    # Rotate when file reaches 100MB
-    max_age_hours: 168  # Delete files older than 168 hours (7 days)
+    max_size_mb: 100     # Rotate when file reaches 100MB
+    max_age_hours: 168   # Delete files older than 168 hours (7 days)
+    max_backups: 5       # Keep audit.jsonl.1 through audit.jsonl.5
 ```
+
+**Resulting files after multiple rotations with `max_backups: 5`:**
+```
+audit.jsonl        # Current log file
+audit.jsonl.1      # Most recent rotation
+audit.jsonl.2      
+audit.jsonl.3
+audit.jsonl.4
+audit.jsonl.5      # Oldest retained rotation (deleted on next rotation)
+```
+
+**Note:** `max_backups` defaults to 1 for backward compatibility, retaining only the single most recent rotated file.
 
 ---
 
